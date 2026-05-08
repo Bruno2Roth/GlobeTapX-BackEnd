@@ -57,3 +57,6 @@ backend/
 │   └── server.js         # 🔥 ENTRY POINT (equivalente a index)
 │
 └── tests/
+
+
+CONTROLLERS SERVICIES REPOSITORIES (BD)
