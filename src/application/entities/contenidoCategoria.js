@@ -1,4 +1,4 @@
-export default class contenidoPorCategoria {
+export default class categoria {
     constructor(IDPais, IDCategoria, titulo, contenido, creadoPor, fechaCreacion) {
         this.IDPais         = IDPais;
         this.IDCategoria    = IDCategoria;

@@ -1,4 +1,4 @@
-import Db from './db-pg.js';
+// import Db from './db-pg.js';
 
 export default class EventosRepository {
     constructor() {
