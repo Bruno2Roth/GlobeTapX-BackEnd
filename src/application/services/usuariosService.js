@@ -1,9 +1,9 @@
-import UsuariosRepository from '../../data/repositories/usuariosRepository.js';
+import usuariosRepository from './../../data/repositories/usuariosRepository.js';
 
 export default class usuariosService {
     constructor() {
         console.log('Estoy en: usuariosService');
-        this.usuariosRepository = new UsuariosRepository();
+        this.usuariosRepository = new usuariosRepository();
     }
 
     getAllAsync = async () => {

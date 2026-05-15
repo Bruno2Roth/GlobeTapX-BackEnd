@@ -3,23 +3,24 @@ import express 	from "express";	// hacer npm i express
 import cors 	from "cors";	// hacer npm i cors
 
 // Controllers
-import AgendaUsuarioController          from "./controllers/agendaUsuario-controller.js"
-import CategoriaController              from "./controllers/categoria-controller.js"
-import CategoriaEmergenciaController    from "./controllers/categoriaEmergencia-controller.js"
-import ContenidoPaisController          from "./controllers/contenidoPais-controller.js"
-import ContenidoPorCategoriaController  from "./controllers/contenidoPorCategoria-controller.js"
-import EstadisticasController           from "./controllers/estadisticas-controller.js"
-import EventoController                 from "./controllers/evento-controller.js"
-import EventoFavoritoController         from "./controllers/eventoFavorito-controller.js"
-import MultimediaController             from "./controllers/multimedia-controller.js"
-import PaisController                   from "./controllers/pais-controller.js"
-import PreferenciasUsuarioController    from "./controllers/preferenciasUsuario-controller.js"
-import PreferenciaUsuarioController     from "./controllers/preferenciaUsuario-controller.js"
-import TipoAdminController              from "./controllers/tipoAdmin-controller.js"
-import UbicacionController              from "./controllers/ubicacion-controller.js"
-import UsuarioController                from "./controllers/usuario-controller.js"
-import HistorialController              from "./controllers/historial-controller.js"
-import LogCambiosController             from "./controllers/logCambios-controller.js"
+import AuthController from './../api/controllers/auth.js'
+import AgendaUsuarioController          from "./../api/controllers/agendaUsuarioController.js"
+import CategoriaController              from "./../api/controllers/categoriaController.js"
+import CategoriaEmergenciaController    from "./../api/controllers/categoriaEmergenciaController.js"
+import ContenidoPaisController          from "./../api/controllers/contenidoPaisController.js"
+import ContenidoPorCategoriaController  from "./../api/controllers/contenidoPorCategoriaController.js"
+import EstadisticasController           from "./../api/controllers/estadisticasController.js"
+import EventoController                 from "./../api/controllers/eventoController.js"
+import EventoFavoritoController         from "./../api/controllers/eventoFavoritoController.js"
+import MultimediaController             from "./../api/controllers/multimediaController.js"
+import PaisController                   from "./../api/controllers/paisController.js"
+import PreferenciasUsuarioController    from "./../api/controllers/preferenciasUsuarioController.js"
+import PreferenciaUsuarioController     from "./../api/controllers/preferenciaUsuarioController.js"
+import TipoAdminController              from "./../api/controllers/tipoAdminController.js"
+import UbicacionController              from "./../api/controllers/ubicacionController.js"
+import UsuarioController                from "./../api/controllers/usuarioController.js"
+import HistorialController              from "./../api/controllers/historialController.js"
+import LogCambiosController             from "./../api/controllers/logCambiosController.js"
 
 const app  = express();
 const port = process.env.PORT || 3000;  // si no esta definido en el archivo .env uso el 3000.
@@ -46,6 +47,7 @@ app.use("/api/ubicacion", UbicacionController);
 app.use("/api/usuario", UsuarioController);
 app.use("/api/historial", HistorialController);
 app.use("/api/logCambios", LogCambiosController);
+app.use("/api/auth", AuthController);
 
 //
 // Inicio el Server y lo pongo a escuchar.

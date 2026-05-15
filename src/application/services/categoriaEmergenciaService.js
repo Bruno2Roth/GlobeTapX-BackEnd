@@ -11,10 +11,9 @@ export default class categoriasEmergenciaService {
         const returnArray = await this.categoriasEmergenciaRepository.getAllAsync();
         return returnArray;
     }
-
-    getByIdAsync = async (id) => {
-        console.log(`categoriasEmergenciaService.getByIdAsync(${id})`);
-        const returnEntity = await this.categoriasEmergenciaRepository.getByIdAsync(id);
-        return returnEntity;
+    getByPaisAsync = async (IDPais) => {
+        console.log(`categoriasEmergenciaService.getByPaisAsync(${IDPais})`);
+        const returnArray = await this.categoriasEmergenciaRepository.getByPaisAsync(IDPais);
+        return returnArray;
     }
 }

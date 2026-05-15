@@ -1,3 +1,5 @@
+import supabase from '../infraestructure/connection.js'
+
 export default class usuariosRepository {
     constructor() {
         console.log('Estoy en: usuariosRepository.constructor()');

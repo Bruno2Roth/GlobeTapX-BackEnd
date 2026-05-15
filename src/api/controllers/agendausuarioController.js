@@ -1,12 +1,12 @@
 import express from 'express';
-import usuariosService from '../services/usuariosService.js';
+import usuariosService from './../../aplication/services/usuariosService.js';
 
 const router = express.Router();
 
 const service = new usuariosService();
 
 router.get('/', async (req, res) => {
-    console.log('GET /usuarios');
+    console.log('GET /api/usuario');
 
     try {
 
@@ -18,7 +18,7 @@ router.get('/', async (req, res) => {
 
     } catch (error) {
 
-        console.log('Error en GET /usuarios');
+        console.log('Error en GET /api/usuario');
         console.log(error);
 
         res.status(500).json({
@@ -28,7 +28,7 @@ router.get('/', async (req, res) => {
 });
 
 router.get('/:id', async (req, res) => {
-    console.log(`GET /usuarios/${req.params.id}`);
+    console.log(`GET /api/usuario/${req.params.id}`);
 
     try {
 
@@ -42,7 +42,7 @@ router.get('/:id', async (req, res) => {
 
     } catch (error) {
 
-        console.log('Error en GET /usuarios/:id');
+        console.log('Error en GET /api/usuario/:id');
         console.log(error);
 
         res.status(500).json({
@@ -52,8 +52,8 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
-    console.log('POST /usuarios');
-    console.log('Body:', req.body);
+    console.log('POST /api/usuario');
+    console.log(req.body);
 
     try {
 
@@ -67,7 +67,7 @@ router.post('/', async (req, res) => {
 
     } catch (error) {
 
-        console.log('Error en POST /usuarios');
+        console.log('Error en POST /api/usuario');
         console.log(error);
 
         res.status(500).json({
@@ -77,8 +77,8 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/', async (req, res) => {
-    console.log('PUT /usuarios');
-    console.log('Body:', req.body);
+    console.log('PUT /api/usuario');
+    console.log(req.body);
 
     try {
 
@@ -92,7 +92,7 @@ router.put('/', async (req, res) => {
 
     } catch (error) {
 
-        console.log('Error en PUT /usuarios');
+        console.log('Error en PUT /api/usuario');
         console.log(error);
 
         res.status(500).json({
@@ -102,7 +102,7 @@ router.put('/', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
-    console.log(`DELETE /usuarios/${req.params.id}`);
+    console.log(`DELETE /api/usuario/${req.params.id}`);
 
     try {
 
@@ -116,7 +116,7 @@ router.delete('/:id', async (req, res) => {
 
     } catch (error) {
 
-        console.log('Error en DELETE /usuarios/:id');
+        console.log('Error en DELETE /api/usuario/:id');
         console.log(error);
 
         res.status(500).json({

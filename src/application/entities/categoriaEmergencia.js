@@ -1,5 +1,6 @@
 export default class categoriaEmergencia {
-    constructor(nombre, descripcion) {
+    constructor(IDPais, nombre, descripcion) {
+        this.IDPais  = IDPais;
         this.nombre       = nombre;
         this.descripcion  = descripcion;
     }

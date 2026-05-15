@@ -1,4 +1,4 @@
-// import Db from './db-pg.js';
+import supabase from '../connection.js'
 
 export default class EventosRepository {
     constructor() {
