@@ -3,24 +3,22 @@ import express 	from "express";	// hacer npm i express
 import cors 	from "cors";	// hacer npm i cors
 
 // Controllers
-import AuthController from './../api/controllers/auth.js'
-import AgendaUsuarioController          from "./../api/controllers/agendaUsuarioController.js"
+import AuthController                   from './../api/controllers/auth.js'
+import AgendaUsuarioController          from "./../api/controllers/agendausuarioController.js"
 import CategoriaController              from "./../api/controllers/categoriaController.js"
 import CategoriaEmergenciaController    from "./../api/controllers/categoriaEmergenciaController.js"
 import ContenidoPaisController          from "./../api/controllers/contenidoPaisController.js"
-import ContenidoPorCategoriaController  from "./../api/controllers/contenidoPorCategoriaController.js"
+import ContenidoPorCategoriaController  from "./../api/controllers/contenidoCategoriaController.js"
 import EstadisticasController           from "./../api/controllers/estadisticasController.js"
 import EventoController                 from "./../api/controllers/eventoController.js"
 import EventoFavoritoController         from "./../api/controllers/eventoFavoritoController.js"
-import MultimediaController             from "./../api/controllers/multimediaController.js"
 import PaisController                   from "./../api/controllers/paisController.js"
-import PreferenciasUsuarioController    from "./../api/controllers/preferenciasUsuarioController.js"
 import PreferenciaUsuarioController     from "./../api/controllers/preferenciaUsuarioController.js"
 import TipoAdminController              from "./../api/controllers/tipoAdminController.js"
 import UbicacionController              from "./../api/controllers/ubicacionController.js"
 import UsuarioController                from "./../api/controllers/usuarioController.js"
-import HistorialController              from "./../api/controllers/historialController.js"
-import LogCambiosController             from "./../api/controllers/logCambiosController.js"
+import HistorialController              from "./../api/controllers/zHistorialController.js"
+import LogCambiosController             from "./../api/controllers/zLogCambiosController.js"
 
 const app  = express();
 const port = process.env.PORT || 3000;  // si no esta definido en el archivo .env uso el 3000.
@@ -38,9 +36,7 @@ app.use("/api/contenidoPorCategoria", ContenidoPorCategoriaController);
 app.use("/api/estadisticas", EstadisticasController);
 app.use("/api/evento", EventoController);
 app.use("/api/eventoFavorito", EventoFavoritoController);
-app.use("/api/multimedia", MultimediaController);
 app.use("/api/pais", PaisController);
-app.use("/api/preferenciasUsuario", PreferenciasUsuarioController);
 app.use("/api/preferenciaUsuario", PreferenciaUsuarioController);
 app.use("/api/tipoAdmin", TipoAdminController);
 app.use("/api/ubicacion", UbicacionController);

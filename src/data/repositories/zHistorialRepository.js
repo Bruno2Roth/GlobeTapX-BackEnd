@@ -1,25 +1,23 @@
-import supabase from '../infraestructure/connection.js'
-
-export default class preferenciaUsuarioRepository {
+export default class zHistorialRepository {
     constructor() {
-        console.log('Estoy en: preferenciaUsuarioRepository.constructor()');
+        console.log('Estoy en: zHistorialRepository.constructor()');
         this.db = new Db();
     }
 
     getAllAsync = async () => {
-        console.log(`preferenciaUsuarioRepository.getAllAsync()`);
+        console.log(`zHistorialRepository.getAllAsync()`);
 
-        const sql = `SELECT * FROM PreferenciaUsuario`;
+        const sql = `SELECT * FROM Historial`;
 
         return await this.db.queryAll(sql);
     }
 
     getByIdAsync = async (id) => {
-        console.log(`preferenciaUsuarioRepository.getByIdAsync(${id})`);
+        console.log(`zHistorialRepository.getByIdAsync(${id})`);
 
         const sql = `
             SELECT * 
-            FROM PreferenciaUsuario
+            FROM Historial
             WHERE ID = $1
         `;
 
@@ -27,11 +25,11 @@ export default class preferenciaUsuarioRepository {
     }
 
     getByUsuarioAsync = async (IDUsuario) => {
-        console.log(`preferenciaUsuarioRepository.getByUsuarioAsync(${IDUsuario})`);
+        console.log(`zHistorialRepository.getByUsuarioAsync(${IDUsuario})`);
 
         const sql = `
             SELECT * 
-            FROM PreferenciaUsuario
+            FROM Historial
             WHERE IDUsuario = $1
         `;
 
@@ -39,51 +37,59 @@ export default class preferenciaUsuarioRepository {
     }
 
     createAsync = async (entity) => {
-        console.log(`preferenciaUsuarioRepository.createAsync(${JSON.stringify(entity)})`);
+        console.log(`zHistorialRepository.createAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            INSERT INTO PreferenciaUsuario
+            INSERT INTO Historial
             (
                 IDUsuario,
-                preferencia
+                query,
+                dispositivo,
+                fecha
             )
-            VALUES ($1, $2)
+            VALUES ($1, $2, $3, $4)
             RETURNING ID
         `;
 
         const values = [
             entity.IDUsuario,
-            entity.preferencia
+            entity.query,
+            entity.dispositivo,
+            entity.fecha
         ];
 
         return await this.db.queryReturnId(sql, values);
     }
 
     updateAsync = async (entity) => {
-        console.log(`preferenciaUsuarioRepository.updateAsync(${JSON.stringify(entity)})`);
+        console.log(`zHistorialRepository.updateAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            UPDATE PreferenciaUsuario
+            UPDATE Historial
             SET
                 IDUsuario = $2,
-                preferencia = $3
+                query = $3,
+                dispositivo = $4,
+                fecha = $5
             WHERE ID = $1
         `;
 
         const values = [
             entity.ID,
             entity.IDUsuario,
-            entity.preferencia
+            entity.query,
+            entity.dispositivo,
+            entity.fecha
         ];
 
         return await this.db.queryRowCount(sql, values);
     }
 
     deleteByIdAsync = async (id) => {
-        console.log(`preferenciaUsuarioRepository.deleteByIdAsync(${id})`);
+        console.log(`zHistorialRepository.deleteByIdAsync(${id})`);
 
         const sql = `
-            DELETE FROM PreferenciaUsuario
+            DELETE FROM Historial
             WHERE ID = $1
         `;
 

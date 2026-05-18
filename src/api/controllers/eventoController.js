@@ -1,8 +1,8 @@
 import express from 'express';
-import eventoService from '../services/eventoService.js';
+import eventosService from '../../application/services/eventoService.js';
 
 const router = express.Router();
-const service = new eventoService();
+const service = new eventosService();
 
 router.get('/', async (req, res) => {
     const data = await service.getAllAsync();

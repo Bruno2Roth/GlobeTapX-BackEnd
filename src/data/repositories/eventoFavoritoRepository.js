@@ -1,4 +1,4 @@
-import supabase from '../connection.js'
+import supabase from '../infraestructure/connection.js'
 
 export default class eventoFavoritoRepository {
     constructor() {

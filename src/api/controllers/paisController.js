@@ -1,5 +1,5 @@
 import express from 'express';
-import paisService from '../services/paisService.js';
+import paisService from '../../application/services/paisService.js';
 
 const router = express.Router();
 const service = new paisService();

@@ -1,25 +1,23 @@
-import supabase from '../infraestructure/connection.js'
-
-export default class preferenciaUsuarioRepository {
+export default class ubicacionRepository {
     constructor() {
-        console.log('Estoy en: preferenciaUsuarioRepository.constructor()');
+        console.log('Estoy en: ubicacionRepository.constructor()');
         this.db = new Db();
     }
 
     getAllAsync = async () => {
-        console.log(`preferenciaUsuarioRepository.getAllAsync()`);
+        console.log(`ubicacionRepository.getAllAsync()`);
 
-        const sql = `SELECT * FROM PreferenciaUsuario`;
+        const sql = `SELECT * FROM Ubicacion`;
 
         return await this.db.queryAll(sql);
     }
 
     getByIdAsync = async (id) => {
-        console.log(`preferenciaUsuarioRepository.getByIdAsync(${id})`);
+        console.log(`ubicacionRepository.getByIdAsync(${id})`);
 
         const sql = `
             SELECT * 
-            FROM PreferenciaUsuario
+            FROM Ubicacion
             WHERE ID = $1
         `;
 
@@ -27,11 +25,11 @@ export default class preferenciaUsuarioRepository {
     }
 
     getByUsuarioAsync = async (IDUsuario) => {
-        console.log(`preferenciaUsuarioRepository.getByUsuarioAsync(${IDUsuario})`);
+        console.log(`ubicacionRepository.getByUsuarioAsync(${IDUsuario})`);
 
         const sql = `
             SELECT * 
-            FROM PreferenciaUsuario
+            FROM Ubicacion
             WHERE IDUsuario = $1
         `;
 
@@ -39,51 +37,55 @@ export default class preferenciaUsuarioRepository {
     }
 
     createAsync = async (entity) => {
-        console.log(`preferenciaUsuarioRepository.createAsync(${JSON.stringify(entity)})`);
+        console.log(`ubicacionRepository.createAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            INSERT INTO PreferenciaUsuario
+            INSERT INTO Ubicacion
             (
                 IDUsuario,
-                preferencia
+                posicion,
+                ultimaActualizacion
             )
-            VALUES ($1, $2)
+            VALUES ($1, $2, $3)
             RETURNING ID
         `;
 
         const values = [
             entity.IDUsuario,
-            entity.preferencia
+            entity.posicion,
+            entity.ultimaActualizacion
         ];
 
         return await this.db.queryReturnId(sql, values);
     }
 
     updateAsync = async (entity) => {
-        console.log(`preferenciaUsuarioRepository.updateAsync(${JSON.stringify(entity)})`);
+        console.log(`ubicacionRepository.updateAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            UPDATE PreferenciaUsuario
+            UPDATE Ubicacion
             SET
                 IDUsuario = $2,
-                preferencia = $3
+                posicion = $3,
+                ultimaActualizacion = $4
             WHERE ID = $1
         `;
 
         const values = [
             entity.ID,
             entity.IDUsuario,
-            entity.preferencia
+            entity.posicion,
+            entity.ultimaActualizacion
         ];
 
         return await this.db.queryRowCount(sql, values);
     }
 
     deleteByIdAsync = async (id) => {
-        console.log(`preferenciaUsuarioRepository.deleteByIdAsync(${id})`);
+        console.log(`ubicacionRepository.deleteByIdAsync(${id})`);
 
         const sql = `
-            DELETE FROM PreferenciaUsuario
+            DELETE FROM Ubicacion
             WHERE ID = $1
         `;
 
