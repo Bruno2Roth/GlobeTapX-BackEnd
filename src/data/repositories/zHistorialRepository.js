@@ -3,7 +3,7 @@ import pool from '../../configs/SPConfig.js'
 export default class zHistorialRepository {
     constructor() {
         console.log('Estoy en: zHistorialRepository.constructor()');
-        this.pool = new pool();
+        this.pool = pool;
     }
 
     getAllAsync = async () => {

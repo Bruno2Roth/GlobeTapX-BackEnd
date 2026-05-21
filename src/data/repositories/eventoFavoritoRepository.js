@@ -3,7 +3,7 @@ import pool from '../../configs/SPConfig.js'
 export default class eventoFavoritoRepository {
     constructor() {
         console.log('Estoy en: eventoFavoritoRepository.constructor()');
-        this.pool = new pool();
+        this.pool = pool;
     }
 
     getAllAsync = async () => {

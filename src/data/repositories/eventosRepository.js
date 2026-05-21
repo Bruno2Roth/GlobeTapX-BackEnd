@@ -3,7 +3,7 @@ import pool from '../../configs/SPConfig.js'
 export default class EventosRepository {
     constructor() {
         console.log('Estoy en: EventosRepository.constructor()');
-        this.pool = new pool();
+        this.pool = pool;
     }
 
     getAllAsync = async () => {

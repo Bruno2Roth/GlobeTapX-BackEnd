@@ -28,6 +28,8 @@ app.use(cors());         // Middleware de CORS
 app.use(express.json()); // Middleware para parsear y comprender JSON
 
 // Endpoints (todos los Routers)
+app.use("/api/auth", AuthController);
+
 app.use("/api/agendaUsuario", AgendaUsuarioController);
 app.use("/api/categoria", CategoriaController);
 app.use("/api/categoriaEmergencia", CategoriaEmergenciaController);
@@ -43,7 +45,6 @@ app.use("/api/ubicacion", UbicacionController);
 app.use("/api/usuario", UsuarioController);
 app.use("/api/historial", HistorialController);
 app.use("/api/logCambios", LogCambiosController);
-app.use("/api/auth", AuthController);
 
 //
 // Inicio el Server y lo pongo a escuchar.

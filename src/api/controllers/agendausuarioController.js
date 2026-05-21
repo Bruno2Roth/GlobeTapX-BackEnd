@@ -1,9 +1,9 @@
 import express from 'express';
-import usuariosService from './../../application/services/usuariosService.js';
+import agendaUsuarioService from './../../application/services/agendaUsuarioService.js';
 
 const router = express.Router();
 
-const service = new usuariosService();
+const service = new agendaUsuarioService();
 
 router.get('/', async (req, res) => {
     console.log('GET /api/usuario');

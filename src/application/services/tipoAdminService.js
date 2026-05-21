@@ -1,4 +1,4 @@
-import tipoAdminRepository from '../../data/repositories/tipoAdminRepository.js';
+import tipoAdminRepository from '../../data/repositories/tipoAdminRespository.js';
 
 export default class tipoAdminService {
     constructor() {

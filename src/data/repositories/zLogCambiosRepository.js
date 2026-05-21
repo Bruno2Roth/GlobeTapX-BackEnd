@@ -3,7 +3,7 @@ import pool from '../../configs/SPConfig.js'
 export default class zlogCambiosRepository {
     constructor() {
         console.log('Estoy en: zlogCambiosRepository.constructor()');
-        this.pool = new pool();
+        this.pool = pool;
     }
 
     getAllAsync = async () => {

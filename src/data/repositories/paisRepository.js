@@ -3,7 +3,7 @@ import pool from '../../configs/SPConfig.js'
 export default class paisRepository {
     constructor() {
         console.log('Estoy en: paisRepository.constructor()');
-        this.pool = new pool();
+        this.pool = pool;
     }
 
     getAllAsync = async () => {

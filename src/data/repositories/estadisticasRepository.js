@@ -3,7 +3,7 @@ import pool from '../../configs/SPConfig.js'
 export default class estadisticasRepository {
     constructor() {
         console.log('Estoy en: estadisticasRepository.constructor()');
-        this.pool = new pool();
+        this.pool = pool;
     }
 
     getAllAsync = async () => {

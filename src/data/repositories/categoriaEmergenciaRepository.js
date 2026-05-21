@@ -3,7 +3,7 @@ import pool from '../../configs/SPConfig.js'
 export default class categoriasEmergenciaRepository {
     constructor() {
         console.log('Estoy en: categoriasEmergenciaRepository.constructor()');
-        this.pool = new pool();
+        this.pool = pool;
     }
 
     getAllAsync = async () => {

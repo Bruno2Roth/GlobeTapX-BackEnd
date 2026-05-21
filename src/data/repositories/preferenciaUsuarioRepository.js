@@ -3,7 +3,7 @@ import pool from '../../configs/SPConfig.js'
 export default class preferenciaUsuarioRepository {
     constructor() {
         console.log('Estoy en: preferenciaUsuarioRepository.constructor()');
-        this.pool = new pool();
+        this.pool = pool;
     }
 
     getAllAsync = async () => {

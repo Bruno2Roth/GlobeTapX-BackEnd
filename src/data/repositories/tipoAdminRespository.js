@@ -1,9 +1,9 @@
-import pool from '../../configs/SPConfig.js'
+import pool from '../configs/SPConfig.js'
 
 export default class tipoAdminRepository {
     constructor() {
         console.log('Estoy en: tipoAdminRepository.constructor()');
-        this.pool = new pool();
+        this.pool = pool;
     }
 
     getAllAsync = async () => {
