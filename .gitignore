@@ -1,4 +1,4 @@
-SPConfig
+*.SPConfig
 
 # Dependencies
 node_modules/

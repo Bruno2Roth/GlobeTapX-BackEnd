@@ -1,9 +1,9 @@
 import supabase from '../infraestructure/connection.js'
+import pool from '../../configs/SPConfig.js'
 
 export default class agendaUsuarioRepository {
     constructor() {
         console.log('Estoy en: agendaUsuarioRepository.constructor()')
-        this.db = new Db()
     }
 
     getAllAsync = async () => {
@@ -11,7 +11,7 @@ export default class agendaUsuarioRepository {
 
         const sql = `SELECT * FROM AgendaUsuario`
 
-        return await this.db.queryAll(sql)
+        return await this.pool.queryAll(sql)
     }
 
     getByIdAsync = async (id) => {
@@ -19,7 +19,7 @@ export default class agendaUsuarioRepository {
 
         const sql = `SELECT * FROM AgendaUsuario WHERE ID = $1`
 
-        return await this.db.queryOne(sql, [id]);
+        return await this.pool.queryOne(sql, [id]);
     }
 
     getByUsuarioAsync = async (IDUsuario) => {
@@ -31,7 +31,7 @@ export default class agendaUsuarioRepository {
             WHERE IDUsuario = $1
         `
 
-        return await this.db.queryAll(sql, [IDUsuario])
+        return await this.pool.queryAll(sql, [IDUsuario])
     }
 
     getByEventoAsync = async (IDEvento) => {
@@ -43,7 +43,7 @@ export default class agendaUsuarioRepository {
             WHERE IDEvento = $1
         `
 
-        return await this.db.queryAll(sql, [IDEvento]);
+        return await this.pool.queryAll(sql, [IDEvento]);
     }
 
     createAsync = async (entity) => {
@@ -64,7 +64,7 @@ export default class agendaUsuarioRepository {
             entity.IDEvento
         ]
 
-        return await this.db.queryReturnId(sql, values)
+        return await this.pool.queryReturnId(sql, values)
     }
 
     updateAsync = async (entity) => {
@@ -83,7 +83,7 @@ export default class agendaUsuarioRepository {
             entity.IDEvento
         ]
 
-        return await this.db.queryRowCount(sql, values)
+        return await this.pool.queryRowCount(sql, values)
     }
 
     deleteByIdAsync = async (id) => {
@@ -94,6 +94,6 @@ export default class agendaUsuarioRepository {
             WHERE ID = $1
         `;
 
-        return await this.db.queryRowCount(sql, [id]);
+        return await this.pool.queryRowCount(sql, [id]);
     }
 }
