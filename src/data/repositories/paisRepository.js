@@ -1,9 +1,9 @@
-import supabase from '../infraestructure/connection.js'
+import pool from '../../configs/SPConfig.js'
 
 export default class paisRepository {
     constructor() {
         console.log('Estoy en: paisRepository.constructor()');
-        this.db = new Db();
+        this.pool = new pool();
     }
 
     getAllAsync = async () => {
@@ -11,7 +11,7 @@ export default class paisRepository {
 
         const sql = `SELECT * FROM Pais`;
 
-        return await this.db.queryAll(sql);
+        return await this.pool.queryAll(sql);
     }
 
     getByIdAsync = async (id) => {
@@ -23,6 +23,6 @@ export default class paisRepository {
             WHERE ID = $1
         `;
 
-        return await this.db.queryOne(sql, [id]);
+        return await this.pool.queryOne(sql, [id]);
     }
 }

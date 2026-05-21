@@ -1,9 +1,9 @@
-import supabase from '../infraestructure/connection.js'
+import pool from '../../configs/SPConfig.js'
 
 export default class categoriasEmergenciaRepository {
     constructor() {
         console.log('Estoy en: categoriasEmergenciaRepository.constructor()');
-        this.db = new Db();
+        this.pool = new pool();
     }
 
     getAllAsync = async () => {
@@ -11,7 +11,7 @@ export default class categoriasEmergenciaRepository {
 
         const sql = `SELECT * FROM CategoriasEmergencia`;
 
-        return await this.db.queryAll(sql);
+        return await this.pool.queryAll(sql);
     }
     GetByPaisAsync = async (IDPais) => {
         console.log(`categoriasEmergenciaRepository.getByPaisAsync(${IDPais})`);
@@ -22,6 +22,6 @@ export default class categoriasEmergenciaRepository {
             WHERE IDPais = $1
         `;
 
-        return await this.db.queryAll(sql, [IDPais]);
+        return await this.pool.queryAll(sql, [IDPais]);
     }
 }

@@ -1,7 +1,9 @@
+import pool from '../../configs/SPConfig.js'
+
 export default class contenidoPaisRepository {
     constructor() {
         console.log('Estoy en: contenidoPaisRepository.constructor()');
-        this.db = new Db();
+        this.pool = new pool();
     }
 
     getAllAsync = async () => {
@@ -9,7 +11,7 @@ export default class contenidoPaisRepository {
 
         const sql = `SELECT * FROM ContenidoPais`;
 
-        return await this.db.queryAll(sql);
+        return await this.pool.queryAll(sql);
     }
 
     getByIdAsync = async (id) => {
@@ -21,7 +23,7 @@ export default class contenidoPaisRepository {
             WHERE ID = $1
         `;
 
-        return await this.db.queryOne(sql, [id]);
+        return await this.pool.queryOne(sql, [id]);
     }
 
     getByPaisAsync = async (IDPais) => {
@@ -33,7 +35,7 @@ export default class contenidoPaisRepository {
             WHERE IDPais = $1
         `;
 
-        return await this.db.queryAll(sql, [IDPais]);
+        return await this.pool.queryAll(sql, [IDPais]);
     }
 
     getByCategoriaAsync = async (IDCategoria) => {
@@ -45,7 +47,7 @@ export default class contenidoPaisRepository {
             WHERE IDCategoria = $1
         `;
 
-        return await this.db.queryAll(sql, [IDCategoria]);
+        return await this.pool.queryAll(sql, [IDCategoria]);
     }
 
     createAsync = async (entity) => {
@@ -70,7 +72,7 @@ export default class contenidoPaisRepository {
             entity.descripcion
         ];
 
-        return await this.db.queryReturnId(sql, values);
+        return await this.pool.queryReturnId(sql, values);
     }
 
     updateAsync = async (entity) => {
@@ -94,7 +96,7 @@ export default class contenidoPaisRepository {
             entity.descripcion
         ];
 
-        return await this.db.queryRowCount(sql, values);
+        return await this.pool.queryRowCount(sql, values);
     }
 
     deleteByIdAsync = async (id) => {
@@ -105,6 +107,6 @@ export default class contenidoPaisRepository {
             WHERE ID = $1
         `;
 
-        return await this.db.queryRowCount(sql, [id]);
+        return await this.pool.queryRowCount(sql, [id]);
     }
 }

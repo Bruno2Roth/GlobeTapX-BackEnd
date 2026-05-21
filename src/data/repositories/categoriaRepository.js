@@ -1,9 +1,9 @@
-import supabase from '../infraestructure/connection.js'
+import pool from '../../configs/SPConfig.js'
 
 export default class categoriaRepository {
     constructor() {
         console.log('Estoy en: categoriaRepository.constructor()');
-        this.db = new Db();
+        this.pool = new pool();
     }
 
     getAllAsync = async () => {
@@ -11,7 +11,7 @@ export default class categoriaRepository {
 
         const sql = `SELECT * FROM Categoria`;
 
-        return await this.db.queryAll(sql);
+        return await this.pool.queryAll(sql);
     }
 
     getByNameAsync = async (name) => {
@@ -23,6 +23,6 @@ export default class categoriaRepository {
             WHERE nombre ILIKE '%' || $1 || '%'
         `;
 
-        return await this.db.queryOne(sql, [name]);
+        return await this.pool.queryOne(sql, [name]);
     }
     }

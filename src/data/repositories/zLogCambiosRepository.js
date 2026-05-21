@@ -1,7 +1,9 @@
+import pool from '../../configs/SPConfig.js'
+
 export default class zlogCambiosRepository {
     constructor() {
         console.log('Estoy en: zlogCambiosRepository.constructor()');
-        this.db = new Db();
+        this.pool = new pool();
     }
 
     getAllAsync = async () => {
@@ -9,7 +11,7 @@ export default class zlogCambiosRepository {
 
         const sql = `SELECT * FROM zLogCambios`;
 
-        return await this.db.queryAll(sql);
+        return await this.pool.queryAll(sql);
     }
 
     getByIdAsync = async (id) => {
@@ -21,7 +23,7 @@ export default class zlogCambiosRepository {
             WHERE ID = $1
         `;
 
-        return await this.db.queryOne(sql, [id]);
+        return await this.pool.queryOne(sql, [id]);
     }
 
     getByUsuarioAsync = async (IDUsuario) => {
@@ -33,7 +35,7 @@ export default class zlogCambiosRepository {
             WHERE IDUsuario = $1
         `;
 
-        return await this.db.queryAll(sql, [IDUsuario]);
+        return await this.pool.queryAll(sql, [IDUsuario]);
     }
 
     createAsync = async (entity) => {
@@ -62,7 +64,7 @@ export default class zlogCambiosRepository {
             entity.fechaCreacion
         ];
 
-        return await this.db.queryReturnId(sql, values);
+        return await this.pool.queryReturnId(sql, values);
     }
 
     updateAsync = async (entity) => {
@@ -90,7 +92,7 @@ export default class zlogCambiosRepository {
             entity.fechaCreacion
         ];
 
-        return await this.db.queryRowCount(sql, values);
+        return await this.pool.queryRowCount(sql, values);
     }
 
     deleteByIdAsync = async (id) => {
@@ -101,6 +103,6 @@ export default class zlogCambiosRepository {
             WHERE ID = $1
         `;
 
-        return await this.db.queryRowCount(sql, [id]);
+        return await this.pool.queryRowCount(sql, [id]);
     }
 }

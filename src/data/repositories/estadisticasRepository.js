@@ -1,9 +1,9 @@
-import supabase from '../infraestructure/connection.js'
+import pool from '../../configs/SPConfig.js'
 
 export default class estadisticasRepository {
     constructor() {
         console.log('Estoy en: estadisticasRepository.constructor()');
-        this.db = new Db();
+        this.pool = new pool();
     }
 
     getAllAsync = async () => {
@@ -11,7 +11,7 @@ export default class estadisticasRepository {
 
         const sql = `SELECT * FROM Estadisticas`;
 
-        return await this.db.queryAll(sql);
+        return await this.pool.queryAll(sql);
     }
 
     getByIdAsync = async (id) => {
@@ -23,7 +23,7 @@ export default class estadisticasRepository {
             WHERE ID = $1
         `;
 
-        return await this.db.queryOne(sql, [id]);
+        return await this.pool.queryOne(sql, [id]);
     }
 
     updateAsync = async (entity) => {
@@ -45,6 +45,6 @@ export default class estadisticasRepository {
             entity.cantidadFavoritos
         ];
 
-        return await this.db.queryRowCount(sql, values);
+        return await this.pool.queryRowCount(sql, values);
     }
 }

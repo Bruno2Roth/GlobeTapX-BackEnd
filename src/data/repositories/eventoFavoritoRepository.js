@@ -1,9 +1,9 @@
-import supabase from '../infraestructure/connection.js'
+import pool from '../../configs/SPConfig.js'
 
 export default class eventoFavoritoRepository {
     constructor() {
         console.log('Estoy en: eventoFavoritoRepository.constructor()');
-        this.db = new Db();
+        this.pool = new pool();
     }
 
     getAllAsync = async () => {
@@ -11,7 +11,7 @@ export default class eventoFavoritoRepository {
 
         const sql = `SELECT * FROM EventoFavorito`;
 
-        return await this.db.queryAll(sql);
+        return await this.pool.queryAll(sql);
     }
 
     getByUsuarioAsync = async (IDUsuario) => {
@@ -23,7 +23,7 @@ export default class eventoFavoritoRepository {
             WHERE IDUsuario = $1
         `;
 
-        return await this.db.queryAll(sql, [IDUsuario]);
+        return await this.pool.queryAll(sql, [IDUsuario]);
     }
 
     createAsync = async (entity) => {
@@ -44,7 +44,7 @@ export default class eventoFavoritoRepository {
             entity.IDEvento
         ];
 
-        return await this.db.queryReturnId(sql, values);
+        return await this.pool.queryReturnId(sql, values);
     }
 
     deleteByIdAsync = async (id) => {
@@ -55,6 +55,6 @@ export default class eventoFavoritoRepository {
             WHERE ID = $1
         `;
 
-        return await this.db.queryRowCount(sql, [id]);
+        return await this.pool.queryRowCount(sql, [id]);
     }
 }

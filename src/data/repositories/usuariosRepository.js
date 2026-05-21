@@ -1,9 +1,9 @@
-import supabase from '../infraestructure/connection.js'
+import pool from '../../configs/SPConfig.js'
 
 export default class usuariosRepository {
     constructor() {
         console.log('Estoy en: usuariosRepository.constructor()');
-        this.db = new Db();
+        this.pool = new pool();
     }
 
     getAllAsync = async () => {
@@ -11,7 +11,7 @@ export default class usuariosRepository {
 
         const sql = `SELECT * FROM Usuario`;
 
-        return await this.db.queryAll(sql);
+        return await this.pool.queryAll(sql);
     }
 
     getByIdAsync = async (id) => {
@@ -19,7 +19,7 @@ export default class usuariosRepository {
 
         const sql = `SELECT * FROM Usuario WHERE ID = $1`;
 
-        return await this.db.queryOne(sql, [id]);
+        return await this.pool.queryOne(sql, [id]);
     }
 
     getByEmailAsync = async (email) => {
@@ -27,7 +27,7 @@ export default class usuariosRepository {
 
         const sql = `SELECT * FROM Usuario WHERE email = $1`;
 
-        return await this.db.queryOne(sql, [email]);
+        return await this.pool.queryOne(sql, [email]);
     }
 
     getByNombreAsync = async (nombre) => {
@@ -39,7 +39,7 @@ export default class usuariosRepository {
             WHERE nombre ILIKE '%' || $1 || '%'
         `;
 
-        return await this.db.queryAll(sql, [nombre]);
+        return await this.pool.queryAll(sql, [nombre]);
     }
 
     createAsync = async (entity) => {
@@ -66,7 +66,7 @@ export default class usuariosRepository {
             entity.fechaNacimiento
         ];
 
-        return await this.db.queryReturnId(sql, values);
+        return await this.pool.queryReturnId(sql, values);
     }
 
     updateAsync = async (entity) => {
@@ -92,7 +92,7 @@ export default class usuariosRepository {
             entity.fechaNacimiento
         ];
 
-        return await this.db.queryRowCount(sql, values);
+        return await this.pool.queryRowCount(sql, values);
     }
 
     deleteByIdAsync = async (id) => {
@@ -100,6 +100,6 @@ export default class usuariosRepository {
 
         const sql = `DELETE FROM Usuario WHERE ID = $1`;
 
-        return await this.db.queryRowCount(sql, [id]);
+        return await this.pool.queryRowCount(sql, [id]);
     }
 }

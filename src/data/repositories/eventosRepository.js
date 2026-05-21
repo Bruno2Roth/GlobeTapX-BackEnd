@@ -1,9 +1,9 @@
-import supabase from '../infraestructure/connection.js'
+import pool from '../../configs/SPConfig.js'
 
 export default class EventosRepository {
     constructor() {
         console.log('Estoy en: EventosRepository.constructor()');
-        this.db = new Db();
+        this.pool = new pool();
     }
 
     getAllAsync = async () => {
@@ -11,7 +11,7 @@ export default class EventosRepository {
 
         const sql = `SELECT * FROM Evento`;
 
-        return await this.db.queryAll(sql);
+        return await this.pool.queryAll(sql);
     }
 
     getByIdAsync = async (id) => {
@@ -19,7 +19,7 @@ export default class EventosRepository {
 
         const sql = `SELECT * FROM Evento WHERE ID = $1`;
 
-        return await this.db.queryOne(sql, [id]);
+        return await this.pool.queryOne(sql, [id]);
     }
 
     getByPaisAsync = async (IDPais) => {
@@ -27,7 +27,7 @@ export default class EventosRepository {
 
         const sql = `SELECT * FROM Evento WHERE IDPais = $1`;
 
-        return await this.db.queryAll(sql, [IDPais]);
+        return await this.pool.queryAll(sql, [IDPais]);
     }
 
     getByCategoriaAsync = async (IDCategoria) => {
@@ -35,7 +35,7 @@ export default class EventosRepository {
 
         const sql = `SELECT * FROM Evento WHERE IDCategoria = $1`;
 
-        return await this.db.queryAll(sql, [IDCategoria]);
+        return await this.pool.queryAll(sql, [IDCategoria]);
     }
 
     getCercanosAsync = async (ubicacion) => {
@@ -47,7 +47,7 @@ export default class EventosRepository {
             WHERE ubicacion ILIKE '%' || $1 || '%'
         `;
 
-        return await this.db.queryAll(sql, [ubicacion]);
+        return await this.pool.queryAll(sql, [ubicacion]);
     }
 
     createAsync = async (entity) => {
@@ -78,7 +78,7 @@ export default class EventosRepository {
             entity.ubicacion
         ];
 
-        return await this.db.queryReturnId(sql, values);
+        return await this.pool.queryReturnId(sql, values);
     }
 
     updateAsync = async (entity) => {
@@ -108,7 +108,7 @@ export default class EventosRepository {
             entity.ubicacion
         ];
 
-        return await this.db.queryRowCount(sql, values);
+        return await this.pool.queryRowCount(sql, values);
     }
 
     deleteByIdAsync = async (id) => {
@@ -116,6 +116,6 @@ export default class EventosRepository {
 
         const sql = `DELETE FROM Evento WHERE ID = $1`;
 
-        return await this.db.queryRowCount(sql, [id]);
+        return await this.pool.queryRowCount(sql, [id]);
     }
 }

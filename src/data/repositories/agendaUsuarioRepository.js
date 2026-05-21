@@ -1,9 +1,9 @@
-import supabase from '../infraestructure/connection.js'
 import pool from '../../configs/SPConfig.js'
 
 export default class agendaUsuarioRepository {
     constructor() {
         console.log('Estoy en: agendaUsuarioRepository.constructor()')
+        this.pool = pool
     }
 
     getAllAsync = async () => {
