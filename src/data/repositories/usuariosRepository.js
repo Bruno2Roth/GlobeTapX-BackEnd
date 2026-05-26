@@ -9,6 +9,8 @@ export default class usuariosRepository {
     getAllAsync = async () => {
         console.log(`usuariosRepository.getAllAsync()`);
 
+        const sql = `SELECT * FROM "Usuario"`;
+
         const res = await this.pool.query(sql);
         return res.rows;
     }
@@ -16,6 +18,7 @@ export default class usuariosRepository {
     getByIdAsync = async (id) => {
         console.log(`usuariosRepository.getByIdAsync(${id})`);
 
+        const sql = `SELECT * FROM "Usuario" WHERE "ID" = $1`;
         const res = await this.pool.query(sql, [id]);
         return res.rows && res.rows[0] ? res.rows[0] : null;
     }
@@ -23,6 +26,7 @@ export default class usuariosRepository {
     getByEmailAsync = async (email) => {
         console.log(`usuariosRepository.getByEmailAsync(${email})`);
 
+        const sql = `SELECT * FROM "Usuario" WHERE "email" = $1`;
         const res = await this.pool.query(sql, [email]);
         return res.rows && res.rows[0] ? res.rows[0] : null;
     }

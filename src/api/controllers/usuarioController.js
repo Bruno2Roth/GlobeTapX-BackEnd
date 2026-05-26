@@ -70,6 +70,14 @@ router.post('/', async (req, res) => {
         console.log('Error en POST /usuarios');
         console.log(error);
 
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ error: error.message });
+        }
+
+        if (error.code === 'DUPLICATE_USER') {
+            return res.status(409).json({ error: error.message });
+        }
+
         res.status(500).json({
             error: 'Error al crear usuario'
         });
@@ -94,6 +102,14 @@ router.put('/', async (req, res) => {
 
         console.log('Error en PUT /usuarios');
         console.log(error);
+
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ error: error.message });
+        }
+
+        if (error.code === 'DUPLICATE_USER') {
+            return res.status(409).json({ error: error.message });
+        }
 
         res.status(500).json({
             error: 'Error al actualizar usuario'
