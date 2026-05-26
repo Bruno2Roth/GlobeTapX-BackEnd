@@ -1,0 +1,121 @@
+### Archivo de peticiones para probar el backend (usa http://localhost:3000 por defecto)
+
+# Variables:
+# Cambia {{baseUrl}} si corres el servidor en otra URL/puerto
+
+# INDEX - Root
+GET http://localhost:3000/
+
+# Registro page
+GET http://localhost:3000/registro
+
+### AUTH
+
+# Auth - Status
+GET http://localhost:3000/api/auth/status
+
+# Auth - Login (POST) -- body ejemplo
+POST http://localhost:3000/api/auth/login
+Content-Type: application/json
+
+{
+  "email": "test@example.com",
+  "password": "secret"
+}
+
+
+# Auth - Register (POST) -- body ejemplo
+POST http://localhost:3000/api/auth/register
+Content-Type: application/json
+
+{
+  "nombre": "Juan",
+  "apellido": "Perez",
+  "email": "juan@example.com",
+  "password": "secret"
+}
+
+
+### EVENTOS
+
+# Listar eventos
+GET http://localhost:3000/api/evento
+
+# Crear evento
+POST http://localhost:3000/api/evento
+Content-Type: application/json
+
+{
+  "titulo": "Evento prueba",
+  "descripcion": "Descripción de prueba",
+  "fecha": "2026-06-01"
+}
+
+# Obtener evento por ID (reemplaza 1)
+GET http://localhost:3000/api/evento/1
+
+# Actualizar evento
+PUT http://localhost:3000/api/evento/1
+Content-Type: application/json
+
+{
+  "titulo": "Evento actualizado"
+}
+
+# Eliminar evento
+DELETE http://localhost:3000/api/evento/1
+
+
+### AGENDA USUARIO
+
+# Listar agenda
+GET http://localhost:3000/api/agendaUsuario
+
+# Obtener por id
+GET http://localhost:3000/api/agendaUsuario/1
+
+# Crear agenda usuario
+POST http://localhost:3000/api/agendaUsuario
+Content-Type: application/json
+
+{
+  "usuarioId": 1,
+  "eventoId": 2
+}
+
+# Actualizar agenda (envía objeto completo con ID)
+PUT http://localhost:3000/api/agendaUsuario
+Content-Type: application/json
+
+{
+  "ID": 1,
+  "usuarioId": 1,
+  "eventoId": 2
+}
+
+# Eliminar agenda
+DELETE http://localhost:3000/api/agendaUsuario/1
+
+
+### PAÍS / CATEGORÍA / ESTADÍSTICAS
+
+# Listar países
+GET http://localhost:3000/api/pais
+
+# Listar categorías
+GET http://localhost:3000/api/categoria
+
+# Estadísticas (ejemplo)
+GET http://localhost:3000/api/estadisticas
+
+
+### UTILIDADES (ejecutar si corresponde)
+
+# Probar conexión DB (no es un endpoint, solo para info)
+# Revisa la salida en la consola del servidor para ver si hay warnings sobre la DB.
+
+
+# NOTAS:
+# - Algunos endpoints requieren autenticación o que los handlers estén habilitados (login/register están comentados por ahora en el backend).
+# - Para usar este archivo en VSCode instala la extensión "REST Client" y abre este archivo; podrás ejecutar cada bloque con "Send Request".
+# - En Postman, crea nuevas peticiones copiando los bloques arriba y ajusta la URL y el body según sea necesario.

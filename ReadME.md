@@ -60,3 +60,19 @@ backend/
 
 
 CONTROLLERS SERVICIES REPOSITORIES (BD)
+
+Cómo ejecutar
+----------------
+- Iniciar la aplicación (producción/local):
+
+```bash
+npm start
+```
+
+- Modo desarrollo con recarga automática (usa el watcher de Node):
+
+```bash
+npm run watch
+```
+
+Si prefieres usar `nodemon` para desarrollo, instala con `npm i -D nodemon` y ejecuta `npx nodemon index.js`.

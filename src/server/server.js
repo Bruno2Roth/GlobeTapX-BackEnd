@@ -7,14 +7,14 @@ import AuthController                   from './../api/controllers/auth.js'
 import AgendaUsuarioController          from "./../api/controllers/agendausuarioController.js"
 import CategoriaController              from "./../api/controllers/categoriaController.js"
 import CategoriaEmergenciaController    from "./../api/controllers/categoriaEmergenciaController.js"
-import ContenidoPaisController          from "./../api/controllers/contenidoPaisController.js"
 import ContenidoPorCategoriaController  from "./../api/controllers/contenidoCategoriaController.js"
 import EstadisticasController           from "./../api/controllers/estadisticasController.js"
 import EventoController                 from "./../api/controllers/eventoController.js"
 import EventoFavoritoController         from "./../api/controllers/eventoFavoritoController.js"
 import PaisController                   from "./../api/controllers/paisController.js"
 import PreferenciaUsuarioController     from "./../api/controllers/preferenciaUsuarioController.js"
-import TipoAdminController              from "./../api/controllers/tipoAdminController.js"
+// ContenidoPaisController eliminado
+// TipoAdminController eliminado
 import UbicacionController              from "./../api/controllers/ubicacionController.js"
 import UsuarioController                from "./../api/controllers/usuarioController.js"
 import HistorialController              from "./../api/controllers/zHistorialController.js"
@@ -29,18 +29,17 @@ app.use(express.json()); // Middleware para parsear y comprender JSON
 
 // Endpoints (todos los Routers)
 app.use("/api/auth", AuthController);
-
 app.use("/api/agendaUsuario", AgendaUsuarioController);
 app.use("/api/categoria", CategoriaController);
 app.use("/api/categoriaEmergencia", CategoriaEmergenciaController);
-app.use("/api/contenidoPais", ContenidoPaisController);
 app.use("/api/contenidoPorCategoria", ContenidoPorCategoriaController);
 app.use("/api/estadisticas", EstadisticasController);
 app.use("/api/evento", EventoController);
 app.use("/api/eventoFavorito", EventoFavoritoController);
 app.use("/api/pais", PaisController);
 app.use("/api/preferenciaUsuario", PreferenciaUsuarioController);
-app.use("/api/tipoAdmin", TipoAdminController);
+// /api/contenidoPais removed
+// /api/tipoAdmin removed
 app.use("/api/ubicacion", UbicacionController);
 app.use("/api/usuario", UsuarioController);
 app.use("/api/historial", HistorialController);

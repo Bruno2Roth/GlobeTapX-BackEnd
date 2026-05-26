@@ -2,7 +2,7 @@ import usuariosRepository from './../../data/repositories/usuariosRepository.js'
 
 export default class usuariosService {
     constructor() {
-        console.log('Estoy en: usuariosService');
+        console.log('Estoy en: usuariosService.constructor()');
         this.usuariosRepository = new usuariosRepository();
     }
 
