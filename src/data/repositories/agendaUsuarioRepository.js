@@ -1,21 +1,22 @@
 import pool from '../../configs/SPConfig.js'
 
-export default class agendaUsuarioRepository {
+export default class AgendaUsuarioRepository {
     constructor() {
-        console.log('Estoy en: agendaUsuarioRepository.constructor()')
+        console.log('Estoy en: AgendaUsuarioRepository.constructor()')
         this.pool = pool
     }
 
     getAllAsync = async () => {
-        console.log(`agendaUsuarioRepository.getAllAsync()`)
+        console.log(`AgendaUsuarioRepository.getAllAsync()`)
 
-        const sql = `SELECT * FROM AgendaUsuario`
+        const sql = `SELECT * FROM "AgendaUsuario"`
 
-        return await this.pool.queryAll(sql)
+        const result = await this.pool.query(sql);
+        return result.rows;
     }
 
     getByIdAsync = async (id) => {
-        console.log(`agendaUsuarioRepository.getByIdAsync(${id})`)
+        console.log(`AgendaUsuarioRepository.getByIdAsync(${id})`)
 
         const sql = `SELECT * FROM AgendaUsuario WHERE ID = $1`
 
@@ -23,7 +24,7 @@ export default class agendaUsuarioRepository {
     }
 
     getByUsuarioAsync = async (IDUsuario) => {
-        console.log(`agendaUsuarioRepository.getByUsuarioAsync(${IDUsuario})`)
+        console.log(`AgendaUsuarioRepository.getByUsuarioAsync(${IDUsuario})`)
 
         const sql = `
             SELECT * 
@@ -35,7 +36,7 @@ export default class agendaUsuarioRepository {
     }
 
     getByEventoAsync = async (IDEvento) => {
-        console.log(`agendaUsuarioRepository.getByEventoAsync(${IDEvento})`);
+        console.log(`AgendaUsuarioRepository.getByEventoAsync(${IDEvento})`);
 
         const sql = `
             SELECT * 
@@ -47,7 +48,7 @@ export default class agendaUsuarioRepository {
     }
 
     createAsync = async (entity) => {
-        console.log(`agendaUsuarioRepository.createAsync(${JSON.stringify(entity)})`);
+        console.log(`AgendaUsuarioRepository.createAsync(${JSON.stringify(entity)})`);
 
         const sql = `
             INSERT INTO AgendaUsuario
@@ -68,7 +69,7 @@ export default class agendaUsuarioRepository {
     }
 
     updateAsync = async (entity) => {
-        console.log(`agendaUsuarioRepository.updateAsync(${JSON.stringify(entity)})`)
+        console.log(`AgendaUsuarioRepository.updateAsync(${JSON.stringify(entity)})`)
 
         const sql = `
             UPDATE AgendaUsuario
@@ -87,7 +88,7 @@ export default class agendaUsuarioRepository {
     }
 
     deleteByIdAsync = async (id) => {
-        console.log(`agendaUsuarioRepository.deleteByIdAsync(${id})`);
+        console.log(`AgendaUsuarioRepository.deleteByIdAsync(${id})`);
 
         const sql = `
             DELETE FROM AgendaUsuario
