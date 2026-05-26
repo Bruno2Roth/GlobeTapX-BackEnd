@@ -9,9 +9,10 @@ export default class paisRepository {
     getAllAsync = async () => {
         console.log(`paisRepository.getAllAsync()`);
 
-        const sql = `SELECT * FROM Pais`;
+        const sql = `SELECT * FROM "Pais"`;
 
-        return await this.pool.queryAll(sql);
+        const res = await this.pool.query(sql);
+        return res.rows;
     }
 
     getByIdAsync = async (id) => {
@@ -19,10 +20,11 @@ export default class paisRepository {
 
         const sql = `
             SELECT * 
-            FROM Pais
-            WHERE ID = $1
+            FROM "Pais"
+            WHERE "ID" = $1
         `;
 
-        return await this.pool.queryOne(sql, [id]);
+        const res = await this.pool.query(sql, [id]);
+        return res.rows && res.rows[0] ? res.rows[0] : null;
     }
 }

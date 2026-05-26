@@ -9,9 +9,10 @@ export default class eventoFavoritoRepository {
     getAllAsync = async () => {
         console.log(`eventoFavoritoRepository.getAllAsync()`);
 
-        const sql = `SELECT * FROM EventoFavorito`;
+        const sql = `SELECT * FROM "EventoFavorito"`;
 
-        return await this.pool.queryAll(sql);
+        const res = await this.pool.query(sql);
+        return res.rows;
     }
 
     getByUsuarioAsync = async (IDUsuario) => {
@@ -19,24 +20,25 @@ export default class eventoFavoritoRepository {
 
         const sql = `
             SELECT * 
-            FROM EventoFavorito
-            WHERE IDUsuario = $1
+            FROM "EventoFavorito"
+            WHERE "IDUsuario" = $1
         `;
 
-        return await this.pool.queryAll(sql, [IDUsuario]);
+        const res = await this.pool.query(sql, [IDUsuario]);
+        return res.rows;
     }
 
     createAsync = async (entity) => {
         console.log(`eventoFavoritoRepository.createAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            INSERT INTO EventoFavorito
+            INSERT INTO "EventoFavorito"
             (
-                IDUsuario,
-                IDEvento
+                "IDUsuario",
+                "IDEvento"
             )
             VALUES ($1, $2)
-            RETURNING ID
+            RETURNING "ID"
         `;
 
         const values = [
@@ -44,17 +46,19 @@ export default class eventoFavoritoRepository {
             entity.IDEvento
         ];
 
-        return await this.pool.queryReturnId(sql, values);
+        const res = await this.pool.query(sql, values);
+        return res.rows && res.rows[0] ? (res.rows[0].ID || res.rows[0].id) : null;
     }
 
     deleteByIdAsync = async (id) => {
         console.log(`eventoFavoritoRepository.deleteByIdAsync(${id})`);
 
         const sql = `
-            DELETE FROM EventoFavorito
-            WHERE ID = $1
+            DELETE FROM "EventoFavorito"
+            WHERE "ID" = $1
         `;
 
-        return await this.pool.queryRowCount(sql, [id]);
+        const res = await this.pool.query(sql, [id]);
+        return res.rowCount;
     }
 }

@@ -8,25 +8,29 @@ export default class contenidoCategoriaRepository {
 
     getAllAsync = async () => {
         console.log(`contenidoCategoriaRepository.getAllAsync()`);
-        const sql = `SELECT * FROM ContenidoCategoria`;
-        return await this.pool.queryAll(sql);
+        const sql = `SELECT * FROM "ContenidoCategoria"`;
+        const res = await this.pool.query(sql);
+        return res.rows;
     }
 
     getByIdAsync = async (id) => {
         console.log(`contenidoCategoriaRepository.getByIdAsync(${id})`);
-        const sql = `SELECT * FROM ContenidoCategoria WHERE ID = $1`;
-        return await this.pool.queryOne(sql, [id]);
+        const sql = `SELECT * FROM "ContenidoCategoria" WHERE "ID" = $1`;
+        const res = await this.pool.query(sql, [id]);
+        return res.rows && res.rows[0] ? res.rows[0] : null;
     }
 
     getByContenidoAsync = async (IDContenido) => {
         console.log(`contenidoCategoriaRepository.getByContenidoAsync(${IDContenido})`);
-        const sql = `SELECT * FROM ContenidoCategoria WHERE IDContenido = $1`;
-        return await this.pool.queryAll(sql, [IDContenido]);
+        const sql = `SELECT * FROM "ContenidoCategoria" WHERE "IDContenido" = $1`;
+        const res = await this.pool.query(sql, [IDContenido]);
+        return res.rows;
     }
 
     getByCategoriaAsync = async (IDCategoria) => {
         console.log(`contenidoCategoriaRepository.getByCategoriaAsync(${IDCategoria})`);
-        const sql = `SELECT * FROM ContenidoCategoria WHERE IDCategoria = $1`;
-        return await this.pool.queryAll(sql, [IDCategoria]);
+        const sql = `SELECT * FROM "ContenidoCategoria" WHERE "IDCategoria" = $1`;
+        const res = await this.pool.query(sql, [IDCategoria]);
+        return res.rows;
     }
 }

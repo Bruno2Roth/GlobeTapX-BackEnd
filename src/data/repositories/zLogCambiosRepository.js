@@ -9,7 +9,7 @@ export default class zlogCambiosRepository {
     getAllAsync = async () => {
         console.log(`zlogCambiosRepository.getAllAsync()`);
 
-        const sql = `SELECT * FROM zLogCambios`;
+        const sql = `SELECT * FROM "zLogCambios"`;
 
         return await this.pool.queryAll(sql);
     }
@@ -19,8 +19,8 @@ export default class zlogCambiosRepository {
 
         const sql = `
             SELECT * 
-            FROM zLogCambios
-            WHERE ID = $1
+            FROM "zLogCambios"
+            WHERE "ID" = $1
         `;
 
         return await this.pool.queryOne(sql, [id]);
@@ -31,8 +31,8 @@ export default class zlogCambiosRepository {
 
         const sql = `
             SELECT * 
-            FROM zLogCambios
-            WHERE IDUsuario = $1
+            FROM "zLogCambios"
+            WHERE "IDUsuario" = $1
         `;
 
         return await this.pool.queryAll(sql, [IDUsuario]);
@@ -42,17 +42,17 @@ export default class zlogCambiosRepository {
         console.log(`zlogCambiosRepository.createAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            INSERT INTO zLogCambios
+            INSERT INTO "zLogCambios"
             (
-                IDUsuario,
-                accion,
-                tipoEntidad,
-                IDEntidad,
-                diferencia,
-                fechaCreacion
+                "IDUsuario",
+                "accion",
+                "tipoEntidad",
+                "IDEntidad",
+                "diferencia",
+                "fechaCreacion"
             )
             VALUES ($1, $2, $3, $4, $5, $6)
-            RETURNING ID
+            RETURNING "ID"
         `;
 
         const values = [
@@ -71,15 +71,15 @@ export default class zlogCambiosRepository {
         console.log(`zlogCambiosRepository.updateAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            UPDATE zLogCambios
+            UPDATE "zLogCambios"
             SET
-                IDUsuario = $2,
-                accion = $3,
-                tipoEntidad = $4,
-                IDEntidad = $5,
-                diferencia = $6,
-                fechaCreacion = $7
-            WHERE ID = $1
+                "IDUsuario" = $2,
+                "accion" = $3,
+                "tipoEntidad" = $4,
+                "IDEntidad" = $5,
+                "diferencia" = $6,
+                "fechaCreacion" = $7
+            WHERE "ID" = $1
         `;
 
         const values = [
@@ -99,8 +99,8 @@ export default class zlogCambiosRepository {
         console.log(`zlogCambiosRepository.deleteByIdAsync(${id})`);
 
         const sql = `
-            DELETE FROM zLogCambios
-            WHERE ID = $1
+            DELETE FROM "zLogCambios"
+            WHERE "ID" = $1
         `;
 
         return await this.pool.queryRowCount(sql, [id]);

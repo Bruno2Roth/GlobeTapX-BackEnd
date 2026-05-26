@@ -9,9 +9,10 @@ export default class preferenciaUsuarioRepository {
     getAllAsync = async () => {
         console.log(`preferenciaUsuarioRepository.getAllAsync()`);
 
-        const sql = `SELECT * FROM PreferenciaUsuario`;
+        const sql = `SELECT * FROM "PreferenciaUsuario"`;
 
-        return await this.pool.queryAll(sql);
+        const res = await this.pool.query(sql);
+        return res.rows;
     }
 
     getByIdAsync = async (id) => {
@@ -19,11 +20,12 @@ export default class preferenciaUsuarioRepository {
 
         const sql = `
             SELECT * 
-            FROM PreferenciaUsuario
-            WHERE ID = $1
+            FROM "PreferenciaUsuario"
+            WHERE "ID" = $1
         `;
 
-        return await this.pool.queryOne(sql, [id]);
+        const res = await this.pool.query(sql, [id]);
+        return res.rows && res.rows[0] ? res.rows[0] : null;
     }
 
     getByUsuarioAsync = async (IDUsuario) => {
@@ -31,24 +33,25 @@ export default class preferenciaUsuarioRepository {
 
         const sql = `
             SELECT * 
-            FROM PreferenciaUsuario
-            WHERE IDUsuario = $1
+            FROM "PreferenciaUsuario"
+            WHERE "IDUsuario" = $1
         `;
 
-        return await this.pool.queryAll(sql, [IDUsuario]);
+        const res = await this.pool.query(sql, [IDUsuario]);
+        return res.rows;
     }
 
     createAsync = async (entity) => {
         console.log(`preferenciaUsuarioRepository.createAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            INSERT INTO PreferenciaUsuario
+            INSERT INTO "PreferenciaUsuario"
             (
-                IDUsuario,
-                preferencia
+                "IDUsuario",
+                "preferencia"
             )
             VALUES ($1, $2)
-            RETURNING ID
+            RETURNING "ID"
         `;
 
         const values = [
@@ -56,18 +59,19 @@ export default class preferenciaUsuarioRepository {
             entity.preferencia
         ];
 
-        return await this.pool.queryReturnId(sql, values);
+        const res = await this.pool.query(sql, values);
+        return res.rows && res.rows[0] ? (res.rows[0].ID || res.rows[0].id) : null;
     }
 
     updateAsync = async (entity) => {
         console.log(`preferenciaUsuarioRepository.updateAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            UPDATE PreferenciaUsuario
+            UPDATE "PreferenciaUsuario"
             SET
-                IDUsuario = $2,
-                preferencia = $3
-            WHERE ID = $1
+                "IDUsuario" = $2,
+                "preferencia" = $3
+            WHERE "ID" = $1
         `;
 
         const values = [
@@ -76,17 +80,19 @@ export default class preferenciaUsuarioRepository {
             entity.preferencia
         ];
 
-        return await this.pool.queryRowCount(sql, values);
+        const res = await this.pool.query(sql, values);
+        return res.rowCount;
     }
 
     deleteByIdAsync = async (id) => {
         console.log(`preferenciaUsuarioRepository.deleteByIdAsync(${id})`);
 
         const sql = `
-            DELETE FROM PreferenciaUsuario
-            WHERE ID = $1
+            DELETE FROM "PreferenciaUsuario"
+            WHERE "ID" = $1
         `;
 
-        return await this.pool.queryRowCount(sql, [id]);
+        const res = await this.pool.query(sql, [id]);
+        return res.rowCount;
     }
 }

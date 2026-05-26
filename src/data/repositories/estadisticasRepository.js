@@ -9,9 +9,10 @@ export default class estadisticasRepository {
     getAllAsync = async () => {
         console.log(`estadisticasRepository.getAllAsync()`);
 
-        const sql = `SELECT * FROM Estadisticas`;
+        const sql = `SELECT * FROM "Estadisticas"`;
 
-        return await this.pool.queryAll(sql);
+        const res = await this.pool.query(sql);
+        return res.rows;
     }
 
     getByIdAsync = async (id) => {
@@ -19,23 +20,24 @@ export default class estadisticasRepository {
 
         const sql = `
             SELECT * 
-            FROM Estadisticas 
-            WHERE ID = $1
+            FROM "Estadisticas" 
+            WHERE "ID" = $1
         `;
 
-        return await this.pool.queryOne(sql, [id]);
+        const res = await this.pool.query(sql, [id]);
+        return res.rows && res.rows[0] ? res.rows[0] : null;
     }
 
     updateAsync = async (entity) => {
         console.log(`estadisticasRepository.updateAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            UPDATE Estadisticas
+            UPDATE "Estadisticas"
             SET
-                cantidadUsuarios = $2,
-                cantidadEventos = $3,
-                cantidadFavoritos = $4
-            WHERE ID = $1
+                "cantidadUsuarios" = $2,
+                "cantidadEventos" = $3,
+                "cantidadFavoritos" = $4
+            WHERE "ID" = $1
         `;
 
         const values = [
@@ -45,6 +47,7 @@ export default class estadisticasRepository {
             entity.cantidadFavoritos
         ];
 
-        return await this.pool.queryRowCount(sql, values);
+        const res = await this.pool.query(sql, values);
+        return res.rowCount;
     }
 }

@@ -9,9 +9,10 @@ export default class ubicacionRepository {
     getAllAsync = async () => {
         console.log(`ubicacionRepository.getAllAsync()`);
 
-        const sql = `SELECT * FROM Ubicacion`;
+        const sql = `SELECT * FROM "Ubicacion"`;
 
-        return await this.pool.queryAll(sql);
+        const res = await this.pool.query(sql);
+        return res.rows;
     }
 
     getByIdAsync = async (id) => {
@@ -19,11 +20,12 @@ export default class ubicacionRepository {
 
         const sql = `
             SELECT * 
-            FROM Ubicacion
-            WHERE ID = $1
+            FROM "Ubicacion"
+            WHERE "ID" = $1
         `;
 
-        return await this.pool.queryOne(sql, [id]);
+        const res = await this.pool.query(sql, [id]);
+        return res.rows && res.rows[0] ? res.rows[0] : null;
     }
 
     getByUsuarioAsync = async (IDUsuario) => {
@@ -31,25 +33,26 @@ export default class ubicacionRepository {
 
         const sql = `
             SELECT * 
-            FROM Ubicacion
-            WHERE IDUsuario = $1
+            FROM "Ubicacion"
+            WHERE "IDUsuario" = $1
         `;
 
-        return await this.pool.queryAll(sql, [IDUsuario]);
+        const res = await this.pool.query(sql, [IDUsuario]);
+        return res.rows;
     }
 
     createAsync = async (entity) => {
         console.log(`ubicacionRepository.createAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            INSERT INTO Ubicacion
+            INSERT INTO "Ubicacion"
             (
-                IDUsuario,
-                posicion,
-                ultimaActualizacion
+                "IDUsuario",
+                "posicion",
+                "ultimaActualizacion"
             )
             VALUES ($1, $2, $3)
-            RETURNING ID
+            RETURNING "ID"
         `;
 
         const values = [
@@ -58,19 +61,20 @@ export default class ubicacionRepository {
             entity.ultimaActualizacion
         ];
 
-        return await this.pool.queryReturnId(sql, values);
+        const res = await this.pool.query(sql, values);
+        return res.rows && res.rows[0] ? (res.rows[0].ID || res.rows[0].id) : null;
     }
 
     updateAsync = async (entity) => {
         console.log(`ubicacionRepository.updateAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            UPDATE Ubicacion
+            UPDATE "Ubicacion"
             SET
-                IDUsuario = $2,
-                posicion = $3,
-                ultimaActualizacion = $4
-            WHERE ID = $1
+                "IDUsuario" = $2,
+                "posicion" = $3,
+                "ultimaActualizacion" = $4
+            WHERE "ID" = $1
         `;
 
         const values = [
@@ -80,17 +84,19 @@ export default class ubicacionRepository {
             entity.ultimaActualizacion
         ];
 
-        return await this.pool.queryRowCount(sql, values);
+        const res = await this.pool.query(sql, values);
+        return res.rowCount;
     }
 
     deleteByIdAsync = async (id) => {
         console.log(`ubicacionRepository.deleteByIdAsync(${id})`);
 
         const sql = `
-            DELETE FROM Ubicacion
-            WHERE ID = $1
+            DELETE FROM "Ubicacion"
+            WHERE "ID" = $1
         `;
 
-        return await this.pool.queryRowCount(sql, [id]);
+        const res = await this.pool.query(sql, [id]);
+        return res.rowCount;
     }
 }

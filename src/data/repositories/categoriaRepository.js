@@ -9,9 +9,10 @@ export default class categoriaRepository {
     getAllAsync = async () => {
         console.log(`categoriaRepository.getAllAsync()`);
 
-        const sql = `SELECT * FROM Categoria`;
+        const sql = `SELECT * FROM "Categoria"`;
 
-        return await this.pool.queryAll(sql);
+        const res = await this.pool.query(sql);
+        return res.rows;
     }
 
     getByNameAsync = async (name) => {
@@ -19,10 +20,11 @@ export default class categoriaRepository {
 
         const sql = `
             SELECT * 
-            FROM Categoria 
-            WHERE nombre ILIKE '%' || $1 || '%'
+            FROM "Categoria" 
+            WHERE "nombre" ILIKE '%' || $1 || '%'
         `;
 
-        return await this.pool.queryOne(sql, [name]);
+        const res = await this.pool.query(sql, [name]);
+        return res.rows && res.rows[0] ? res.rows[0] : null;
     }
     }

@@ -9,7 +9,7 @@ export default class zHistorialRepository {
     getAllAsync = async () => {
         console.log(`zHistorialRepository.getAllAsync()`);
 
-        const sql = `SELECT * FROM Historial`;
+        const sql = `SELECT * FROM "Historial"`;
 
         return await this.pool.queryAll(sql);
     }
@@ -19,8 +19,8 @@ export default class zHistorialRepository {
 
         const sql = `
             SELECT * 
-            FROM Historial
-            WHERE ID = $1
+            FROM "Historial"
+            WHERE "ID" = $1
         `;
 
         return await this.pool.queryOne(sql, [id]);
@@ -31,8 +31,8 @@ export default class zHistorialRepository {
 
         const sql = `
             SELECT * 
-            FROM Historial
-            WHERE IDUsuario = $1
+            FROM "Historial"
+            WHERE "IDUsuario" = $1
         `;
 
         return await this.pool.queryAll(sql, [IDUsuario]);
@@ -42,15 +42,15 @@ export default class zHistorialRepository {
         console.log(`zHistorialRepository.createAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            INSERT INTO Historial
+            INSERT INTO "Historial"
             (
-                IDUsuario,
-                query,
-                dispositivo,
-                fecha
+                "IDUsuario",
+                "query",
+                "dispositivo",
+                "fecha"
             )
             VALUES ($1, $2, $3, $4)
-            RETURNING ID
+            RETURNING "ID"
         `;
 
         const values = [
@@ -67,13 +67,13 @@ export default class zHistorialRepository {
         console.log(`zHistorialRepository.updateAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            UPDATE Historial
+            UPDATE "Historial"
             SET
-                IDUsuario = $2,
-                query = $3,
-                dispositivo = $4,
-                fecha = $5
-            WHERE ID = $1
+                "IDUsuario" = $2,
+                "query" = $3,
+                "dispositivo" = $4,
+                "fecha" = $5
+            WHERE "ID" = $1
         `;
 
         const values = [
@@ -91,8 +91,8 @@ export default class zHistorialRepository {
         console.log(`zHistorialRepository.deleteByIdAsync(${id})`);
 
         const sql = `
-            DELETE FROM Historial
-            WHERE ID = $1
+            DELETE FROM "Historial"
+            WHERE "ID" = $1
         `;
 
         return await this.pool.queryRowCount(sql, [id]);

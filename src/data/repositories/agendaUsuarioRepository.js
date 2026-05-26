@@ -1,100 +1,137 @@
-import pool from '../../configs/SPConfig.js'
+import pool from '../../configs/SPConfig.js';
 
 export default class AgendaUsuarioRepository {
+
     constructor() {
-        console.log('Estoy en: AgendaUsuarioRepository.constructor()')
-        this.pool = pool
+        console.log('Estoy en: AgendaUsuarioRepository.constructor()');
+        this.pool = pool;
     }
 
     getAllAsync = async () => {
-        console.log(`AgendaUsuarioRepository.getAllAsync()`)
 
-        const sql = `SELECT * FROM "AgendaUsuario"`
+        console.log('AgendaUsuarioRepository.getAllAsync()');
+
+        const sql = `
+            SELECT *
+            FROM "AgendaUsuario"
+        `;
 
         const result = await this.pool.query(sql);
+
         return result.rows;
     }
 
     getByIdAsync = async (id) => {
-        console.log(`AgendaUsuarioRepository.getByIdAsync(${id})`)
 
-        const sql = `SELECT * FROM AgendaUsuario WHERE ID = $1`
+        console.log(`AgendaUsuarioRepository.getByIdAsync(${id})`);
 
-        return await this.pool.queryOne(sql, [id]);
+        const sql = `
+            SELECT *
+            FROM "AgendaUsuario"
+            WHERE "ID" = $1
+        `;
+
+        const result = await this.pool.query(sql, [id]);
+
+        return result.rows[0];
     }
 
     getByUsuarioAsync = async (IDUsuario) => {
-        console.log(`AgendaUsuarioRepository.getByUsuarioAsync(${IDUsuario})`)
+
+        console.log(`AgendaUsuarioRepository.getByUsuarioAsync(${IDUsuario})`);
 
         const sql = `
-            SELECT * 
-            FROM AgendaUsuario
-            WHERE IDUsuario = $1
-        `
+            SELECT *
+            FROM "AgendaUsuario"
+            WHERE "IDUsuario" = $1
+        `;
 
-        return await this.pool.queryAll(sql, [IDUsuario])
+        const result = await this.pool.query(sql, [IDUsuario]);
+
+        return result.rows;
     }
 
     getByEventoAsync = async (IDEvento) => {
+
         console.log(`AgendaUsuarioRepository.getByEventoAsync(${IDEvento})`);
 
         const sql = `
-            SELECT * 
-            FROM AgendaUsuario
-            WHERE IDEvento = $1
-        `
+            SELECT *
+            FROM "AgendaUsuario"
+            WHERE "IDEvento" = $1
+        `;
 
-        return await this.pool.queryAll(sql, [IDEvento]);
+        const result = await this.pool.query(sql, [IDEvento]);
+
+        return result.rows;
     }
 
     createAsync = async (entity) => {
+
         console.log(`AgendaUsuarioRepository.createAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            INSERT INTO AgendaUsuario
+            INSERT INTO "AgendaUsuario"
             (
-                IDUsuario,
-                IDEvento
+                "IDUsuario",
+                "IDEvento",
+                "interes",
+                "recordatorio"
             )
-            VALUES ($1, $2)
-            RETURNING ID
-        `
+            VALUES ($1, $2, $3, $4)
+            RETURNING "ID"
+        `;
 
         const values = [
             entity.IDUsuario,
-            entity.IDEvento
-        ]
+            entity.IDEvento,
+            entity.interes,
+            entity.recordatorio
+        ];
 
-        return await this.pool.queryReturnId(sql, values)
+        const result = await this.pool.query(sql, values);
+
+        return result.rows[0];
     }
 
     updateAsync = async (entity) => {
-        console.log(`AgendaUsuarioRepository.updateAsync(${JSON.stringify(entity)})`)
+
+        console.log(`AgendaUsuarioRepository.updateAsync(${JSON.stringify(entity)})`);
 
         const sql = `
-            UPDATE AgendaUsuario
+            UPDATE "AgendaUsuario"
             SET
-                IDUsuario = $2,
-                IDEvento = $3
-            WHERE ID = $1`
+                "IDUsuario" = $2,
+                "IDEvento" = $3,
+                "interes" = $4,
+                "recordatorio" = $5
+            WHERE "ID" = $1
+        `;
 
         const values = [
             entity.ID,
             entity.IDUsuario,
-            entity.IDEvento
-        ]
+            entity.IDEvento,
+            entity.interes,
+            entity.recordatorio
+        ];
 
-        return await this.pool.queryRowCount(sql, values)
+        const result = await this.pool.query(sql, values);
+
+        return result.rowCount;
     }
 
     deleteByIdAsync = async (id) => {
+
         console.log(`AgendaUsuarioRepository.deleteByIdAsync(${id})`);
 
         const sql = `
-            DELETE FROM AgendaUsuario
-            WHERE ID = $1
+            DELETE FROM "AgendaUsuario"
+            WHERE "ID" = $1
         `;
 
-        return await this.pool.queryRowCount(sql, [id]);
+        const result = await this.pool.query(sql, [id]);
+
+        return result.rowCount;
     }
 }
