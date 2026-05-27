@@ -1,4 +1,8 @@
 import 'dotenv/config'
+
+if (process.env.NODE_ENV !== 'production') {
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // esto es para que no tire error de certificado http
+}
 import express 	from "express";	// hacer npm i express
 import cors 	from "cors";	// hacer npm i cors
 
@@ -21,6 +25,7 @@ import TraduccionController             from "./../api/controllers/traduccionCon
 import HistorialController              from "./../api/controllers/zHistorialController.js"
 import LogCambiosController             from "./../api/controllers/zLogCambiosController.js"
 import CurrencyController               from "./../api/controllers/currencyController.js"
+import ClimaController                  from "./../api/controllers/climaController.js"
 
 const app  = express();
 const port = process.env.PORT || 3000;  // si no esta definido en el archivo .env uso el 3000.
@@ -46,6 +51,7 @@ app.use("/api/ubicacion", UbicacionController);
 app.use("/api/usuario", UsuarioController);
 app.use("/api/traduccion", TraduccionController);
 app.use("/api/currency", CurrencyController);
+app.use("/api/clima", ClimaController);
 app.use("/api/historial", HistorialController);
 app.use("/api/logCambios", LogCambiosController);
 
