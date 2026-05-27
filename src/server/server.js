@@ -17,8 +17,10 @@ import PreferenciaUsuarioController     from "./../api/controllers/preferenciaUs
 // TipoAdminController eliminado
 import UbicacionController              from "./../api/controllers/ubicacionController.js"
 import UsuarioController                from "./../api/controllers/usuarioController.js"
+import TraduccionController             from "./../api/controllers/traduccionController.js"
 import HistorialController              from "./../api/controllers/zHistorialController.js"
 import LogCambiosController             from "./../api/controllers/zLogCambiosController.js"
+import CurrencyController               from "./../api/controllers/currencyController.js"
 
 const app  = express();
 const port = process.env.PORT || 3000;  // si no esta definido en el archivo .env uso el 3000.
@@ -42,6 +44,8 @@ app.use("/api/preferenciaUsuario", PreferenciaUsuarioController);
 // /api/tipoAdmin removed
 app.use("/api/ubicacion", UbicacionController);
 app.use("/api/usuario", UsuarioController);
+app.use("/api/traduccion", TraduccionController);
+app.use("/api/currency", CurrencyController);
 app.use("/api/historial", HistorialController);
 app.use("/api/logCambios", LogCambiosController);
 

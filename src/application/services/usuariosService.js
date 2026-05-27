@@ -1,9 +1,11 @@
 import usuariosRepository from './../../data/repositories/usuariosRepository.js';
+import translationHelper from '../../helpers/translationHelper.js';
 
 export default class usuariosService {
     constructor() {
         console.log('Estoy en: usuariosService.constructor()');
         this.usuariosRepository = new usuariosRepository();
+        this.translator = new translationHelper();
     }
 
     createValidationError(message) {
@@ -114,5 +116,73 @@ export default class usuariosService {
         console.log(`usuariosService.deleteByIdAsync(${id})`);
         const rowsAffected = await this.usuariosRepository.deleteByIdAsync(id);
         return rowsAffected;
+    }
+
+    async getIdiomaPreferidoAsync(usuarioId) {
+        console.log(`usuariosService.getIdiomaPreferidoAsync(${usuarioId})`);
+
+        if (!usuarioId) {
+            throw new Error('ID de usuario es requerido');
+        }
+
+        const idioma = await this.usuariosRepository.getIdiomaPreferidoAsync(usuarioId);
+        return idioma || null;
+    }
+
+    async getIdiomaPreferidoConFallbackAsync(usuarioId, detectedLanguage = null) {
+        console.log(`usuariosService.getIdiomaPreferidoConFallbackAsync(${usuarioId}, ${detectedLanguage})`);
+
+        const preferido = await this.getIdiomaPreferidoAsync(usuarioId);
+        if (preferido) {
+            return {
+                usuarioId,
+                codigoIdioma: preferido,
+                nombreIdioma: this.translator.getSupportedLanguages()[preferido]?.name || 'Español',
+                origen: 'guardado'
+            };
+        }
+
+        const normalizedLanguage = detectedLanguage
+            ? this.translator.normalizeLanguageCode(detectedLanguage)
+            : 'es';
+
+        return {
+            usuarioId,
+            codigoIdioma: normalizedLanguage,
+            nombreIdioma: this.translator.getSupportedLanguages()[normalizedLanguage]?.name || 'Español',
+            origen: 'detectado'
+        };
+    }
+
+    async cambiarIdiomaAsync(usuarioId, codigoIdioma) {
+        console.log(`usuariosService.cambiarIdiomaAsync(${usuarioId}, ${codigoIdioma})`);
+
+        if (!usuarioId || !codigoIdioma) {
+            throw new Error('Usuario ID e idioma son requeridos');
+        }
+
+        const normalizedLanguage = this.translator.normalizeLanguageCode(codigoIdioma);
+        if (!this.translator.isValidLanguageCode(normalizedLanguage)) {
+            throw new Error('Código de idioma no válido. Idiomas soportados: es, en, fr, it, pt, ko, zh, he');
+        }
+
+        const usuario = await this.usuariosRepository.getByIdAsync(usuarioId);
+        if (!usuario) {
+            throw new Error('Usuario no encontrado');
+        }
+
+        const rowsAffected = await this.usuariosRepository.updateIdiomaPreferidoAsync(usuarioId, normalizedLanguage);
+        return {
+            success: true,
+            message: 'Idioma actualizado exitosamente',
+            updated: rowsAffected > 0,
+            usuarioId,
+            codigoIdioma: normalizedLanguage,
+            nombreIdioma: this.translator.getSupportedLanguages()[normalizedLanguage]?.name || 'Desconocido'
+        };
+    }
+
+    getIdiomasSoportados() {
+        return this.translator.getSupportedLanguages();
     }
 }

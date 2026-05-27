@@ -11,7 +11,7 @@ router.get('/status', (req, res) => {
     const token = req.query.token || req.headers['authorization'] && req.headers['authorization'].split(' ')[1];
     if (!token) return res.json({ authenticated: false });
     try {
-        const payload = jwt.verify(token, 'secreto');
+        const payload = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
         return res.json({ authenticated: true, user: payload });
     } catch (err) {
         return res.json({ authenticated: false });
@@ -29,7 +29,7 @@ router.post('/login', async (req, res) => {
 
         // Hardcoded credentials: usuario = 'a', contraseña = 'a'
         if (email === 'a' && password === 'a') {
-            const token = jwt.sign({ id: 1, email: 'a' }, 'secreto', { expiresIn: '24h' });
+            const token = jwt.sign({ id: 1, email: 'a' }, process.env.JWT_SECRET || 'secreto', { expiresIn: '24h' });
             console.log('Login correcto (hardcoded)');
             // Redirect to index; token included as query param for convenience
             return res.redirect('/?token=' + token);

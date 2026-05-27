@@ -1,5 +1,4 @@
 const jwt = require('jsonwebtoken');
-const env = require('../../config/env');
 
 const optional = (req, res, next) => {
   const authHeader = req.headers.authorization;
@@ -17,7 +16,7 @@ const optional = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, env.jwtSecret);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
     req.user = decoded;
   } catch (error) {
     req.user = null;
@@ -40,7 +39,7 @@ const required = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, env.jwtSecret);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
     req.user = decoded;
     return next();
   } catch (error) {

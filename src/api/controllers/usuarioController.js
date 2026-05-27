@@ -27,6 +27,46 @@ router.get('/', async (req, res) => {
     }
 });
 
+router.get('/idioma', async (req, res) => {
+    console.log('GET /usuarios/idioma');
+
+    try {
+        const usuarioId = req.query.usuarioId || req.query.id;
+        const detectedLanguage = req.query.detectedLanguage || req.headers['x-user-language'];
+
+        if (!usuarioId) {
+            return res.status(400).json({ error: 'usuarioId es requerido' });
+        }
+
+        const idioma = await service.getIdiomaPreferidoConFallbackAsync(parseInt(usuarioId, 10), detectedLanguage);
+        res.status(200).json({ success: true, data: idioma });
+    } catch (error) {
+        console.log('Error en GET /usuarios/idioma');
+        console.log(error);
+        res.status(500).json({ error: error.message || 'Error al obtener idioma del usuario' });
+    }
+});
+
+router.put('/idioma', async (req, res) => {
+    console.log('PUT /usuarios/idioma');
+    console.log('Body:', req.body);
+
+    try {
+        const { usuarioId, codigoIdioma } = req.body;
+
+        if (!usuarioId || !codigoIdioma) {
+            return res.status(400).json({ error: 'usuarioId y codigoIdioma son requeridos' });
+        }
+
+        const result = await service.cambiarIdiomaAsync(parseInt(usuarioId, 10), codigoIdioma);
+        res.status(200).json(result);
+    } catch (error) {
+        console.log('Error en PUT /usuarios/idioma');
+        console.log(error);
+        res.status(500).json({ error: error.message || 'Error al actualizar idioma del usuario' });
+    }
+});
+
 router.get('/:id', async (req, res) => {
     console.log(`GET /usuarios/${req.params.id}`);
 

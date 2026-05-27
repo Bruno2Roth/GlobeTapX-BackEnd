@@ -26,7 +26,7 @@ export default class usuariosRepository {
     getByEmailAsync = async (email) => {
         console.log(`usuariosRepository.getByEmailAsync(${email})`);
 
-        const sql = `SELECT * FROM "Usuario" WHERE "email" = $1`;
+        const sql = `SELECT * FROM "Usuario" WHERE "mail" = $1`;
         const res = await this.pool.query(sql, [email]);
         return res.rows && res.rows[0] ? res.rows[0] : null;
     }
@@ -52,11 +52,13 @@ export default class usuariosRepository {
             (
                 "nombre",
                 "apellido",
-                "email",
-                "password",
-                "fechaNacimiento"
+                "mail",
+                "contrasena",
+                "nombreCompleto",
+                "numeroContacto",
+                "idiomapreferido"
             )
-            VALUES ($1, $2, $3, $4, $5)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING "ID"
         `;
 
@@ -65,7 +67,9 @@ export default class usuariosRepository {
             entity.apellido,
             entity.email,
             entity.password,
-            entity.fechaNacimiento
+            entity.nombreCompleto || null,
+            entity.numeroContacto || null,
+            entity.idiomaPreferido || entity.idioma || 'es'
         ];
 
         const res = await this.pool.query(sql, values);
@@ -80,9 +84,11 @@ export default class usuariosRepository {
             SET
                 "nombre" = $2,
                 "apellido" = $3,
-                "email" = $4,
-                "password" = $5,
-                "fechaNacimiento" = $6
+                "mail" = $4,
+                "contrasena" = $5,
+                "nombreCompleto" = $6,
+                "numeroContacto" = $7,
+                "idiomapreferido" = $8
             WHERE "ID" = $1
         `;
 
@@ -92,7 +98,9 @@ export default class usuariosRepository {
             entity.apellido,
             entity.email,
             entity.password,
-            entity.fechaNacimiento
+            entity.nombreCompleto || null,
+            entity.numeroContacto || null,
+            entity.idiomaPreferido || entity.idioma || null
         ];
 
         const res = await this.pool.query(sql, values);
@@ -104,6 +112,37 @@ export default class usuariosRepository {
 
         const sql = `DELETE FROM "Usuario" WHERE "ID" = $1`;
         const res = await this.pool.query(sql, [id]);
+        return res.rowCount;
+    }
+
+    getIdiomaPreferidoAsync = async (usuarioId) => {
+        console.log(`usuariosRepository.getIdiomaPreferidoAsync(${usuarioId})`);
+
+        const sql = `
+            SELECT *
+            FROM "Usuario"
+            WHERE "ID" = $1
+        `;
+
+        const res = await this.pool.query(sql, [usuarioId]);
+        if (!res.rows || !res.rows[0]) {
+            return null;
+        }
+
+        const user = res.rows[0];
+        return user.idiomapreferido || user.idioma || null;
+    }
+
+    updateIdiomaPreferidoAsync = async (usuarioId, codigoIdioma) => {
+        console.log(`usuariosRepository.updateIdiomaPreferidoAsync(${usuarioId}, ${codigoIdioma})`);
+
+        const sql = `
+            UPDATE "Usuario"
+            SET "idiomapreferido" = $2
+            WHERE "ID" = $1
+        `;
+
+        const res = await this.pool.query(sql, [usuarioId, codigoIdioma]);
         return res.rowCount;
     }
 }
