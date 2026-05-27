@@ -26,6 +26,7 @@ import HistorialController              from "./../api/controllers/zHistorialCon
 import LogCambiosController             from "./../api/controllers/zLogCambiosController.js"
 import CurrencyController               from "./../api/controllers/currencyController.js"
 import ClimaController                  from "./../api/controllers/climaController.js"
+import IdiomaController                 from "./../api/controllers/idiomaController.js"
 
 const app  = express();
 const port = process.env.PORT || 3000;  // si no esta definido en el archivo .env uso el 3000.
@@ -52,6 +53,7 @@ app.use("/api/usuario", UsuarioController);
 app.use("/api/traduccion", TraduccionController);
 app.use("/api/currency", CurrencyController);
 app.use("/api/clima", ClimaController);
+app.use("/api/idioma", IdiomaController);
 app.use("/api/historial", HistorialController);
 app.use("/api/logCambios", LogCambiosController);
 

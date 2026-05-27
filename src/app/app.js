@@ -24,7 +24,6 @@ app.get('/registro', (req, res) => {
   res.send('Página de registro: por favor regístrate o inicia sesión');
 });
 
-// Error handling
-// app.use(errorHandler); // Add error middleware
+// Error
 
 module.exports = app;
