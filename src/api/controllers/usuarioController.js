@@ -43,6 +43,12 @@ router.get('/idioma', async (req, res) => {
     } catch (error) {
         console.log('Error en GET /usuarios/idioma');
         console.log(error);
+        if (error.message === 'Usuario no encontrado') {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+        if (error.message === 'ID de usuario es requerido' || error.message === 'usuarioId es requerido') {
+            return res.status(400).json({ error: error.message });
+        }
         res.status(500).json({ error: error.message || 'Error al obtener idioma del usuario' });
     }
 });
@@ -63,6 +69,12 @@ router.put('/idioma', async (req, res) => {
     } catch (error) {
         console.log('Error en PUT /usuarios/idioma');
         console.log(error);
+        if (error.message === 'Usuario no encontrado') {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+        if (error.name === 'ValidationError' || error.message === 'Usuario ID e idioma son requeridos') {
+            return res.status(400).json({ error: error.message });
+        }
         res.status(500).json({ error: error.message || 'Error al actualizar idioma del usuario' });
     }
 });
@@ -103,7 +115,7 @@ router.post('/', async (req, res) => {
 
         console.log('Usuario creado:', result);
 
-        res.status(201).json(result);
+        res.status(201).json({ success: true, message: 'Usuario creado', id: result });
 
     } catch (error) {
 
@@ -136,7 +148,7 @@ router.put('/', async (req, res) => {
 
         console.log('Usuario actualizado:', result);
 
-        res.status(200).json(result);
+        res.status(200).json({ success: true, message: 'Usuario actualizado', updated: result });
 
     } catch (error) {
 
@@ -168,7 +180,7 @@ router.delete('/:id', async (req, res) => {
 
         console.log('Usuario eliminado:', result);
 
-        res.status(200).json(result);
+        res.status(200).json({ success: true, message: 'Usuario eliminado', deleted: result });
 
     } catch (error) {
 

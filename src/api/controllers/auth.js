@@ -1,14 +1,12 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import crypto from 'crypto';
 import usuariosService from '../../application/services/usuariosService.js';
 
 const router = express.Router();
-
 const service = new usuariosService();
 
 router.get('/status', (req, res) => {
-    const token = req.query.token || req.headers['authorization'] && req.headers['authorization'].split(' ')[1];
+    const token = req.query.token || (req.headers['authorization'] && req.headers['authorization'].split(' ')[1]);
     if (!token) return res.json({ authenticated: false });
     try {
         const payload = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
@@ -19,41 +17,47 @@ router.get('/status', (req, res) => {
 });
 
 router.post('/login', async (req, res) => {
-
-    console.log('POST /api/auth/login (hardcoded)');
-
+    console.log('POST /api/auth/login');
     try {
         const { email, password } = req.body;
-
-        console.log('Body:', req.body);
-
-        // Hardcoded credentials: usuario = 'a', contraseña = 'a'
-        if (email === 'a' && password === 'a') {
-            const token = jwt.sign({ id: 1, email: 'a' }, process.env.JWT_SECRET || 'secreto', { expiresIn: '24h' });
-            console.log('Login correcto (hardcoded)');
-            // Redirect to index; token included as query param for convenience
-            return res.redirect('/?token=' + token);
+        if (!email || !password) {
+            return res.status(400).json({ error: 'email y password son requeridos' });
         }
 
-        return res.status(401).json({ error: 'Credenciales incorrectas' });
+        const user = await service.getByEmailAsync(email);
+        if (!user) {
+            return res.status(401).json({ error: 'Credenciales incorrectas' });
+        }
 
+        // DB column is "contrasena"
+        const stored = user.contrasena || user.password || user.contrasena;
+        if (String(stored) !== String(password)) {
+            return res.status(401).json({ error: 'Credenciales incorrectas' });
+        }
+
+        const payload = { id: user.ID || user.id, email: user.mail || user.email };
+        const token = jwt.sign(payload, process.env.JWT_SECRET || 'secreto', { expiresIn: '24h' });
+
+        return res.status(200).json({ token, user: payload });
     } catch (error) {
         console.log('Error login');
         console.log(error);
-        res.status(500).json({ error: 'Error login' });
+        res.status(500).json({ error: error.message || 'Error login' });
     }
 });
 
 router.post('/register', async (req, res) => {
-    console.log('POST /api/auth/register (hardcoded/no-op)');
-
+    console.log('POST /api/auth/register');
     try {
-        // For testing we accept any register and return a fake id
-        return res.status(201).json({ id: 1, message: 'Usuario registrado (modo test)' });
+        const entity = req.body;
+        const id = await service.createAsync(entity);
+        return res.status(201).json({ id, message: 'Usuario registrado' });
     } catch (error) {
         console.log('Error register');
         console.log(error);
-        res.status(500).json({ error: 'Error register' });
+        if (error.name === 'ValidationError') return res.status(400).json({ error: error.message });
+        if (error.code === 'DUPLICATE_USER') return res.status(409).json({ error: error.message });
+        res.status(500).json({ error: error.message || 'Error register' });
     }
 });
 

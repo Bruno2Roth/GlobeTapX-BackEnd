@@ -61,9 +61,9 @@ router.post('/', async (req, res) => {
 
         const result = await service.createAsync(entity);
 
-        console.log('Usuario creado:', result);
+        console.log('AgendaUsuario creado:', result);
 
-        res.status(201).json(result);
+        res.status(201).json({ success: true, message: 'AgendaUsuario creado', id: result });
 
     } catch (error) {
 
@@ -86,9 +86,9 @@ router.put('/', async (req, res) => {
 
         const result = await service.updateAsync(entity);
 
-        console.log('Usuario actualizado:', result);
+        console.log('AgendaUsuario actualizado:', result);
 
-        res.status(200).json(result);
+        res.status(200).json({ success: true, message: 'AgendaUsuario actualizado', updated: result });
 
     } catch (error) {
 
@@ -110,9 +110,9 @@ router.delete('/:id', async (req, res) => {
 
         const result = await service.deleteByIdAsync(id);
 
-        console.log('Usuario eliminado:', result);
+        console.log('AgendaUsuario eliminado:', result);
 
-        res.status(200).json(result);
+        res.status(200).json({ success: true, message: 'AgendaUsuario eliminado', deleted: result });
 
     } catch (error) {
 

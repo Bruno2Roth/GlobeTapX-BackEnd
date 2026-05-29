@@ -1,8 +1,3 @@
-/**
- * MyMemory Translation Helper
- * Traduce texto usando la API gratuita de MyMemory.
- */
-
 import axios from 'axios';
 
 export default class mymemoryTranslationHelper {

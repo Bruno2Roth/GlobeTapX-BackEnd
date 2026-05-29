@@ -131,8 +131,19 @@ export default class usuariosService {
 
     async getIdiomaPreferidoConFallbackAsync(usuarioId, detectedLanguage = null) {
         console.log(`usuariosService.getIdiomaPreferidoConFallbackAsync(${usuarioId}, ${detectedLanguage})`);
+        if (!usuarioId) {
+            throw new Error('ID de usuario es requerido');
+        }
 
-        const preferido = await this.getIdiomaPreferidoAsync(usuarioId);
+        // Verificar existencia del usuario en la BD
+        const usuario = await this.usuariosRepository.getByIdAsync(usuarioId);
+        if (!usuario) {
+            // No inventamos nada: si el usuario no existe devolvemos un error
+            throw new Error('Usuario no encontrado');
+        }
+
+        const preferido = usuario.idiomapreferido || usuario.idioma || null;
+
         if (preferido) {
             return {
                 usuarioId,
@@ -142,9 +153,18 @@ export default class usuariosService {
             };
         }
 
-        const normalizedLanguage = detectedLanguage
-            ? this.translator.normalizeLanguageCode(detectedLanguage)
-            : 'es';
+        // El usuario existe pero no tiene idioma preferido guardado.
+        if (!detectedLanguage) {
+            return {
+                usuarioId,
+                codigoIdioma: null,
+                nombreIdioma: null,
+                origen: 'no-detectado',
+                message: 'No hay idioma preferido ni lenguaje detectado para este usuario'
+            };
+        }
+
+        const normalizedLanguage = this.translator.normalizeLanguageCode(detectedLanguage);
 
         return {
             usuarioId,
