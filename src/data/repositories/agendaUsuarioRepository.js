@@ -134,4 +134,18 @@ export default class AgendaUsuarioRepository {
 
         return result.rowCount;
     }
+
+    deleteByUsuarioAsync = async (IDUsuario) => {
+
+        console.log(`AgendaUsuarioRepository.deleteByUsuarioAsync(${IDUsuario})`);
+
+        const sql = `
+            DELETE FROM "AgendaUsuario"
+            WHERE "IDUsuario" = $1
+        `;
+
+        const result = await this.pool.query(sql, [IDUsuario]);
+
+        return result.rowCount;
+    }
 }

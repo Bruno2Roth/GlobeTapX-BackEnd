@@ -1,10 +1,12 @@
 import usuariosRepository from './../../data/repositories/usuariosRepository.js';
+import agendaUsuarioRepository from '../../data/repositories/agendaUsuarioRepository.js';
 import translationHelper from '../../helpers/translationHelper.js';
 
 export default class usuariosService {
     constructor() {
         console.log('Estoy en: usuariosService.constructor()');
         this.usuariosRepository = new usuariosRepository();
+        this.agendaUsuarioRepository = new agendaUsuarioRepository();
         this.translator = new translationHelper();
     }
 
@@ -34,12 +36,23 @@ export default class usuariosService {
             throw this.createValidationError('El nombre del usuario es obligatorio');
         }
 
-        if (!entity.apellido || !entity.apellido.toString().trim()) {
-            throw this.createValidationError('El apellido del usuario es obligatorio');
+        if (!entity.email && entity.mail) {
+            entity.email = entity.mail;
         }
+
+        if (!entity.password && entity.contrasena) {
+            entity.password = entity.contrasena;
+        }
+
+        const nombre = entity.nombre.toString().trim();
+        const apellido = entity.apellido && entity.apellido.toString().trim() ? entity.apellido.toString().trim() : '';
 
         if (!entity.email || !entity.email.toString().trim()) {
             throw this.createValidationError('El email del usuario es obligatorio');
+        }
+
+        if (!entity.nombreCompleto || !entity.nombreCompleto.toString().trim()) {
+            entity.nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
         }
 
         const email = entity.email.toString().trim();
@@ -114,6 +127,10 @@ export default class usuariosService {
 
     deleteByIdAsync = async (id) => {
         console.log(`usuariosService.deleteByIdAsync(${id})`);
+
+        // Eliminar primero las referencias en AgendaUsuario para evitar violaciones de clave foránea.
+        await this.agendaUsuarioRepository.deleteByUsuarioAsync(id);
+
         const rowsAffected = await this.usuariosRepository.deleteByIdAsync(id);
         return rowsAffected;
     }

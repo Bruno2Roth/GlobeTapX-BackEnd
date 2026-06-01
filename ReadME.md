@@ -1,105 +1,139 @@
-# GlobeTapX BackEnd — Peticiones de prueba (Postman / REST Client)
-
-Este archivo contiene bloques listos para copiar/pegar en Postman o usar con la extensión **REST Client** de VSCode. Todas las peticiones usan `http://localhost:3000` por defecto; cambia la URL si tu servidor corre en otro puerto.
-
-## Cómo usar
-
-- Instalar dependencias y arrancar el servidor:
-
-```bash
-npm i
-npm start
-
-- Crear usuario (ejemplo mínimo)
-
-POST http://localhost:3000/api/usuario
-Content-Type: application/json
-
-Body (JSON):
-
+### GET /api/auth/status
+- Con header `Authorization: Bearer <token>` o query `?token=<token>`.
+- Respuesta esperada si es válido:
 ```json
 {
-  "nombre": "Prueba",
-  "apellido": "Usuario",
-  "email": "prueba2@example.com",
-  "password": "secret",
-  "fechaNacimiento": "1990-01-01"
+  "authenticated": true,
+  "user": {
+    "id": 1,
+    "email": "usuario@example.com"
+  }
 }
 ```
-
-Esperado: `201` con el `id` del usuario creado, o `400/409` si hay validación o email duplicado.
-
-- Actualizar usuario (ejemplo)
-
-PUT http://localhost:3000/api/usuario
-Content-Type: application/json
-
-Body (JSON):
-
+- Si el token no existe o es inválido devuelve:
 ```json
-{
-  "ID": 2, //este usuario no existe asi que falla cuando arregles esto quiero errores mas especificos
-  "nombre": "NuevoNombre",
-  "apellido": "NuevoApellido",
-  "email": "usuario2@example.com",
-  "password": "nuevasecret",
-  "fechaNacimiento": "1990-01-01",
-  "idiomaPreferido": "es"
-}
+{ "authenticated": false }
 ```
 
-Esperado: `200` con el número de filas afectadas. Si el `ID` no existe, el repositorio puede devolver `0`.
+#### Uso posterior del token
+- Después de hacer `POST /api/auth/login`, guarda el valor de `token`.
+- Usa ese token en el header de autenticación para validar tu sesión.
+- Ejemplo:
+  - Header: `Authorization: Bearer eyJ...`
+  - Request: `GET /api/auth/status`
 
-- Eliminar usuario por ID
-
-DELETE http://localhost:3000/api/usuario/2
-
-Esperado: `200` con número de filas afectadas (típicamente `1` si se eliminó).
+> Actualmente este backend usa el token para verificar el estado de autenticación en `/api/auth/status`. No todos los endpoints del proyecto están protegidos por token todavía.
 
 ---
 
-## Endpoints `agendaUsuario` (ejemplos)
-
-- Actualizar entrada (envía objeto con `ID`)
-
-PUT http://localhost:3000/api/agendaUsuario
-Content-Type: application/json
-|
-Body (JSON):
-
+### Usuario
+#### DELETE /api/usuario/:id
+- Respuesta esperada 200:
 ```json
 {
-  "ID": 1,
-  "IDUsuario": 2,
-  "IDEvento": 1,
-  "interes": false,
-  "recordatorio": true
+  "success": true,
+  "message": "Usuario eliminado",
+  "deleted": 1
 }
 ```
+### Países
+### Idioma
 
-- Eliminar entrada
+#### GET /api/idioma/supported
+- Devuelve idiomas soportados.
 
-DELETE http://localhost:3000/api/agendaUsuario/1
+#### GET /api/idioma/preferred?usuarioId=<id>
+- Devuelve idioma preferido para un usuario con fallback.
 
-Esperado: `200` con número de filas afectadas.
+#### PUT /api/idioma/preferred
+- Body:
+```json
+{
+  "usuarioId": 1,
+  "codigoIdioma": "es"
+}
+```
+- Respuesta esperada 200 con objeto `data`.
 
 ---
 
-## Autenticación (register / login)
+### Ubicación
 
-Endpoints en `src/api/controllers/auth.js`:
+#### GET /api/ubicacion
+- Query opcional:
+  - `ip=<direccion_ip>`
+- Devuelve datos de ubicación según IP.
 
-- `POST /api/auth/login`:
-  - Body: `{ "email": "<email>", "password": "<password>" }`.
-  - Implementación actual: valida contra la tabla `Usuario` usando `usuariosService.getByEmailAsync`.
-  - Si las credenciales son correctas devuelve `200` con `{ token, user }`.
-  - Si no, devuelve `401`.
+---
 
-- `POST /api/auth/register`:
-  - Crea un usuario usando `usuariosService.createAsync` y devuelve `201` con `{ id, message }`.
+### Traducción
 
-- `GET /api/auth/status`:
-  - Verifica JWT en `Authorization: Bearer <token>` o en `?token=<token>`.
+#### POST /api/traduccion
+- Body:
+```json
+{
+  "text": "Hello",
+  "targetLanguage": "es"
+}
+```
+- Respuesta esperada 200:
+```json
+{
+  "success": true,
+  "data": { ...traducción... }
+}
+```
+
+#### POST /api/traduccion/batch
+- Body:
+```json
+{
+  "texts": ["Hello", "World"],
+  "targetLanguage": "es"
+}
+```
+- Respuesta esperada 200 con traducciones en `data`.
+
+---
+
+### Moneda
+
+#### GET /api/currency/country?country=<nombre>
+- Devuelve información de moneda para un país.
+- `400` si falta `country`.
+
+#### GET /api/currency/convert?from=USD&to=EUR&amount=100
+- Devuelve conversión de moneda.
+
+---
+
+### Clima
+
+#### GET /api/clima/user-info
+- Devuelve información de clima basada en la configuración actual.
+
+#### GET /api/clima/country?country=<nombre>
+- Devuelve clima para el país especificado.
+
+---
+
+### Endpoints adicionales (placeholders)
+
+Estos endpoints existen pero actualmente devuelven mensajes placeholder o datos básicos:
+
+- GET /api/categoria
+- GET /api/categoriaEmergencia
+- GET /api/contenidoPorCategoria
+- GET /api/estadisticas
+- GET /api/eventoFavorito
+- GET /api/preferenciaUsuario
+- GET /api/historial
+- GET /api/logCambios
+
+Ejemplo de respuesta actual:
+```json
+{ "message": "categoria controller (placeholder)" }
+```
 
 ---
 
@@ -108,7 +142,7 @@ Endpoints en `src/api/controllers/auth.js`:
 - Controladores: `src/api/controllers/`
 - Servicios: `src/application/services/`
 - Repositorios / consultas SQL: `src/data/repositories/`
-- Los repositorios retornan `rows` o `rowCount` según la consulta.
-- Revisa la consola del servidor para los logs de errores generados por los controladores/servicios.
+- El backend usa `express`, `pg`, `jsonwebtoken`, `dotenv`.
+- Revisa la consola del servidor para los logs de errores.
 
-Si quieres, genero también un archivo JSON importable para Postman con todas estas peticiones.
+> Si prefieres, puedo también generar un archivo JSON importable para Postman con todas estas peticiones.

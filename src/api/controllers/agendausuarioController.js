@@ -31,22 +31,22 @@ router.get('/:id', async (req, res) => {
     console.log(`GET /api/agendausuario/${req.params.id}`);
 
     try {
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id) || id <= 0) {
+            return res.status(400).json({ error: 'ID de usuario inválido' });
+        }
 
-        const id = req.params.id;
+        const data = await service.getByUsuarioAsync(id);
 
-        const data = await service.getByIdAsync(id);
-
-        console.log('Usuario obtenido:', data);
+        console.log('AgendaUsuario obtenidos:', data);
 
         res.status(200).json(data);
-
     } catch (error) {
-
         console.log('Error en GET /api/agendausuario/:id');
         console.log(error);
 
         res.status(500).json({
-            error: 'Error al obtener usuario'
+            error: 'Error al obtener agenda de usuario'
         });
     }
 });

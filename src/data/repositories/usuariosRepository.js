@@ -51,20 +51,18 @@ export default class usuariosRepository {
             INSERT INTO "Usuario"
             (
                 "nombre",
-                "apellido",
                 "mail",
                 "contrasena",
                 "nombreCompleto",
                 "numeroContacto",
                 "idiomapreferido"
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            VALUES ($1, $2, $3, $4, $5, $6)
             RETURNING "ID"
         `;
 
         const values = [
             entity.nombre,
-            entity.apellido,
             entity.email,
             entity.password,
             entity.nombreCompleto || null,
@@ -83,19 +81,17 @@ export default class usuariosRepository {
             UPDATE "Usuario"
             SET
                 "nombre" = $2,
-                "apellido" = $3,
-                "mail" = $4,
-                "contrasena" = $5,
-                "nombreCompleto" = $6,
-                "numeroContacto" = $7,
-                "idiomapreferido" = $8
+                "mail" = $3,
+                "contrasena" = $4,
+                "nombreCompleto" = $5,
+                "numeroContacto" = $6,
+                "idiomapreferido" = $7
             WHERE "ID" = $1
         `;
 
         const values = [
             entity.ID,
             entity.nombre,
-            entity.apellido,
             entity.email,
             entity.password,
             entity.nombreCompleto || null,

@@ -173,23 +173,26 @@ router.delete('/:id', async (req, res) => {
     console.log(`DELETE /usuarios/${req.params.id}`);
 
     try {
-
-        const id = req.params.id;
+        const id = Number(req.params.id);
+        if (!Number.isInteger(id) || id <= 0) {
+            return res.status(400).json({ error: 'ID de usuario inválido' });
+        }
 
         const result = await service.deleteByIdAsync(id);
 
         console.log('Usuario eliminado:', result);
 
+        if (result === 0) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+
         res.status(200).json({ success: true, message: 'Usuario eliminado', deleted: result });
-
     } catch (error) {
-
         console.log('Error en DELETE /usuarios/:id');
         console.log(error);
 
-        res.status(500).json({
-            error: 'Error al eliminar usuario'
-        });
+        const message = error.message || 'Error al eliminar usuario';
+        res.status(500).json({ error: message });
     }
 });
 
