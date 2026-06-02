@@ -1,10 +1,12 @@
 import express from 'express';
 import eventoFavoritoService from '../../application/services/eventoFavoritoService.js';
 import usuariosRepository from '../../data/repositories/usuariosRepository.js';
+import EventosRepository from '../../data/repositories/eventosRepository.js';
 
 const router = express.Router();
 const service = new eventoFavoritoService();
 const usuariosRepo = new usuariosRepository();
+const eventosRepo = new EventosRepository();
 
 router.get('/', async (req, res) => {
     try {
@@ -33,20 +35,38 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
     try {
+        console.log('POST /api/eventoFavorito headers:', req.headers['content-type']);
+        console.log('POST /api/eventoFavorito body:', req.body);
+
         const body = req.body || {};
         const entity = {
             IDUsuario: body.IDUsuario || body.idUsuario || body.id_usuario,
             IDEvento: body.IDEvento || body.idEvento || body.id_evento,
         };
 
+        console.log('POST /api/eventoFavorito entity:', entity);
+
         if (!entity.IDUsuario || !entity.IDEvento) {
             return res.status(400).json({ error: 'Debe enviar IDUsuario e IDEvento' });
+        }
+
+        const usuario = await usuariosRepo.getByIdAsync(entity.IDUsuario);
+        if (!usuario) {
+            return res.status(404).json({ error: 'Usuario no existe' });
+        }
+
+        const evento = await eventosRepo.getByIdAsync(entity.IDEvento);
+        if (!evento) {
+            return res.status(404).json({ error: 'Evento no existe' });
         }
 
         const id = await service.createAsync(entity);
         res.status(201).json({ message: 'Favorito creado', ID: id });
     } catch (error) {
         console.error('Error en POST /api/eventoFavorito', error);
+        if (error.code === '23505') {
+            return res.status(409).json({ error: 'Ya existe este evento favorito' });
+        }
         res.status(500).json({ error: error.message || 'Error al crear evento favorito' });
     }
 });

@@ -1,4 +1,5 @@
 import eventoFavoritoRepository from '../../data/repositories/eventoFavoritoRepository.js';
+import eventoFavorito from '../entities/eventoFavorito.js';
 
 export default class eventoFavoritoService {
     constructor() {
@@ -6,16 +7,24 @@ export default class eventoFavoritoService {
         this.eventoFavoritoRepository = new eventoFavoritoRepository();
     }
 
+    mapRowToEntity(row) {
+        return row ? new eventoFavorito(row.IDUsuario, row.IDEvento, row.fechaAgregado) : null;
+    }
+
+    mapRowsToEntities(rows) {
+        return Array.isArray(rows) ? rows.map((row) => this.mapRowToEntity(row)) : [];
+    }
+
     getAllAsync = async () => {
         console.log(`eventoFavoritoService.getAllAsync()`);
-        const returnArray = await this.eventoFavoritoRepository.getAllAsync();
-        return returnArray;
+        const rows = await this.eventoFavoritoRepository.getAllAsync();
+        return this.mapRowsToEntities(rows);
     }
 
     getByUsuarioAsync = async (IDUsuario) => {
         console.log(`eventoFavoritoService.getByUsuarioAsync(${IDUsuario})`);
-        const returnArray = await this.eventoFavoritoRepository.getByUsuarioAsync(IDUsuario);
-        return returnArray;
+        const rows = await this.eventoFavoritoRepository.getByUsuarioAsync(IDUsuario);
+        return this.mapRowsToEntities(rows);
     }
 
     createAsync = async (entity) => {

@@ -1,6 +1,6 @@
-const jwt = require('jsonwebtoken');
+import jwt from 'jsonwebtoken';
 
-const optional = (req, res, next) => {
+export const optional = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -25,7 +25,7 @@ const optional = (req, res, next) => {
   return next();
 };
 
-const required = (req, res, next) => {
+export const required = (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader) {
@@ -47,7 +47,7 @@ const required = (req, res, next) => {
   }
 };
 
-module.exports = {
+export default {
   optional,
   required,
 };

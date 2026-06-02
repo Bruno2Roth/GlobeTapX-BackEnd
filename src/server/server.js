@@ -3,11 +3,12 @@ import 'dotenv/config'
 if (process.env.NODE_ENV !== 'production') {
     process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // esto es para que no tire error de certificado http
 }
-import express 	from "express";	// hacer npm i express
-import cors 	from "cors";	// hacer npm i cors
+import express 	from "express";    // hacer npm i express
+import cors 	from "cors";          // hacer npm i cors
 
 // Controllers
 import AuthController                   from './../api/controllers/auth.js'
+import authMiddleware                   from './../api/middlewares/auth.js'
 import AgendaUsuarioController          from "./../api/controllers/agendausuarioController.js"
 import CategoriaController              from "./../api/controllers/categoriaController.js"
 import CategoriaEmergenciaController    from "./../api/controllers/categoriaEmergenciaController.js"
@@ -31,11 +32,20 @@ const app  = express();
 const port = process.env.PORT || 3000;  // si no esta definido en el archivo .env uso el 3000.
 
 // Agrego los Middlewares
-app.use(cors());         // Middleware de CORS
-app.use(express.json()); // Middleware para parsear y comprender JSON
+app.use(cors());
+app.use(express.json());
 
 // Endpoints (todos los Routers).
 // Cada controller expone las rutas de un recurso específico del backend.
+
+// Si querés que funcione sin login en TODO /api, comentá este bloque completo.
+/*app.use('/api', (req, res, next) => {
+    if (req.path.startsWith('/auth')) {
+        return next();
+    }
+    return authMiddleware.required(req, res, next);
+}); */
+
 app.use("/api/auth", AuthController);
 app.use("/api/agendaUsuario", AgendaUsuarioController);
 app.use("/api/categoria", CategoriaController);
