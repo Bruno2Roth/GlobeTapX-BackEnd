@@ -17,8 +17,6 @@ import EventoController                 from "./../api/controllers/eventoControl
 import EventoFavoritoController         from "./../api/controllers/eventoFavoritoController.js"
 import PaisController                   from "./../api/controllers/paisController.js"
 import PreferenciaUsuarioController     from "./../api/controllers/preferenciaUsuarioController.js"
-// ContenidoPaisController eliminado
-// TipoAdminController eliminado
 import UbicacionController              from "./../api/controllers/ubicacionController.js"
 import UsuarioController                from "./../api/controllers/usuarioController.js"
 import TraduccionController             from "./../api/controllers/traduccionController.js"
@@ -48,8 +46,6 @@ app.use("/api/evento", EventoController);
 app.use("/api/eventoFavorito", EventoFavoritoController);
 app.use("/api/pais", PaisController);
 app.use("/api/preferenciaUsuario", PreferenciaUsuarioController);
-// /api/contenidoPais removed
-// /api/tipoAdmin removed
 app.use("/api/ubicacion", UbicacionController);
 app.use("/api/usuario", UsuarioController);
 app.use("/api/traduccion", TraduccionController);
