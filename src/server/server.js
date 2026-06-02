@@ -27,6 +27,7 @@ import LogCambiosController             from "./../api/controllers/zLogCambiosCo
 import CurrencyController               from "./../api/controllers/currencyController.js"
 import ClimaController                  from "./../api/controllers/climaController.js"
 import IdiomaController                 from "./../api/controllers/idiomaController.js"
+import PaisInfoController               from "./../api/controllers/paisInfoController.js"
 
 const app  = express();
 const port = process.env.PORT || 3000;  // si no esta definido en el archivo .env uso el 3000.
@@ -35,7 +36,8 @@ const port = process.env.PORT || 3000;  // si no esta definido en el archivo .en
 app.use(cors());         // Middleware de CORS
 app.use(express.json()); // Middleware para parsear y comprender JSON
 
-// Endpoints (todos los Routers)
+// Endpoints (todos los Routers).
+// Cada controller expone las rutas de un recurso específico del backend.
 app.use("/api/auth", AuthController);
 app.use("/api/agendaUsuario", AgendaUsuarioController);
 app.use("/api/categoria", CategoriaController);
@@ -54,6 +56,7 @@ app.use("/api/traduccion", TraduccionController);
 app.use("/api/currency", CurrencyController);
 app.use("/api/clima", ClimaController);
 app.use("/api/idioma", IdiomaController);
+app.use("/api/paisInfo", PaisInfoController);
 app.use("/api/historial", HistorialController);
 app.use("/api/logCambios", LogCambiosController);
 

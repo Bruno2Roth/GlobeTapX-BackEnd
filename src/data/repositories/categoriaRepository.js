@@ -6,6 +6,8 @@ export default class categoriaRepository {
         this.pool = pool;
     }
 
+    // Repositorio de categorías. Ejecuta consultas directas contra la tabla "Categoria".
+
     getAllAsync = async () => {
         console.log(`categoriaRepository.getAllAsync()`);
 
@@ -27,4 +29,17 @@ export default class categoriaRepository {
         const res = await this.pool.query(sql, [name]);
         return res.rows && res.rows[0] ? res.rows[0] : null;
     }
+
+    getByIdAsync = async (id) => {
+        console.log(`categoriaRepository.getByIdAsync(${id})`);
+
+        const sql = `
+            SELECT * 
+            FROM "Categoria" 
+            WHERE "ID" = $1
+        `;
+
+        const res = await this.pool.query(sql, [id]);
+        return res.rows && res.rows[0] ? res.rows[0] : null;
     }
+}

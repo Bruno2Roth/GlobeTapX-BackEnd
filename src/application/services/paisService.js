@@ -6,6 +6,8 @@ export default class paisService {
         this.paisRepository = new paisRepository();
     }
 
+    // Servicio que abstrae las consultas de país sobre la tabla Pais.
+
     getAllAsync = async () => {
         console.log(`paisService.getAllAsync()`);
         const returnArray = await this.paisRepository.getAllAsync();
@@ -15,6 +17,12 @@ export default class paisService {
     getByIdAsync = async (id) => {
         console.log(`paisService.getByIdAsync(${id})`);
         const returnEntity = await this.paisRepository.getByIdAsync(id);
+        return returnEntity;
+    }
+
+    getByNameAsync = async (name) => {
+        console.log(`paisService.getByNameAsync(${name})`);
+        const returnEntity = await this.paisRepository.getByNameAsync(name);
         return returnEntity;
     }
 }

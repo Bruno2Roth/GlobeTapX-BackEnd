@@ -9,17 +9,18 @@ export default class categoriasEmergenciaRepository {
     getAllAsync = async () => {
         console.log(`categoriasEmergenciaRepository.getAllAsync()`);
 
-        const sql = `SELECT * FROM "CategoriasEmergencia"`;
+        const sql = `SELECT * FROM "CategoriaEmergencia"`;
 
         const res = await this.pool.query(sql);
         return res.rows;
     }
-    GetByPaisAsync = async (IDPais) => {
+
+    getByPaisAsync = async (IDPais) => {
         console.log(`categoriasEmergenciaRepository.getByPaisAsync(${IDPais})`);
 
         const sql = `
             SELECT * 
-            FROM "CategoriasEmergencia" 
+            FROM "CategoriaEmergencia" 
             WHERE "IDPais" = $1
         `;
 

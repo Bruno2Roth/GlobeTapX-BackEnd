@@ -8,10 +8,15 @@ export default class currencyService {
         this.apiSecret = process.env.CURRENCY_API_SECRET;
     }
 
+    // Servicio para obtener información de moneda y convertir valores entre divisas.
+    // Usa REST Countries para obtener moneda por país y Apilayer/OpenER para conversiones.
+
+    // Normaliza el nombre del país para usarlo en la URL de RestCountries.
     normalizeCountry(country) {
         return country.toString().trim();
     }
 
+    // Obtiene los datos de moneda para un país usando la API de RestCountries.
     async getCurrencyByCountryAsync(country) {
         console.log(`currencyService.getCurrencyByCountryAsync(${country})`);
 
@@ -42,6 +47,7 @@ export default class currencyService {
         };
     }
 
+    // Valida los parámetros de conversión: monedas origen/destino y monto numérico.
     validateConversionParams(fromCurrency, toCurrency, amount) {
         if (!fromCurrency || !toCurrency) {
             throw new Error('Debe indicar las monedas origen y destino');

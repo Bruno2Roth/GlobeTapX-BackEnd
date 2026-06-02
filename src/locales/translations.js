@@ -1,5 +1,8 @@
 /**
  * Traducciones estáticas para la aplicación.
+ *
+ * Aquí se almacenan las claves que se pueden usar en la UI para mostrar
+ * texto en diferentes idiomas.
  */
 
 export const translations = {
@@ -57,6 +60,7 @@ export const translations = {
     }
 };
 
+// Mapa de códigos de idioma que normaliza variantes regionales a su código base.
 export const languageCodeMap = {
     es: 'es',
     'es-ES': 'es',
@@ -73,6 +77,7 @@ export const languageCodeMap = {
     he: 'he'
 };
 
+// Idiomas soportados por la aplicación y sus nombres legibles.
 export const supportedLanguages = {
     es: { name: 'Español' },
     en: { name: 'English' },

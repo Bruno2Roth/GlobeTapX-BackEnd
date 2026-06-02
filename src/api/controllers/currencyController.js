@@ -4,6 +4,8 @@ import currencyService from '../../application/services/currencyService.js';
 const router = express.Router();
 const service = new currencyService();
 
+// Controlador para moneda y conversión de divisas.
+// Expone rutas para obtener moneda por país y convertir entre monedas.
 router.get('/country', async (req, res) => {
     try {
         const { country } = req.query;

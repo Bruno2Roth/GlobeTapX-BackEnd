@@ -4,6 +4,7 @@ import climaService from '../../application/services/climaService.js';
 const router = express.Router();
 const service = new climaService();
 
+// Controlador de clima. Maneja información meteorológica local y por país.
 router.get('/user-info', async (req, res) => {
     try {
         const data = await service.getUserInfoAsync();

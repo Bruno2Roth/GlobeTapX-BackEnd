@@ -13,6 +13,7 @@ export default class climaService {
         console.log('Estoy en: climaService.constructor()');
     }
 
+    // Servicio de clima. Usa IP geolocation + APIs públicas para obtener clima y país.
     async fetchIpInfoAsync() {
         console.log('climaService.fetchIpInfoAsync()');
         const url = 'https://ipapi.co/json/';
@@ -20,6 +21,7 @@ export default class climaService {
         return response.data;
     }
 
+    // Consulta el clima actual para coordenadas geográficas.
     async fetchWeatherAsync(latitude, longitude) {
         console.log(`climaService.fetchWeatherAsync(${latitude}, ${longitude})`);
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=relativehumidity_2m&timezone=auto`;
@@ -99,8 +101,8 @@ export default class climaService {
         return null;
     }
 
+    // Obtiene información de usuario y clima usando la IP pública del cliente.
     async getUserInfoAsync() {
-        console.log('climaService.getUserInfoAsync()');
 
         const ipData = await this.fetchIpInfoAsync();
         const latitude = ipData.latitude || ipData.lat;

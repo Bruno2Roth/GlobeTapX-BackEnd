@@ -6,6 +6,7 @@ export default class categoriaService {
         this.categoriaRepository = new categoriaRepository();
     }
 
+    // Servicio que devuelve todas las categorías.
     getAllAsync = async () => {
         console.log(`categoriaService.getAllAsync()`);
         const returnArray = await this.categoriaRepository.getAllAsync();
@@ -15,6 +16,12 @@ export default class categoriaService {
     getByNameAsync = async (name) => {
         console.log(`categoriaService.getByNameAsync(${name})`);
         const returnEntity = await this.categoriaRepository.getByNameAsync(name);
+        return returnEntity;
+    }
+
+    getByIdAsync = async (id) => {
+        console.log(`categoriaService.getByIdAsync(${id})`);
+        const returnEntity = await this.categoriaRepository.getByIdAsync(id);
         return returnEntity;
     }
 }

@@ -6,6 +6,9 @@ export default class contenidoCategoriaRepository {
         this.pool = pool;
     }
 
+    // Repositorio para la tabla "ContenidoCategoria".
+
+    // Obtiene todos los registros de contenido por categoría.
     getAllAsync = async () => {
         console.log(`contenidoCategoriaRepository.getAllAsync()`);
         const sql = `SELECT * FROM "ContenidoCategoria"`;

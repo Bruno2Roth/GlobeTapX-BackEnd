@@ -1,15 +1,19 @@
 /**
  * Helper de frontend para traducir automáticamente la página.
- * Mantiene la preferencia en localStorage y usa data-translate.
+ *
+ * Este helper solo debe utilizarse en el navegador, porque accede a
+ * localStorage y a elementos DOM con el atributo `data-translate`.
  */
 
 const STORAGE_KEY = 'preferredLanguage';
 
 export function getPreferredLanguage() {
+    // Lee el idioma preferido guardado en localStorage.
     return localStorage.getItem(STORAGE_KEY) || 'es';
 }
 
 export function setPreferredLanguage(language) {
+    // Guarda el idioma seleccionado por el usuario.
     localStorage.setItem(STORAGE_KEY, language);
 }
 
@@ -22,6 +26,8 @@ export async function translatePage(targetLanguage) {
     const texts = Array.from(elements)
         .map(el => el.dataset.translate && el.dataset.translate.toString().trim())
         .filter(Boolean);
+
+    // Recopila los textos únicos que se deben traducir.
 
     const uniqueTexts = [...new Set(texts)];
     const response = await fetch('/api/traduccion/batch', {
@@ -45,6 +51,8 @@ export async function translatePage(targetLanguage) {
         translatedMap[item.text] = item.translatedText;
     });
 
+    // Reemplaza en el DOM cada texto traducido.
+
     elements.forEach(el => {
         const key = el.dataset.translate && el.dataset.translate.toString().trim();
         const translated = translatedMap[key] || key;
@@ -58,6 +66,7 @@ export async function translatePage(targetLanguage) {
 }
 
 export function initLanguageSelector(selectorId, callback) {
+    // Inicializa un selector HTML de idioma y dispara la traducción al cambiar.
     const select = document.getElementById(selectorId);
     if (!select) return;
 
