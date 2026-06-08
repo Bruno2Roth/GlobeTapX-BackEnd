@@ -1,4 +1,4 @@
-import categoriasEmergenciaRepository from '../../data/repositories/categoriaEmergenciaRepository.js';
+import categoriasEmergenciaRepository from '../../data/repositories/numerosEmergenciaRepository.js';
 
 export default class categoriasEmergenciaService {
     constructor() {

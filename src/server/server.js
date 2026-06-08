@@ -27,9 +27,13 @@ import CurrencyController               from "./../api/controllers/currencyContr
 import ClimaController                  from "./../api/controllers/climaController.js"
 import IdiomaController                 from "./../api/controllers/idiomaController.js"
 import PaisInfoController               from "./../api/controllers/paisInfoController.js"
+import NumerosEmergenciaController     from "./../api/controllers/numerosEmergenciaController.js"
+import fs from 'fs';
+import path from 'path';
 
 const app  = express();
 const port = process.env.PORT || 3000;  // si no esta definido en el archivo .env uso el 3000.
+
 
 // Agrego los Middlewares
 app.use(cors());
@@ -63,6 +67,7 @@ app.use("/api/currency", CurrencyController);
 app.use("/api/clima", ClimaController);
 app.use("/api/idioma", IdiomaController);
 app.use("/api/paisInfo", PaisInfoController);
+app.use("/api", NumerosEmergenciaController);
 app.use("/api/historial", HistorialController);
 app.use("/api/logCambios", LogCambiosController);
 
