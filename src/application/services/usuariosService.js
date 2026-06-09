@@ -1,5 +1,7 @@
 import usuariosRepository from './../../data/repositories/usuariosRepository.js';
 import agendaUsuarioRepository from '../../data/repositories/agendaUsuarioRepository.js';
+import estadisticasRepository from '../../data/repositories/estadisticasRepository.js';
+import contenidoCategoriaRepository from '../../data/repositories/contenidoCategoriaRepository.js';
 import translationHelper from '../../helpers/translationHelper.js';
 
 export default class usuariosService {
@@ -7,6 +9,8 @@ export default class usuariosService {
         console.log('Estoy en: usuariosService.constructor()');
         this.usuariosRepository = new usuariosRepository();
         this.agendaUsuarioRepository = new agendaUsuarioRepository();
+        this.estadisticasRepository = new estadisticasRepository();
+        this.contenidoCategoriaRepository = new contenidoCategoriaRepository();
         this.translator = new translationHelper();
     }
 
@@ -109,6 +113,10 @@ export default class usuariosService {
         }
 
         const rowsAffected = await this.usuariosRepository.createAsync(entity);
+        
+        // Registrar estadística de creación
+        await this._registrarEstadistica('usuario_creado', entity.email, { nombre: entity.nombre });
+        
         return rowsAffected;
     }
 
@@ -122,17 +130,38 @@ export default class usuariosService {
         }
 
         const rowsAffected = await this.usuariosRepository.updateAsync(entity);
+        
+        // Registrar estadística de actualización
+        await this._registrarEstadistica('usuario_actualizado', entity.ID, { nombre: entity.nombre, email: entity.email });
+        
         return rowsAffected;
     }
 
     deleteByIdAsync = async (id) => {
         console.log(`usuariosService.deleteByIdAsync(${id})`);
 
-        // Eliminar primero las referencias en AgendaUsuario para evitar violaciones de clave foránea.
+        // Eliminar todas las referencias para evitar violaciones de clave foránea.
         await this.agendaUsuarioRepository.deleteByUsuarioAsync(id);
+        await this.estadisticasRepository.deleteByUsuarioAsync(id);
+        await this.contenidoCategoriaRepository.deleteByUsuarioAsync(id);
 
         const rowsAffected = await this.usuariosRepository.deleteByIdAsync(id);
+        
+        // Registrar estadística de eliminación
+        await this._registrarEstadistica('usuario_eliminado', id, null);
+        
         return rowsAffected;
+    }
+
+    async _registrarEstadistica(tipo, usuarioId, datos) {
+        console.log(`usuariosService._registrarEstadistica(${tipo}, ${usuarioId})`);
+        try {
+            // Log en consola (puedes agregar DB más tarde)
+            const timestamp = new Date().toISOString();
+            console.log(`[ESTADISTICA] ${timestamp} | Tipo: ${tipo} | Usuario: ${usuarioId} | Datos: ${JSON.stringify(datos)}`);
+        } catch (error) {
+            console.error('Error registrando estadística:', error);
+        }
     }
 
     async getIdiomaPreferidoAsync(usuarioId) {

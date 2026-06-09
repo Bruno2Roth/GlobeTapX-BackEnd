@@ -36,4 +36,11 @@ export default class contenidoCategoriaRepository {
         const res = await this.pool.query(sql, [IDCategoria]);
         return res.rows;
     }
+
+    deleteByUsuarioAsync = async (usuarioId) => {
+        console.log(`contenidoCategoriaRepository.deleteByUsuarioAsync(${usuarioId})`);
+        const sql = `DELETE FROM "ContenidoCategoria" WHERE "creadoPor" = $1`;
+        const res = await this.pool.query(sql, [usuarioId]);
+        return res.rowCount;
+    }
 }

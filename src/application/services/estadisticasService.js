@@ -18,6 +18,18 @@ export default class estadisticasService {
         return returnEntity;
     }
 
+    getByUsuarioAsync = async (usuarioId) => {
+        console.log(`estadisticasService.getByUsuarioAsync(${usuarioId})`);
+        if (!usuarioId || usuarioId <= 0) {
+            throw new Error('ID de usuario inválido');
+        }
+        const stats = await this.estadisticasRepository.getByUsuarioAsync(usuarioId);
+        if (!stats) {
+            throw new Error('Estadísticas no encontradas para este usuario');
+        }
+        return stats;
+    }
+
     updateAsync = async (entity) => {
         console.log(`estadisticasService.updateAsync(${JSON.stringify(entity)})`);
         const rowsAffected = await this.estadisticasRepository.updateAsync(entity);

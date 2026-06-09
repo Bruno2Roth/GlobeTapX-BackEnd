@@ -6,18 +6,11 @@ import authMiddleware from '../../api/middlewares/auth.js';
 const router = express.Router();
 const service = new usuariosService();
 
-const normalizeEmail = (value) => {
-    if (!value) return null;
-    const email = String(value).trim().toLowerCase();
-    const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-    return emailRegex.test(email) ? email : null;
-};
-
 const isRequiredString = (value) => typeof value === 'string' && value.trim().length > 0;
 
 const validateLoginBody = (req, res, next) => {
     const body = req.body || {};
-    const email = normalizeEmail(body.email || body.mail);
+    const email = validateEmail(body.email || body.mail);
     const password = body.password || body.contrasena;
 
     if (!email) {
@@ -34,7 +27,7 @@ const validateLoginBody = (req, res, next) => {
 const validateRegisterBody = (req, res, next) => {
     const body = req.body || {};
     const nombre = body.nombre || body.nombreCompleto;
-    const email = normalizeEmail(body.email || body.mail);
+    const email = validateEmail(body.email || body.mail);
     const password = body.password || body.contrasena;
     const fechaNacimiento = body.fechaNacimiento || body.fecha_nacimiento;
 

@@ -1,5 +1,5 @@
 import axios from 'axios';
-import https from 'https'; // Agente HTTPS para manejar certificados en producción
+import https from 'https';
 import clima from '../entities/clima.js';
 
 const axiosInstance = axios.create({
@@ -9,112 +9,72 @@ const axiosInstance = axios.create({
 });
 
 export default class climaService {
-    constructor() {
-        console.log('Estoy en: climaService.constructor()');
-    }
+    // Constructor vacío, sin logs innecesarios
+    constructor() {}
 
-    // Servicio de clima. Usa IP geolocation + APIs públicas para obtener clima y país.
     async fetchIpInfoAsync() {
-        console.log('climaService.fetchIpInfoAsync()');
-        const url = 'https://ipapi.co/json/';
-        const response = await axiosInstance.get(url);
-        return response.data;
+        const { data } = await axiosInstance.get('https://ipapi.co/json/');
+        return data;
     }
 
-    // Consulta el clima actual para coordenadas geográficas.
     async fetchWeatherAsync(latitude, longitude) {
-        console.log(`climaService.fetchWeatherAsync(${latitude}, ${longitude})`);
         const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true&hourly=relativehumidity_2m&timezone=auto`;
-        const response = await axiosInstance.get(url);
-        return response.data;
+        const { data } = await axiosInstance.get(url);
+        return data;
     }
 
     async fetchCountryByCodeAsync(countryCode) {
-        console.log(`climaService.fetchCountryByCodeAsync(${countryCode})`);
-        const url = `https://restcountries.com/v3.1/alpha/${countryCode}`;
-        const response = await axiosInstance.get(url);
-        return response.data[0];
+        const { data } = await axiosInstance.get(`https://restcountries.com/v3.1/alpha/${countryCode}`);
+        return data?.[0] ?? null;
     }
 
     async fetchCountryByNameOrCodeAsync(countryIdentifier) {
-        console.log(`climaService.fetchCountryByNameOrCodeAsync(${countryIdentifier})`);
-        const normalized = countryIdentifier.toString().trim();
-        let url;
+        const normalized = String(countryIdentifier).trim();
+        const isCode = /^[A-Za-z]{2,3}$/.test(normalized);
+        const url = isCode
+            ? `https://restcountries.com/v3.1/alpha/${normalized}`
+            : `https://restcountries.com/v3.1/name/${encodeURIComponent(normalized)}?fullText=false`;
 
-        if (/^[A-Za-z]{2,3}$/.test(normalized)) {
-            url = `https://restcountries.com/v3.1/alpha/${normalized}`;
-        } else {
-            url = `https://restcountries.com/v3.1/name/${encodeURIComponent(normalized)}?fullText=false`;
-        }
-
-        const response = await axiosInstance.get(url);
-        return Array.isArray(response.data) ? response.data[0] : response.data;
+        const { data } = await axiosInstance.get(url);
+        return Array.isArray(data) ? data[0] : data;
     }
 
     getCurrencyCode(currencies) {
-        if (!currencies || typeof currencies !== 'object') {
-            return null;
-        }
-        const codes = Object.keys(currencies);
-        return codes.length > 0 ? codes[0] : null;
+        return currencies && typeof currencies === 'object' ? Object.keys(currencies)[0] ?? null : null;
     }
 
     getCountryLatLng(countryData) {
-        if (!countryData || typeof countryData !== 'object') {
-            return null;
-        }
-
-        if (Array.isArray(countryData.capitalInfo?.latlng) && countryData.capitalInfo.latlng.length >= 2) {
-            return countryData.capitalInfo.latlng;
-        }
-
-        if (Array.isArray(countryData.latlng) && countryData.latlng.length >= 2) {
-            return countryData.latlng;
-        }
-
-        return null;
+        const latlng = countryData?.capitalInfo?.latlng ?? countryData?.latlng;
+        return Array.isArray(latlng) && latlng.length >= 2 ? [latlng[0], latlng[1]] : null;
     }
 
     getHumidityFromWeather(weatherData) {
-        if (!weatherData) {
-            return null;
-        }
-
-        const current = weatherData.current_weather;
-        const humidityFromCurrent = current?.relativehumidity_2m ?? current?.relative_humidity_2m;
-        if (humidityFromCurrent !== undefined && humidityFromCurrent !== null) {
-            return humidityFromCurrent;
-        }
+        const current = weatherData?.current_weather;
+        if (!current) return null;
+        const direct = current?.relativehumidity_2m ?? current?.relative_humidity_2m;
+        if (direct !== undefined) return direct;
 
         const time = current?.time;
-        const hourly = weatherData.hourly;
-        const hourlyHumidity = hourly?.relativehumidity_2m;
-        const hourlyTime = hourly?.time;
-
+        const hourlyTime = weatherData?.hourly?.time;
+        const hourlyHumidity = weatherData?.hourly?.relativehumidity_2m;
         if (time && Array.isArray(hourlyTime) && Array.isArray(hourlyHumidity)) {
-            const index = hourlyTime.indexOf(time);
-            if (index >= 0) {
-                return hourlyHumidity[index] ?? null;
-            }
+            const idx = hourlyTime.indexOf(time);
+            return idx >= 0 ? hourlyHumidity[idx] ?? null : null;
         }
 
         return null;
     }
 
-    // Obtiene información de usuario y clima usando la IP pública del cliente.
     async getUserInfoAsync() {
-
         const ipData = await this.fetchIpInfoAsync();
-        const latitude = ipData.latitude || ipData.lat;
-        const longitude = ipData.longitude || ipData.lon;
-        const countryCode = ipData.country_code || ipData.country;
+        const latitude = ipData.latitude ?? ipData.lat;
+        const longitude = ipData.longitude ?? ipData.lon;
+        const countryCode = ipData.country_code ?? ipData.country;
 
-        if (!latitude || !longitude) {
-            throw new Error('No se pudo obtener la latitud y longitud desde ipapi.co');
-        }
+        if (!latitude || !longitude) throw new Error('No se pudo obtener la latitud y longitud desde ipapi.co');
 
         const weatherData = await this.fetchWeatherAsync(latitude, longitude);
-        const currentWeather = weatherData.current_weather;
+        const currentWeather = weatherData?.current_weather ?? null;
         const temperature = currentWeather?.temperature ?? null;
         const humidity = this.getHumidityFromWeather(weatherData);
         const weatherCode = currentWeather?.weathercode ?? currentWeather?.weather_code ?? null;
@@ -141,23 +101,15 @@ export default class climaService {
     }
 
     async getWeatherByCountryAsync(country) {
-        console.log(`climaService.getWeatherByCountryAsync(${country})`);
-
-        if (!country || country.toString().trim().length === 0) {
-            throw new Error('El parámetro country es obligatorio');
-        }
+        if (!country || String(country).trim() === '') throw new Error('El parámetro country es obligatorio');
 
         const countryData = await this.fetchCountryByNameOrCodeAsync(country);
         const latlng = this.getCountryLatLng(countryData);
+        if (!latlng) throw new Error(`No se encontró latitud/longitud para el país especificado: ${country}`);
 
-        if (!Array.isArray(latlng) || latlng.length < 2) {
-            throw new Error(`No se encontró latitud/longitud para el país especificado: ${country}`);
-        }
-
-        const latitude = latlng[0];
-        const longitude = latlng[1];
+        const [latitude, longitude] = latlng;
         const weatherData = await this.fetchWeatherAsync(latitude, longitude);
-        const currentWeather = weatherData.current_weather;
+        const currentWeather = weatherData?.current_weather ?? null;
         const temperature = currentWeather?.temperature ?? null;
         const humidity = this.getHumidityFromWeather(weatherData);
         const weatherCode = currentWeather?.weathercode ?? currentWeather?.weather_code ?? null;

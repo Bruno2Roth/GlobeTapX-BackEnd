@@ -21,7 +21,6 @@ const normalizeFields = (value) => {
         reglas: 'reglas',
         vidaDiaria: 'vidaDiaria',
         vida_diaria: 'vidaDiaria',
-        'vida diaria': 'vidaDiaria',
         documentacion: 'documentacion',
         documenta: 'documentacion',
         paisNombre: 'paisNombre',

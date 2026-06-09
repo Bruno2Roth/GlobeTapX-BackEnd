@@ -33,16 +33,22 @@ const port = process.env.PORT || 3000;  // si no esta definido en el archivo .en
 app.use(cors());
 app.use(express.json());
 
+// Debug middleware - para el auth
+app.use((req, res, next) => {
+    console.log(`${req.method} ${req.path} | Auth: ${req.headers.authorization ? 'SÍ' : 'NO'}`);
+    next();
+});
+
 // Endpoints (todos los Routers).
 // Cada controller expone las rutas de un recurso específico del backend.
 
-// Si querés que funcione sin login en TODO /api, comentá este bloque completo.
-/*app.use('/api', (req, res, next) => {
+// Auth middleware: verifica login en TODAS las rutas excepto /auth
+app.use('/api', (req, res, next) => {
     if (req.path.startsWith('/auth')) {
         return next();
     }
     return authMiddleware.required(req, res, next);
-}); */
+});
 
 app.use("/api/auth", AuthController);
 app.use("/api/agendaUsuario", AgendaUsuarioController);

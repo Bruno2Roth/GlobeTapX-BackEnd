@@ -1,14 +1,14 @@
 import jwt from 'jsonwebtoken';
 
 export const optional = (req, res, next) => {
-  const authHeader = req.headers.authorization;
+  const encabezadoAutorizacion = req.headers.authorization;
 
-  if (!authHeader) {
+  if (!encabezadoAutorizacion) {
     req.user = null;
     return next();
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = encabezadoAutorizacion.split(' ')[1];
 
   if (!token) {
     req.user = null;
@@ -16,8 +16,8 @@ export const optional = (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
-    req.user = decoded;
+    const decodificado = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
+    req.user = decodificado;
   } catch (error) {
     req.user = null;
   }
@@ -26,21 +26,21 @@ export const optional = (req, res, next) => {
 };
 
 export const required = (req, res, next) => {
-  const authHeader = req.headers.authorization;
+  const encabezadoAutorizacion = req.headers.authorization;
 
-  if (!authHeader) {
+  if (!encabezadoAutorizacion) {
     return res.status(401).json({ success: false, message: 'No se proporcionó token' });
   }
 
-  const token = authHeader.split(' ')[1];
+  const token = encabezadoAutorizacion.split(' ')[1];
 
   if (!token) {
     return res.status(401).json({ success: false, message: 'No se proporcionó token' });
   }
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
-    req.user = decoded;
+    const decodificado = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
+    req.user = decodificado;
     return next();
   } catch (error) {
     return res.status(401).json({ success: false, message: 'Token inválido' });

@@ -73,8 +73,6 @@ export default class idiomaService {
             france: 'fr',
             italy: 'it',
             italian: 'it',
-            korea: 'ko',
-            'south korea': 'ko',
             china: 'zh',
             israel: 'he'
         };

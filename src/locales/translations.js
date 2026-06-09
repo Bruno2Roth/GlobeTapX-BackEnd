@@ -54,9 +54,9 @@ export const translations = {
         french: "Français",
         italian: "Italiano",
         portuguese: "Português",
-        korean: "한국어",
-        chinese: "中文",
-        hebrew: "עברית"
+        korean: "korean",
+        chinese: "chinese",
+        hebrew: "hebrew"
     }
 };
 
