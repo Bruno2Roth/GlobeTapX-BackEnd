@@ -4,7 +4,7 @@ import numerosEmergenciaService from '../../application/services/numerosEmergenc
 const router = express.Router();
 const service = new numerosEmergenciaService();
 
-const DISCLAIMER = 'Emergency numbers provided as-is; verify locally.';
+const MENSAJE = 'Números de emergencia provistos tal cual; verifique localmente.';
 
 function setExpires(res, ms) {
     res.set('Expires', new Date(Date.now() + ms).toUTCString());
@@ -12,6 +12,12 @@ function setExpires(res, ms) {
 
 function isNoDataCountry(obj) {
     if (!obj) return true;
+    // Chequear formato nuevo (minúsculas)
+    if (obj.ambulance && Array.isArray(obj.ambulance) && obj.ambulance.length) return false;
+    if (obj.fire && Array.isArray(obj.fire) && obj.fire.length) return false;
+    if (obj.police && Array.isArray(obj.police) && obj.police.length) return false;
+    if (obj.dispatch && Array.isArray(obj.dispatch) && obj.dispatch.length) return false;
+    // Chequear formato antiguo (mayúsculas)
     const keys = ['Fire', 'Ambulance', 'Police', 'Dispatch'];
     for (const k of keys) {
         const v = obj[k];
@@ -27,13 +33,16 @@ function isNoDataCountry(obj) {
 router.get('/country/:code', async (req, res) => {
     const code = req.params.code;
     try {
+        console.log(`numerosEmergenciaController: request for code=${code}, remoteBase=${service.baseRemota}`);
         const remote = await service.getCountry(code);
+        console.log(`numerosEmergenciaController: service.getCountry(${code}) returned:`, !!remote);
         setExpires(res, 24 * 3600 * 1000);
-        if (!remote) return res.status(404).json({ disclaimer: DISCLAIMER, error: 'Not Found', data: {} });
-        if (isNoDataCountry(remote)) return res.json({ disclaimer: DISCLAIMER, error: 'No Data for this Territory', data: {} });
-        return res.json({ disclaimer: DISCLAIMER, error: null, data: remote });
+        res.set('X-EM-Source', service.baseRemota);
+        if (!remote) return res.status(404).json({ mensaje: MENSAJE, error: 'No encontrado', data: {} });
+        if (isNoDataCountry(remote)) return res.json({ mensaje: MENSAJE, error: 'Sin datos para este territorio', data: {} });
+        return res.json({ mensaje: MENSAJE, error: null, data: remote });
     } catch (err) {
-        return res.status(502).json({ disclaimer: DISCLAIMER, error: err.message || 'Remote Service Error', data: {} });
+        return res.status(502).json({ mensaje: MENSAJE, error: err.message || 'Error en servicio remoto', data: {} });
     }
 });
 
@@ -41,9 +50,9 @@ router.get('/data/all', async (req, res) => {
     try {
         const allRemote = await service.getAll();
         setExpires(res, 7 * 24 * 3600 * 1000);
-        return res.json({ disclaimer: DISCLAIMER, error: null, data: allRemote });
+        return res.json({ mensaje: MENSAJE, error: null, data: allRemote });
     } catch (err) {
-        return res.status(502).json({ disclaimer: DISCLAIMER, error: err.message || 'Remote Service Error', data: [] });
+        return res.status(502).json({ mensaje: MENSAJE, error: err.message || 'Error en servicio remoto', data: [] });
     }
 });
 
@@ -52,13 +61,16 @@ router.get('/data/all', async (req, res) => {
 router.get('/data/:code', async (req, res) => {
     const code = req.params.code;
     try {
+        console.log(`numerosEmergenciaController: alias request for code=${code}, remoteBase=${service.baseRemota}`);
         const remote = await service.getCountry(code);
+        console.log(`numerosEmergenciaController: service.getCountry(${code}) returned:`, !!remote);
         setExpires(res, 24 * 3600 * 1000);
-        if (!remote) return res.status(404).json({ disclaimer: DISCLAIMER, error: 'Not Found', data: {} });
-        if (isNoDataCountry(remote)) return res.json({ disclaimer: DISCLAIMER, error: 'No Data for this Territory', data: {} });
-        return res.json({ disclaimer: DISCLAIMER, error: null, data: remote });
+        res.set('X-EM-Source', service.baseRemota);
+        if (!remote) return res.status(404).json({ mensaje: MENSAJE, error: 'No encontrado', data: {} });
+        if (isNoDataCountry(remote)) return res.json({ mensaje: MENSAJE, error: 'Sin datos para este territorio', data: {} });
+        return res.json({ mensaje: MENSAJE, error: null, data: remote });
     } catch (err) {
-        return res.status(502).json({ disclaimer: DISCLAIMER, error: err.message || 'Remote Service Error', data: {} });
+        return res.status(502).json({ mensaje: MENSAJE, error: err.message || 'Error en servicio remoto', data: {} });
     }
 });
 

@@ -1,8 +1,4 @@
 import 'dotenv/config'
-
-if (process.env.NODE_ENV !== 'production') {
-    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'; // esto es para que no tire error de certificado http
-}
 import express 	from "express";    // hacer npm i express
 import cors 	from "cors";          // hacer npm i cors
 
@@ -28,8 +24,6 @@ import ClimaController                  from "./../api/controllers/climaControll
 import IdiomaController                 from "./../api/controllers/idiomaController.js"
 import PaisInfoController               from "./../api/controllers/paisInfoController.js"
 import NumerosEmergenciaController     from "./../api/controllers/numerosEmergenciaController.js"
-import fs from 'fs';
-import path from 'path';
 
 const app  = express();
 const port = process.env.PORT || 3000;  // si no esta definido en el archivo .env uso el 3000.

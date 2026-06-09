@@ -3,6 +3,7 @@
 // - Si la remota falla o no tiene datos, usa una copia local `src/data/emergencyNumbers.json`.
 // - Provee `getAll()` y `getCountry(code)` con cache en memoria.
 import axios from 'axios';
+import https from 'https';
 import { promises as fs } from 'fs';
 import path from 'path';
 
@@ -13,10 +14,15 @@ const TIMEOUT_MS = 5000;
 export default class numerosEmergenciaService {
     constructor() {
         // base: puede ser una URL que termine en .json (archivo único) o una API base
-        this.base = DEFAULT_BASE.replace(/\/$/, '');
-        this.client = axios.create({ baseURL: this.base, timeout: TIMEOUT_MS });
+        // Permitir variable en español `URL_API_REMOTA` o la existente `REMOTE_EM_API_URL`
+        this.baseRemota = (process.env.URL_API_REMOTA || process.env.REMOTE_EM_API_URL || DEFAULT_BASE).replace(/\/$/, '');
+        this.cliente = axios.create({
+            baseURL: this.baseRemota,
+            timeout: TIMEOUT_MS,
+            httpsAgent: new https.Agent({ rejectUnauthorized: process.env.NODE_ENV === 'production' })
+        });
         this.cache = new Map(); // key -> { value, expires }
-        this._localData = null; // caché local de fallback
+        this._datosLocales = null; // caché local de fallback
     }
 
     // Devuelve valor cacheado o null
@@ -37,7 +43,7 @@ export default class numerosEmergenciaService {
 
     // Carga archivo local de fallback cuando la remota falla
     async _loadLocal() {
-        if (this._localData) return this._localData;
+        if (this._datosLocales) return this._datosLocales;
         const candidates = [
             path.resolve(process.cwd(), 'src', 'data', 'emergencyNumbers.json'),
             path.resolve(process.cwd(), 'data', 'emergencyNumbers.json')
@@ -47,26 +53,55 @@ export default class numerosEmergenciaService {
                 const raw = await fs.readFile(p, 'utf8');
                 const parsed = JSON.parse(raw);
                 // el archivo puede tener { countries: [...] } o ser directamente un array
-                this._localData = parsed.countries || parsed || [];
-                return this._localData;
+                this._datosLocales = parsed.countries || parsed || [];
+                return this._datosLocales;
             } catch (e) {
                 // si falla, probar la siguiente ruta candidata
             }
         }
-        this._localData = [];
-        return this._localData;
+        this._datosLocales = [];
+        return this._datosLocales;
     }
 
     // Obtiene todos los países desde la remota o (si la URL es un .json) descarga el archivo
     async _fetchRemoteAll() {
-        if (this.base.endsWith('.json')) {
-            const resp = await axios.get(this.base, { timeout: TIMEOUT_MS });
-            const d = resp.data;
-            return d && d.countries ? d.countries : Array.isArray(d) ? d : [];
+        const tryPaths = [];
+        if (this.baseRemota.endsWith('.json')) {
+            // base es un .json estático
+            tryPaths.push(this.baseRemota);
+        } else {
+            // posibles endpoints comunes para listar todos
+            tryPaths.push('/data/all', '/data', '/countries', '/countries/all', '/all', '/');
         }
-        // si la base no es un archivo .json, intentamos el endpoint /data/all
-        const data = await this.client.get('/data/all');
-        return data && data.data && data.data.countries ? data.data.countries : (data && data.data) || [];
+
+        for (const p of tryPaths) {
+            try {
+                const url = p.startsWith('http') ? p : p;
+                const resp = p.startsWith('http') ? await axios.get(url, { timeout: TIMEOUT_MS, httpsAgent: new https.Agent({ rejectUnauthorized: process.env.NODE_ENV === 'production' }) }) : await this.cliente.get(p);
+                const d = resp && resp.data ? resp.data : resp;
+                const candidates = this._extractCountries(d);
+                if (Array.isArray(candidates) && candidates.length) return candidates;
+                // if resp is object with countries key
+                if (d && d.countries && Array.isArray(d.countries) && d.countries.length) return d.countries;
+            } catch (e) {
+                console.warn(`numerosEmergenciaService._fetchRemoteAll: ${p} failed:`, e.message || e);
+                // probar siguiente ruta
+            }
+        }
+        // último intento: cargar DEFAULT_BASE directamente si no es el que ya intentamos
+        if (this.baseRemota !== DEFAULT_BASE) {
+            try {
+                console.warn('numerosEmergenciaService._fetchRemoteAll: intentando DEFAULT_BASE como último recurso');
+                const resp = await axios.get(DEFAULT_BASE, { timeout: TIMEOUT_MS, httpsAgent: new https.Agent({ rejectUnauthorized: process.env.NODE_ENV === 'production' }) });
+                const d = resp && resp.data ? resp.data : resp;
+                const candidates = this._extractCountries(d);
+                if (Array.isArray(candidates) && candidates.length) return candidates;
+                if (d && d.countries && Array.isArray(d.countries) && d.countries.length) return d.countries;
+            } catch (e2) {
+                console.warn('numerosEmergenciaService._fetchRemoteAll: DEFAULT_BASE también falló:', e2.message || e2);
+            }
+        }
+        throw new Error('No se pudo obtener lista remota de la API');
     }
 
     // Devuelve todos los registros (cacha por 7 días)
@@ -96,21 +131,115 @@ export default class numerosEmergenciaService {
         const cached = this._getCached(key);
         if (cached) return cached;
 
-        // Primero intentar buscar en la lista remota (si se pudo descargar)
+        // Intentar primero un endpoint específico del remoto (si la base es una API)
+        const tryPaths = [];
+        if (this.baseRemota.endsWith('.json')) {
+            // si la base es un .json estático no intentar paths individuales
+        } else {
+            tryPaths.push(`/country/${normalized}`);
+            tryPaths.push(`/data/${normalized}`);
+            tryPaths.push(`/${normalized}`);
+            tryPaths.push(`/country?code=${normalized}`);
+            tryPaths.push(`/country?country=${normalized}`);
+            tryPaths.push(`/data?code=${normalized}`);
+        }
+
+        let remoteIntentado = false;
+        let remoteFallido = false;
+
+        for (const p of tryPaths) {
+            try {
+                remoteIntentado = true;
+                const resp = await this.cliente.get(p);
+                const body = resp && resp.data ? resp.data : resp;
+                const candidates = this._extractCountries(body);
+                const found = this._findMatchingCountry(candidates, normalized, code);
+                if (found) {
+                    this._setCached(key, found, 24 * 3600 * 1000);
+                    return found;
+                }
+                if (body && typeof body === 'object') {
+                    const maybe = body.Country || body.country || body;
+                    if (this._isMatchingCountry(maybe, normalized, code)) {
+                        this._setCached(key, maybe, 24 * 3600 * 1000);
+                        return maybe;
+                    }
+                }
+            } catch (e) {
+                remoteIntentado = true;
+                remoteFallido = true;
+                console.warn(`numerosEmergenciaService.getCountry: tryPath ${p} failed:`, e.message || e);
+            }
+        }
+
+        // Si no respondio el endpoint directo, intentar descargar /data/all (o el .json)
         try {
-            const all = await this.getAll();
-            const found = all.find(c => c.Country && (String(c.Country.ISOCode).toUpperCase() === normalized || String(c.Country.ISONumeric) === String(code)));
+            remoteIntentado = true;
+            const all = await this._fetchRemoteAll();
+            const found = this._findMatchingCountry(all, normalized, code);
             this._setCached(key, found || null, 24 * 3600 * 1000);
-            return found || null;
-        } catch (e) {
+            if (found) return found;
+            } catch (e) {
+            remoteFallido = true;
+            console.warn('numerosEmergenciaService.getCountry: _fetchRemoteAll failed:', e.message || e);
             // si falla, caer al local
         }
 
         // Fallback local explícito
         const local = await this._loadLocal();
-        const found = local.find(c => c.Country && (String(c.Country.ISOCode).toUpperCase() === normalized || String(c.Country.ISONumeric) === String(code)));
+        const found = this._findMatchingCountry(local, normalized, code);
         this._setCached(key, found || null, 24 * 3600 * 1000);
-        return found || null;
+        if (found) return found;
+
+        // Si la API remota fue intentada y falló, lanzar error para que el controlador devuelva 502
+        if (typeof remoteIntentado !== 'undefined' && remoteIntentado && remoteFallido) {
+            const err = new Error('No se pudo contactar la API remota de números de emergencia');
+            err.code = 'REMOTE_UNAVAILABLE';
+            throw err;
+        }
+
+        // No se encontró el país en remoto ni en local
+        return null;
+    }
+
+    // Extrae un array de entradas tipo país desde diferentes formas de respuesta remota
+    _extractCountries(body) {
+        if (!body) return [];
+        if (Array.isArray(body)) return body;
+        if (body.countries && Array.isArray(body.countries)) return body.countries;
+        if (body.data && Array.isArray(body.data)) return body.data;
+        if (body.data && body.data.countries && Array.isArray(body.data.countries)) return body.data.countries;
+        if (body.Country || body.country) return [body.Country || body.country];
+        // Si es un objeto con claves por código, devolver sus valores filtrados
+        if (typeof body === 'object') {
+            const vals = Object.values(body).filter(v => v && (v.Country || v.country || v.ISOCode || v.ISONumeric));
+            if (vals.length) return vals;
+        }
+        return [];
+    }
+
+    _isMatchingCountry(entry, normalized, originalCode) {
+        if (!entry) return false;
+        const c = entry.Country || entry;
+        const iso = c.ISOCode || c.iso || c.cca2 || c.code || c.alpha2 || c.alpha_2 || c.iso2 || c.ISO || c.id;
+        const isn = c.ISONumeric || c.isNumeric || c.numeric || c.ISO_Number || c.numericCode;
+        const name = (c.name && (c.name.common || c.name)) || c.countryName || c.CountryName || c.pais || c.Pais || c.country;
+        if (iso && String(iso).toUpperCase() === normalized) return true;
+        if (isn && String(isn) === String(originalCode)) return true;
+        if (name && String(name).toUpperCase() === normalized) return true;
+        return false;
+    }
+
+    _findMatchingCountry(list, normalized, originalCode) {
+        if (!Array.isArray(list)) return null;
+        for (const c of list) {
+            if (this._isMatchingCountry(c, normalized, originalCode)) return c;
+            // c puede tener estructura plana
+            if (c.ISOCode && String(c.ISOCode).toUpperCase() === normalized) return c;
+            if (c.ISONumeric && String(c.ISONumeric) === String(originalCode)) return c;
+            if (c.Country && c.Country.ISOCode && String(c.Country.ISOCode).toUpperCase() === normalized) return c;
+        }
+        return null;
     }
 }
 
