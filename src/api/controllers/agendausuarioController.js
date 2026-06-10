@@ -2,126 +2,117 @@ import express from 'express';
 import agendaUsuarioService from './../../application/services/agendaUsuarioService.js';
 
 const router = express.Router();
-
 const service = new agendaUsuarioService();
 
+const getRequesterId = (req) => {
+  return req.user ? Number(req.user.id || req.user.ID) : null;
+};
+
+const isAdmin = (req) => {
+  return req.user && (req.user.role === 'admin' || req.user.isAdmin === true);
+};
+
 router.get('/', async (req, res) => {
-    console.log('GET /api/agendausuario');
+    if (!isAdmin(req)) {
+      return res.status(403).json({ error: 'Solo administradores pueden listar todas las agendas' });
+    }
 
     try {
-
         const data = await service.getAllAsync();
-
-        console.log('Usuarios obtenidos:', data);
-
         res.status(200).json(data);
-
     } catch (error) {
-
-        console.log('Error en GET /api/agendausuario');
-        console.log(error);
-
-        res.status(500).json({
-            error: 'Error al obtener usuarios'
-        });
+        console.log('Error en GET /api/agendausuario', error);
+        res.status(500).json({ error: 'Error al obtener agendas' });
     }
 });
 
 router.get('/:id', async (req, res) => {
-    console.log(`GET /api/agendausuario/${req.params.id}`);
-
     try {
         const id = Number(req.params.id);
         if (!Number.isInteger(id) || id <= 0) {
             return res.status(400).json({ error: 'ID de usuario inválido' });
         }
 
+        const requesterId = getRequesterId(req);
+        if (!requesterId) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+        if (!isAdmin(req) && Number(requesterId) !== id) {
+            return res.status(403).json({ error: 'No tiene permiso para ver la agenda de otro usuario' });
+        }
+
         const data = await service.getByUsuarioAsync(id);
-
-        console.log('AgendaUsuario obtenidos:', data);
-
         res.status(200).json(data);
     } catch (error) {
-        console.log('Error en GET /api/agendausuario/:id');
-        console.log(error);
-
-        res.status(500).json({
-            error: 'Error al obtener agenda de usuario'
-        });
+        console.log('Error en GET /api/agendausuario/:id', error);
+        res.status(500).json({ error: 'Error al obtener agenda de usuario' });
     }
 });
 
 router.post('/', async (req, res) => {
-    console.log('POST /api/agendausuario');
-    console.log(req.body);
-
     try {
-
         const entity = req.body;
+        const targetUserId = Number(entity.IDUsuario || entity.idUsuario || entity.id_usuario);
+
+        const requesterId = getRequesterId(req);
+        if (!requesterId) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+        if (!isAdmin(req) && Number(requesterId) !== targetUserId) {
+            return res.status(403).json({ error: 'No puede crear agenda para otro usuario' });
+        }
 
         const result = await service.createAsync(entity);
-
-        console.log('AgendaUsuario creado:', result);
-
         res.status(201).json({ success: true, message: 'AgendaUsuario creado', id: result });
-
     } catch (error) {
-
-        console.log('Error en POST /api/agendausuario');
-        console.log(error);
-
-        res.status(500).json({
-            error: 'Error al crear usuario'
-        });
+        console.log('Error en POST /api/agendausuario', error);
+        res.status(500).json({ error: 'Error al crear agenda' });
     }
 });
 
 router.put('/', async (req, res) => {
-    console.log('PUT /api/agendausuario');
-    console.log(req.body);
-
     try {
-
         const entity = req.body;
+        const targetUserId = Number(entity.IDUsuario || entity.idUsuario || entity.id_usuario);
+
+        const requesterId = getRequesterId(req);
+        if (!requesterId) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+        if (!isAdmin(req) && Number(requesterId) !== targetUserId) {
+            return res.status(403).json({ error: 'No puede modificar la agenda de otro usuario' });
+        }
 
         const result = await service.updateAsync(entity);
-
-        console.log('AgendaUsuario actualizado:', result);
-
         res.status(200).json({ success: true, message: 'AgendaUsuario actualizado', updated: result });
-
     } catch (error) {
-
-        console.log('Error en PUT /api/agendausuario');
-        console.log(error);
-
-        res.status(500).json({
-            error: 'Error al actualizar usuario'
-        });
+        console.log('Error en PUT /api/agendausuario', error);
+        res.status(500).json({ error: 'Error al actualizar agenda' });
     }
 });
 
 router.delete('/:id', async (req, res) => {
-    console.log(`DELETE /api/agendausuario/${req.params.id}`);
-
     try {
-
         const id = req.params.id;
 
+        const entry = await service.getByIdAsync(id);
+        if (!entry) {
+            return res.status(404).json({ error: 'Entrada de agenda no encontrada' });
+        }
+
+        const requesterId = getRequesterId(req);
+        if (!requesterId) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+        if (!isAdmin(req) && Number(requesterId) !== Number(entry.IDUsuario)) {
+            return res.status(403).json({ error: 'No puede eliminar la agenda de otro usuario' });
+        }
+
         const result = await service.deleteByIdAsync(id);
-
-        console.log('AgendaUsuario eliminado:', result);
-
         res.status(200).json({ success: true, message: 'AgendaUsuario eliminado', deleted: result });
-
     } catch (error) {
-
-        console.log('Error en DELETE /api/agendausuario/:id');
-        console.log(error);
-
-        res.status(500).json({
-            error: 'Error al eliminar usuario'
-        });
+        console.log('Error en DELETE /api/agendausuario/:id', error);
+        res.status(500).json({ error: 'Error al eliminar agenda' });
     }
 });
 

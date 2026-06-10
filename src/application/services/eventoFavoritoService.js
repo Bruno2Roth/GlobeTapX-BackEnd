@@ -8,7 +8,7 @@ export default class eventoFavoritoService {
     }
 
     mapRowToEntity(row) {
-        return row ? new eventoFavorito(row.IDUsuario, row.IDEvento, row.fechaAgregado) : null;
+        return row ? new eventoFavorito(row.ID, row.IDUsuario, row.IDEvento, row.fechaAgregado) : null;
     }
 
     mapRowsToEntities(rows) {
@@ -25,6 +25,12 @@ export default class eventoFavoritoService {
         console.log(`eventoFavoritoService.getByUsuarioAsync(${IDUsuario})`);
         const rows = await this.eventoFavoritoRepository.getByUsuarioAsync(IDUsuario);
         return this.mapRowsToEntities(rows);
+    }
+
+    getByIdAsync = async (id) => {
+        console.log(`eventoFavoritoService.getByIdAsync(${id})`);
+        const row = await this.eventoFavoritoRepository.getByIdAsync(id);
+        return this.mapRowToEntity(row);
     }
 
     createAsync = async (entity) => {

@@ -1,7 +1,8 @@
-// Simple test runner for numerosEmergenciaService
-// Run with: node src/tools/test_numeros.js
-const path = require('path');
-const Service = require('../application/services/numerosEmergenciaService');
+import path from 'path';
+import { fileURLToPath } from 'url';
+import Service from '../application/services/numerosEmergenciaService.js';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 (async () => {
   try {

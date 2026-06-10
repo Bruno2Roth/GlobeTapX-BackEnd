@@ -2,47 +2,53 @@ import express from 'express';
 import usuariosService from '../../application/services/usuariosService.js';
 
 const router = express.Router();
-
 const service = new usuariosService();
 
+const getRequesterId = (req) => {
+  return req.user ? Number(req.user.id || req.user.ID) : null;
+};
+
+const isAdmin = (req) => {
+  return req.user && (req.user.role === 'admin' || req.user.isAdmin === true);
+};
+
+const checkOwnUser = (req, res, targetId) => {
+  const requesterId = getRequesterId(req);
+  if (!requesterId) {
+    return res.status(401).json({ error: 'No autorizado' });
+  }
+  if (!isAdmin(req) && Number(requesterId) !== Number(targetId)) {
+    return res.status(403).json({ error: 'No tiene permiso para acceder a este recurso' });
+  }
+  return null;
+};
+
 router.get('/', async (req, res) => {
-    console.log('GET /usuarios');
+    if (!isAdmin(req)) {
+      return res.status(403).json({ error: 'Solo administradores pueden listar todos los usuarios' });
+    }
 
     try {
-
         const data = await service.getAllAsync();
-
-        console.log('Usuarios obtenidos:', data);
-
         res.status(200).json(data);
-
     } catch (error) {
-
-        console.log('Error en GET /usuarios');
-        console.log(error);
-
-        res.status(500).json({
-            error: 'Error al obtener usuarios'
-        });
+        console.log('Error en GET /usuarios', error);
+        res.status(500).json({ error: 'Error al obtener usuarios' });
     }
 });
 
 router.get('/idioma', async (req, res) => {
-    console.log('GET /usuarios/idioma');
-
     try {
         const usuarioId = req.query.usuarioId || req.query.id;
+
+        const blocked = checkOwnUser(req, res, usuarioId);
+        if (blocked) return blocked;
+
         const detectedLanguage = req.query.detectedLanguage || req.headers['x-user-language'];
-
-        if (!usuarioId) {
-            return res.status(400).json({ error: 'usuarioId es requerido' });
-        }
-
         const idioma = await service.getIdiomaPreferidoConFallbackAsync(parseInt(usuarioId, 10), detectedLanguage);
         res.status(200).json({ success: true, data: idioma });
     } catch (error) {
-        console.log('Error en GET /usuarios/idioma');
-        console.log(error);
+        console.log('Error en GET /usuarios/idioma', error);
         if (error.message === 'Usuario no encontrado') {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
@@ -54,11 +60,11 @@ router.get('/idioma', async (req, res) => {
 });
 
 router.put('/idioma', async (req, res) => {
-    console.log('PUT /usuarios/idioma');
-    console.log('Body:', req.body);
-
     try {
         const { usuarioId, codigoIdioma } = req.body;
+
+        const blocked = checkOwnUser(req, res, usuarioId);
+        if (blocked) return blocked;
 
         if (!usuarioId || !codigoIdioma) {
             return res.status(400).json({ error: 'usuarioId y codigoIdioma son requeridos' });
@@ -67,8 +73,7 @@ router.put('/idioma', async (req, res) => {
         const result = await service.cambiarIdiomaAsync(parseInt(usuarioId, 10), codigoIdioma);
         res.status(200).json(result);
     } catch (error) {
-        console.log('Error en PUT /usuarios/idioma');
-        console.log(error);
+        console.log('Error en PUT /usuarios/idioma', error);
         if (error.message === 'Usuario no encontrado') {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
@@ -80,119 +85,77 @@ router.put('/idioma', async (req, res) => {
 });
 
 router.get('/:id', async (req, res) => {
-    console.log(`GET /usuarios/${req.params.id}`);
-
     try {
-
         const id = req.params.id;
 
+        const blocked = checkOwnUser(req, res, id);
+        if (blocked) return blocked;
+
         const data = await service.getByIdAsync(id);
-
-        console.log('Usuario obtenido:', data);
-
         res.status(200).json(data);
-
     } catch (error) {
-
-        console.log('Error en GET /usuarios/:id');
-        console.log(error);
-
-        res.status(500).json({
-            error: 'Error al obtener usuario'
-        });
+        console.log('Error en GET /usuarios/:id', error);
+        res.status(500).json({ error: 'Error al obtener usuario' });
     }
 });
 
 router.post('/', async (req, res) => {
-    console.log('POST /usuarios');
-    console.log('Body:', req.body);
-
     try {
-
         const entity = req.body;
-
         const result = await service.createAsync(entity);
-
-        console.log('Usuario creado:', result);
-
         res.status(201).json({ success: true, message: 'Usuario creado', id: result });
-
     } catch (error) {
-
-        console.log('Error en POST /usuarios');
-        console.log(error);
-
+        console.log('Error en POST /usuarios', error);
         if (error.name === 'ValidationError') {
             return res.status(400).json({ error: error.message });
         }
-
         if (error.code === 'DUPLICATE_USER') {
             return res.status(409).json({ error: error.message });
         }
-
-        res.status(500).json({
-            error: 'Error al crear usuario'
-        });
+        res.status(500).json({ error: 'Error al crear usuario' });
     }
 });
 
 router.put('/', async (req, res) => {
-    console.log('PUT /usuarios');
-    console.log('Body:', req.body);
-
     try {
-
         const entity = req.body;
+        const targetId = entity.ID || entity.id;
+
+        const blocked = checkOwnUser(req, res, targetId);
+        if (blocked) return blocked;
 
         const result = await service.updateAsync(entity);
-
-        console.log('Usuario actualizado:', result);
-
         res.status(200).json({ success: true, message: 'Usuario actualizado', updated: result });
-
     } catch (error) {
-
-        console.log('Error en PUT /usuarios');
-        console.log(error);
-
+        console.log('Error en PUT /usuarios', error);
         if (error.name === 'ValidationError') {
             return res.status(400).json({ error: error.message });
         }
-
         if (error.code === 'DUPLICATE_USER') {
             return res.status(409).json({ error: error.message });
         }
-
-        res.status(500).json({
-            error: 'Error al actualizar usuario'
-        });
+        res.status(500).json({ error: 'Error al actualizar usuario' });
     }
 });
 
 router.delete('/:id', async (req, res) => {
-    console.log(`DELETE /usuarios/${req.params.id}`);
-
     try {
         const id = Number(req.params.id);
         if (!Number.isInteger(id) || id <= 0) {
             return res.status(400).json({ error: 'ID de usuario inválido' });
         }
 
+        const blocked = checkOwnUser(req, res, id);
+        if (blocked) return blocked;
+
         const result = await service.deleteByIdAsync(id);
-
-        console.log('Usuario eliminado:', result);
-
         if (result === 0) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
-
         res.status(200).json({ success: true, message: 'Usuario eliminado', deleted: result });
     } catch (error) {
-        console.log('Error en DELETE /usuarios/:id');
-        console.log(error);
-
-        const message = error.message || 'Error al eliminar usuario';
-        res.status(500).json({ error: message });
+        console.log('Error en DELETE /usuarios/:id', error);
+        res.status(500).json({ error: error.message || 'Error al eliminar usuario' });
     }
 });
 

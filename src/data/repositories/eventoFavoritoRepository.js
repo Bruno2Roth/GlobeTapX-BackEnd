@@ -28,6 +28,14 @@ export default class eventoFavoritoRepository {
         return res.rows;
     }
 
+    getByIdAsync = async (id) => {
+        console.log(`eventoFavoritoRepository.getByIdAsync(${id})`);
+
+        const sql = `SELECT * FROM "EventoFavorito" WHERE "ID" = $1`;
+        const res = await this.pool.query(sql, [id]);
+        return res.rows && res.rows[0] ? res.rows[0] : null;
+    }
+
     createAsync = async (entity) => {
         console.log(`eventoFavoritoRepository.createAsync(${JSON.stringify(entity)})`);
 

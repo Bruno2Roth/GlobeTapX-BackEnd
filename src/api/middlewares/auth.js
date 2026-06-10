@@ -16,7 +16,7 @@ export const optional = (req, res, next) => {
   }
 
   try {
-    const decodificado = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
+    const decodificado = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decodificado;
   } catch (error) {
     req.user = null;
@@ -39,7 +39,7 @@ export const required = (req, res, next) => {
   }
 
   try {
-    const decodificado = jwt.verify(token, process.env.JWT_SECRET || 'secreto');
+    const decodificado = jwt.verify(token, process.env.JWT_SECRET);
     req.user = decodificado;
     return next();
   } catch (error) {

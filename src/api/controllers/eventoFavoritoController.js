@@ -8,10 +8,26 @@ const service = new eventoFavoritoService();
 const usuariosRepo = new usuariosRepository();
 const eventosRepo = new EventosRepository();
 
+const getRequesterId = (req) => {
+  return req.user ? Number(req.user.id || req.user.ID) : null;
+};
+
+const isAdmin = (req) => {
+  return req.user && (req.user.role === 'admin' || req.user.isAdmin === true);
+};
+
 router.get('/', async (req, res) => {
     try {
         const IDUsuario = req.query.IDUsuario || req.query.idUsuario || req.query.id_usuario;
         if (IDUsuario) {
+            const requesterId = getRequesterId(req);
+            if (!requesterId) {
+                return res.status(401).json({ error: 'No autorizado' });
+            }
+            if (!isAdmin(req) && Number(requesterId) !== Number(IDUsuario)) {
+                return res.status(403).json({ error: 'No tiene permiso para ver los favoritos de otro usuario' });
+            }
+
             const usuario = await usuariosRepo.getByIdAsync(IDUsuario);
             if (!usuario) {
                 return res.status(404).json({ error: 'No existe el usuario' });
@@ -25,6 +41,10 @@ router.get('/', async (req, res) => {
             return res.status(200).json({ data: favoritos });
         }
 
+        if (!isAdmin(req)) {
+            return res.status(403).json({ error: 'No tiene permiso para listar todos los favoritos' });
+        }
+
         const data = await service.getAllAsync();
         res.status(200).json(data);
     } catch (error) {
@@ -35,16 +55,21 @@ router.get('/', async (req, res) => {
 
 router.post('/', async (req, res) => {
     try {
-        console.log('POST /api/eventoFavorito headers:', req.headers['content-type']);
-        console.log('POST /api/eventoFavorito body:', req.body);
-
         const body = req.body || {};
+        const IDUsuario = body.IDUsuario || body.idUsuario || body.id_usuario;
+
+        const requesterId = getRequesterId(req);
+        if (!requesterId) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+        if (!isAdmin(req) && Number(requesterId) !== Number(IDUsuario)) {
+            return res.status(403).json({ error: 'No puede crear favoritos para otro usuario' });
+        }
+
         const entity = {
-            IDUsuario: body.IDUsuario || body.idUsuario || body.id_usuario,
+            IDUsuario,
             IDEvento: body.IDEvento || body.idEvento || body.id_evento,
         };
-
-        console.log('POST /api/eventoFavorito entity:', entity);
 
         if (!entity.IDUsuario || !entity.IDEvento) {
             return res.status(400).json({ error: 'Debe enviar IDUsuario e IDEvento' });
@@ -74,10 +99,22 @@ router.post('/', async (req, res) => {
 router.delete('/:id', async (req, res) => {
     try {
         const { id } = req.params;
-        const rows = await service.deleteByIdAsync(id);
-        if (!rows) {
-            return res.status(404).json({ error: 'No se encontró el favorito para eliminar' });
+
+        const favorito = await service.getByIdAsync(id);
+        if (!favorito) {
+            return res.status(404).json({ error: 'No se encontró el favorito' });
         }
+
+        const requesterId = getRequesterId(req);
+        if (!requesterId) {
+            return res.status(401).json({ error: 'No autorizado' });
+        }
+        const favoritoUsuarioId = Number(favorito.IDUsuario || favorito.idUsuario || favorito.id_usuario);
+        if (!isAdmin(req) && Number(requesterId) !== favoritoUsuarioId) {
+            return res.status(403).json({ error: 'No puede eliminar favoritos de otro usuario' });
+        }
+
+        const rows = await service.deleteByIdAsync(id);
         res.status(200).json({ message: 'Favorito eliminado', rowsAffected: rows });
     } catch (error) {
         console.error('Error en DELETE /api/eventoFavorito/:id', error);
