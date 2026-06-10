@@ -1,8 +1,10 @@
 import express from 'express';
 import eventosService from '../../application/services/eventoService.js';
+import estadisticasService from '../../application/services/estadisticasService.js';
 
 const router = express.Router();
 const service = new eventosService();
+const statsService = new estadisticasService();
 
 router.get('/', async (req, res) => {
     const data = await service.getAllAsync();
@@ -17,6 +19,13 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
     try {
         const id = await service.createAsync(req.body);
+        const usuarioId = req.body.IDUsuario || req.body.idUsuario;
+        if (usuarioId) {
+            await statsService.logEventoAsync(usuarioId, 'creacion_expedicion', {
+                idEvento: id?.ID || id,
+                nombre: req.body.nombre,
+            });
+        }
         res.status(201).json({ success: true, message: 'Evento creado', id });
     } catch (err) {
         console.log('Error creando evento', err);

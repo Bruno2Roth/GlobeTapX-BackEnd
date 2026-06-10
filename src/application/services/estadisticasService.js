@@ -72,6 +72,11 @@ export default class estadisticasService {
         return await this.registroRepository.getByUsuarioAsync(usuarioId);
     }
 
+    getGeneralesAsync = async () => {
+        console.log(`estadisticasService.getGeneralesAsync()`);
+        return await this.estadisticasRepository.contarRegistrosAsync();
+    }
+
     getAllEventosAsync = async () => {
         console.log(`estadisticasService.getAllEventosAsync()`);
         return await this.registroRepository.getAllAsync();

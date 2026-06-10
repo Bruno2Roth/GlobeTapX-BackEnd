@@ -9,7 +9,23 @@ export default class estadisticasRepository {
     getAllAsync = async () => {
         console.log(`estadisticasRepository.getAllAsync()`);
 
-        const sql = `SELECT * FROM "Estadisticas"`;
+        const sql = `
+            SELECT
+                u."ID" AS "IDUsuario",
+                u."nombre",
+                u."mail",
+                COALESCE(e."paisesVisitados", 0) AS "paisesVisitados",
+                COALESCE(e."expediciones", 0) AS "expediciones",
+                COALESCE(e."eventosAsistidos", 0) AS "eventosAsistidos",
+                COALESCE(e."continentesVisitados", 0) AS "continentesVisitados",
+                COALESCE(e."diasViajando", 0) AS "diasViajando",
+                COALESCE(e."nivelViajero", 1) AS "nivelViajero",
+                e."ultimaUbicacion",
+                e."fechaActualizacion"
+            FROM "Usuario" u
+            LEFT JOIN "Estadisticas" e ON u."ID" = e."IDUsuario"
+            ORDER BY u."ID"
+        `;
 
         const res = await this.pool.query(sql);
         return res.rows;
@@ -141,6 +157,17 @@ export default class estadisticasRepository {
             console.error('estadisticasRepository.updateAsync: error ejecutando update:', e.message);
             throw e;
         }
+    }
+
+    contarRegistrosAsync = async () => {
+        const sql = `
+            SELECT
+                (SELECT COUNT(*) FROM "Usuario") AS "cantidadUsuarios",
+                (SELECT COUNT(*) FROM "Evento") AS "cantidadEventos",
+                (SELECT COUNT(*) FROM "EventoFavorito") AS "cantidadFavoritos"
+        `;
+        const res = await this.pool.query(sql);
+        return res.rows[0];
     }
 
     deleteByUsuarioAsync = async (usuarioId) => {

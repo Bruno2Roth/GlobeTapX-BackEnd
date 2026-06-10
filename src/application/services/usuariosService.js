@@ -1,6 +1,7 @@
 import usuariosRepository from './../../data/repositories/usuariosRepository.js';
 import agendaUsuarioRepository from '../../data/repositories/agendaUsuarioRepository.js';
 import estadisticasRepository from '../../data/repositories/estadisticasRepository.js';
+import registroEstadisticasRepository from '../../data/repositories/registroEstadisticasRepository.js';
 import contenidoCategoriaRepository from '../../data/repositories/contenidoCategoriaRepository.js';
 import translationHelper from '../../helpers/translationHelper.js';
 
@@ -10,6 +11,7 @@ export default class usuariosService {
         this.usuariosRepository = new usuariosRepository();
         this.agendaUsuarioRepository = new agendaUsuarioRepository();
         this.estadisticasRepository = new estadisticasRepository();
+        this.registroEstadisticasRepository = new registroEstadisticasRepository();
         this.contenidoCategoriaRepository = new contenidoCategoriaRepository();
         this.translator = new translationHelper();
     }
@@ -143,6 +145,7 @@ export default class usuariosService {
         // Eliminar todas las referencias para evitar violaciones de clave foránea.
         await this.agendaUsuarioRepository.deleteByUsuarioAsync(id);
         await this.estadisticasRepository.deleteByUsuarioAsync(id);
+        await this.registroEstadisticasRepository.deleteByUsuarioAsync(id);
         await this.contenidoCategoriaRepository.deleteByUsuarioAsync(id);
 
         const rowsAffected = await this.usuariosRepository.deleteByIdAsync(id);

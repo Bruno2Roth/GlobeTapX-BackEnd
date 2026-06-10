@@ -21,6 +21,12 @@ export default class registroEstadisticasRepository {
         return res.rows;
     }
 
+    deleteByUsuarioAsync = async (usuarioId) => {
+        const sql = `DELETE FROM "RegistroEstadisticas" WHERE "IDUsuario" = $1`;
+        const res = await this.pool.query(sql, [usuarioId]);
+        return res.rowCount;
+    }
+
     createAsync = async (entity) => {
         const sql = `
             INSERT INTO "RegistroEstadisticas" ("IDUsuario", "tipoEvento", "detalle")

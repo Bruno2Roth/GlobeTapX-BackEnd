@@ -1,148 +1,280 @@
+# GlobeTapX BackEnd
+
+Backend en Node.js + Express + PostgreSQL (Supabase).
+
+---
+
+## Stack
+
+- **Runtime:** Node.js (ES Modules, `"type": "module"`)
+- **Framework:** Express 4
+- **Base de datos:** PostgreSQL (Supabase) vía `pg`
+- **Autenticación:** JWT (`jsonwebtoken`)
+- **Contraseñas:** bcrypt
+- **Rate limiting:** `express-rate-limit`
+- **Traducciones:** API externa
+- **Moneda/Clima:** APIs externas
+
+---
+
+## Inicio rápido
+
+```bash
+npm install
+# Configurar .env con DATABASE_URL y JWT_SECRET
+npm start
+# Servidor en http://localhost:3000
+```
+
+### .env
+
+```
+DATABASE_URL="postgresql://..."
+PORT=3000
+JWT_SECRET="tu_secreto"
+CURRENCY_API_KEY="..."
+URL_API_REMOTA="..."
+```
+
+---
+
+## Autenticación
+
+### POST /api/auth/register
+```json
+{
+    "nombre": "Juan Pérez",
+    "email": "juan@test.com",
+    "password": "123456",
+    "fechaNacimiento": "2000-01-01"
+}
+```
+Respuesta: `{ "token": "...", "user": {...}, "message": "Usuario registrado" }`
+
+### POST /api/auth/login
+```json
+{
+    "email": "juan@test.com",
+    "password": "123456"
+}
+```
+Respuesta: `{ "token": "...", "user": {...} }`
+
 ### GET /api/auth/status
-- Con header `Authorization: Bearer <token>` o query `?token=<token>`.
-- Respuesta esperada si es válido:
+Header: `Authorization: Bearer <token>` o query: `?token=<token>`
 ```json
-{
-  "authenticated": true,
-  "user": {
-    "id": 1,
-    "email": "usuario@example.com"
-  }
-}
-```
-- Si el token no existe o es inválido devuelve:
-```json
-{ "authenticated": false }
+{ "authenticated": true, "user": { "id": 1, "email": "...", "nombre": "..." } }
 ```
 
-#### Uso posterior del token
-- Después de hacer `POST /api/auth/login`, guarda el valor de `token`.
-- Usa ese token en el header de autenticación para validar tu sesión.
-- Ejemplo:
-  - Header: `Authorization: Bearer eyJ...`
-  - Request: `GET /api/auth/status`
-
-> Actualmente este backend usa el token para verificar el estado de autenticación en `/api/auth/status`. No todos los endpoints del proyecto están protegidos por token todavía.
+### GET /api/auth/me
+Requiere token. Devuelve datos del usuario autenticado.
 
 ---
 
-### Usuario
-#### DELETE /api/usuario/:id
-- Respuesta esperada 200:
+## Sistema de Estadísticas
+
+Dos tablas: `Estadisticas` (stats agregadas por usuario, 1:1) y `RegistroEstadisticas` (timeline de eventos, 1:N).
+
+### Endpoints
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `GET` | `/api/estadisticas` | Todas las estadísticas (admin) |
+| `GET` | `/api/estadisticas/generales` | Conteos globales (usuarios, eventos, favoritos) |
+| `GET` | `/api/estadisticas/usuario/:usuarioId` | Stats de un usuario (requiere token propio o admin) |
+| `GET` | `/api/estadisticas/:id` | Stats por ID del registro |
+| `POST` | `/api/estadisticas` | Crear registro de stats |
+| `POST` | `/api/estadisticas/evento` | Registrar evento + auto-actualizar stats |
+| `PUT` | `/api/estadisticas/:id` | Actualizar stats (admin) |
+| `GET` | `/api/estadisticas/eventos/:usuarioId` | Timeline de eventos de un usuario |
+
+### Tabla `Estadisticas`
+
+| Columna | Tipo | Default |
+|---------|------|---------|
+| `ID` | `SERIAL PK` | |
+| `IDUsuario` | `INTEGER FK` | |
+| `paisesVisitados` | `INTEGER` | `0` |
+| `expediciones` | `INTEGER` | `0` |
+| `eventosAsistidos` | `INTEGER` | `0` |
+| `continentesVisitados` | `INTEGER` | `0` |
+| `diasViajando` | `INTEGER` | `0` |
+| `nivelViajero` | `INTEGER` | `1` |
+| `ultimaUbicacion` | `VARCHAR` | `null` |
+| `fechaActualizacion` | `TIMESTAMP` | `now()` |
+
+### Tabla `RegistroEstadisticas`
+
+| Columna | Tipo | Descripción |
+|---------|------|-------------|
+| `ID` | `SERIAL PK` | |
+| `IDUsuario` | `INTEGER` | FK al usuario |
+| `tipoEvento` | `VARCHAR(100)` | Tipo de acción |
+| `detalle` | `TEXT` | Info adicional (JSON) |
+| `fecha` | `TIMESTAMP` | `now()` |
+
+### Tipos de evento
+
+| `tipoEvento` | Campo que auto-incrementa |
+|---|---|
+| `visita_pais` | `paisesVisitados++` |
+| `creacion_expedicion` | `expediciones++` |
+| `asistencia_evento` | `eventosAsistidos++` |
+| `visita_continente` | `continentesVisitados++` |
+| `inicio_viaje` | `diasViajando++` |
+
+Ejemplo:
 ```json
+POST /api/estadisticas/evento
 {
-  "success": true,
-  "message": "Usuario eliminado",
-  "deleted": 1
-}
-```
-### Países
-### Idioma
-
-#### GET /api/idioma/supported
-- Devuelve idiomas soportados.
-
-#### GET /api/idioma/preferred?usuarioId=<id>
-- Devuelve idioma preferido para un usuario con fallback.
-
-#### PUT /api/idioma/preferred
-- Body:
-```json
-{
-  "usuarioId": 1,
-  "codigoIdioma": "es"
-}
-```
-- Respuesta esperada 200 con objeto `data`.
-
----
-
-### Ubicación
-
-#### GET /api/ubicacion
-- Query opcional:
-  - `ip=<direccion_ip>`
-- Devuelve datos de ubicación según IP.
-
----
-
-### Traducción
-
-#### POST /api/traduccion
-- Body:
-```json
-{
-  "text": "Hello",
-  "targetLanguage": "es"
-}
-```
-- Respuesta esperada 200:
-```json
-{
-  "success": true,
-  "data": { ...traducción... }
+    "usuarioId": 1,
+    "tipoEvento": "visita_pais",
+    "detalle": { "pais": "Argentina" }
 }
 ```
 
-#### POST /api/traduccion/batch
-- Body:
+### Auto-log desde controllers
+
+Al crear un evento via `POST /api/evento`, el sistema registra automáticamente un evento de tipo `creacion_expedicion` en el timeline del usuario.
+
+---
+
+## Usuarios
+
+### GET /api/usuario
+Lista todos los usuarios.
+
+### GET /api/usuario/:id
+Usuario por ID.
+
+### GET /api/usuario/email/:email
+Usuario por email.
+
+### DELETE /api/usuario/:id
+Elimina usuario y sus referencias en cascada (agenda, estadísticas, timeline, contenido categoría).
+
+### Idioma preferido
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `GET` | `/api/idioma/supported` | Idiomas soportados |
+| `GET` | `/api/idioma/preferred?usuarioId=<id>` | Idioma con fallback |
+| `PUT` | `/api/idioma/preferred` | Cambiar idioma |
+
+---
+
+## Países
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `GET` | `/api/pais` | Lista países |
+| `GET` | `/api/pais/:id` | País por ID |
+| `GET` | `/api/paisInfo` | Información adicional de países |
+
+---
+
+## Eventos
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `GET` | `/api/evento` | Lista eventos |
+| `GET` | `/api/evento/:id` | Evento por ID |
+| `POST` | `/api/evento` | Crear evento (auto-log en estadísticas) |
+| `PUT` | `/api/evento` | Actualizar evento |
+| `DELETE` | `/api/evento/:id` | Eliminar evento |
+
+### GET /api/eventoFavorito
+Eventos favoritos.
+
+### GET /api/categoria
+Categorías de eventos.
+
+---
+
+## Ubicación
+
+### GET /api/ubicacion?ip=<ip>
+Datos de ubicación según IP.
+
+---
+
+## Traducción
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `POST` | `/api/traduccion` | Traducir texto |
+| `POST` | `/api/traduccion/batch` | Traducir varios textos |
+
+Body:
 ```json
-{
-  "texts": ["Hello", "World"],
-  "targetLanguage": "es"
-}
-```
-- Respuesta esperada 200 con traducciones en `data`.
-
----
-
-### Moneda
-
-#### GET /api/currency/country?country=<nombre>
-- Devuelve información de moneda para un país.
-- `400` si falta `country`.
-
-#### GET /api/currency/convert?from=USD&to=EUR&amount=100
-- Devuelve conversión de moneda.
-
----
-
-### Clima
-
-#### GET /api/clima/user-info
-- Devuelve información de clima basada en la configuración actual.
-
-#### GET /api/clima/country?country=<nombre>
-- Devuelve clima para el país especificado.
-
----
-
-### Endpoints adicionales (placeholders)
-
-Estos endpoints existen pero actualmente devuelven mensajes placeholder o datos básicos:
-
-- GET /api/categoria
-- GET /api/categoriaEmergencia
-- GET /api/contenidoPorCategoria
-- GET /api/estadisticas
-- GET /api/eventoFavorito
-- GET /api/preferenciaUsuario
-- GET /api/historial
-- GET /api/logCambios
-
-Ejemplo de respuesta actual:
-```json
-{ "message": "categoria controller (placeholder)" }
+{ "text": "Hello", "targetLanguage": "es" }
 ```
 
 ---
 
-## Notas rápidas del proyecto
+## Moneda
 
-- Controladores: `src/api/controllers/`
-- Servicios: `src/application/services/`
-- Repositorios / consultas SQL: `src/data/repositories/`
-- El backend usa `express`, `pg`, `jsonwebtoken`, `dotenv`.
-- Revisa la consola del servidor para los logs de errores.
+| Método | Ruta |
+|--------|------|
+| `GET` | `/api/currency/country?country=<nombre>` |
+| `GET` | `/api/currency/convert?from=USD&to=EUR&amount=100` |
 
-> Si prefieres, puedo también generar un archivo JSON importable para Postman con todas estas peticiones.
+---
+
+## Clima
+
+| Método | Ruta |
+|--------|------|
+| `GET` | `/api/clima/user-info` |
+| `GET` | `/api/clima/country?country=<nombre>` |
+
+---
+
+## Números de Emergencia
+
+### GET /api/numerosEmergencia
+Lista de números de emergencia por país.
+
+---
+
+## Estructura del proyecto
+
+```
+src/
+├── api/controllers/      → Rutas Express (controladores HTTP)
+├── application/
+│   ├── entities/         → Modelos/entidades
+│   └── services/         → Lógica de negocio
+├── data/
+│   ├── repositories/     → Queries SQL
+│   └── migrations/       → Scripts SQL para migraciones
+├── configs/              → Configuración (pool DB)
+├── helpers/              → Helpers (traducción)
+└── server/
+    └── server.js         → Entry point
+```
+
+---
+
+## Migraciones
+
+Ejecutar en Supabase SQL Editor:
+
+```sql
+ALTER TABLE "Estadisticas"
+ADD COLUMN IF NOT EXISTS "eventosAsistidos" INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS "continentesVisitados" INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS "diasViajando" INTEGER DEFAULT 0,
+ADD COLUMN IF NOT EXISTS "nivelViajero" INTEGER DEFAULT 1;
+
+CREATE TABLE IF NOT EXISTS "RegistroEstadisticas" (
+    "ID" SERIAL PRIMARY KEY,
+    "IDUsuario" INTEGER NOT NULL,
+    "tipoEvento" VARCHAR(100) NOT NULL,
+    "detalle" TEXT,
+    "fecha" TIMESTAMP DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_registro_estadisticas_usuario
+ON "RegistroEstadisticas" ("IDUsuario");
+```

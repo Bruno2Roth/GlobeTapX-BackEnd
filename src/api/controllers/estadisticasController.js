@@ -55,6 +55,18 @@ router.get('/usuario/:usuarioId', async (req, res) => {
     }
 });
 
+// Obtener estadísticas generales de la app (conteos globales)
+router.get('/generales', async (req, res) => {
+    console.log('GET /estadisticas/generales');
+    try {
+        const data = await service.getGeneralesAsync();
+        res.status(200).json({ success: true, data });
+    } catch (error) {
+        console.error('Error en GET /estadisticas/generales:', error);
+        res.status(500).json({ error: error.message || 'Error al obtener estadísticas generales' });
+    }
+});
+
 // Obtener timeline de eventos de un usuario
 router.get('/eventos/:usuarioId', async (req, res) => {
     console.log(`GET /estadisticas/eventos/${req.params.usuarioId}`);
