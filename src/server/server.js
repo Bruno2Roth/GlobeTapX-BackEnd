@@ -71,6 +71,15 @@ app.use("/api", NumerosEmergenciaController);
 app.use("/api/historial", HistorialController);
 app.use("/api/logCambios", LogCambiosController);
 
+// Middleware global de errores
+app.use((err, req, res, next) => {
+    console.error('Error no manejado:', err);
+    res.status(err.status || 500).json({
+        success: false,
+        error: err.message || 'Error interno del servidor',
+    });
+});
+
 //
 // Inicio el Server y lo pongo a escuchar.
 //

@@ -7,13 +7,23 @@ const service = new eventosService();
 const statsService = new estadisticasService();
 
 router.get('/', async (req, res) => {
-    const data = await service.getAllAsync();
-    res.json(data);
+    try {
+        const data = await service.getAllAsync();
+        res.json(data);
+    } catch (err) {
+        console.log('Error obteniendo eventos', err);
+        res.status(500).json({ error: err.message || 'Error al obtener eventos' });
+    }
 });
 
 router.get('/:id', async (req, res) => {
-    const data = await service.getByIdAsync(req.params.id);
-    res.json(data);
+    try {
+        const data = await service.getByIdAsync(req.params.id);
+        res.json(data);
+    } catch (err) {
+        console.log('Error obteniendo evento', err);
+        res.status(500).json({ error: err.message || 'Error al obtener evento' });
+    }
 });
 
 router.post('/', async (req, res) => {
