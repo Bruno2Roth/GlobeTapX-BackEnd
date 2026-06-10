@@ -1,18 +1,18 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
-import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
+import rateLimit from 'express-rate-limit';
 import usuariosService from '../../application/services/usuariosService.js';
 import authMiddleware from '../../api/middlewares/auth.js';
 
 const router = express.Router();
 const service = new usuariosService();
 
-const isRequiredString = (value) => typeof value === 'string' && value.trim().length > 0;
+const isNonEmptyString = (v) => typeof v === 'string' && v.trim().length > 0;
 
 const validateEmail = (email) => {
   if (!email || typeof email !== 'string') return null;
   const trimmed = email.trim();
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/; 
   return emailRegex.test(trimmed) ? trimmed : null;
 };
 
@@ -23,8 +23,7 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    const email = req.body?.email || req.body?.mail || 'unknown';
-    return `${ipKeyGenerator(req)}_${email}`;
+    return req.ip + '_' + (req.body?.email || req.body?.mail || 'unknown');
   },
 });
 
@@ -36,7 +35,7 @@ const validateLoginBody = (req, res, next) => {
     if (!email) {
         return res.status(400).json({ error: 'Email válido es requerido' });
     }
-    if (!isRequiredString(password)) {
+    if (!isNonEmptyString(password)) {
         return res.status(400).json({ error: 'Password es requerido' });
     }
 
@@ -51,16 +50,16 @@ const validateRegisterBody = (req, res, next) => {
     const password = body.password || body.contrasena;
     const fechaNacimiento = body.fechaNacimiento || body.fecha_nacimiento;
 
-    if (!isRequiredString(nombre)) {
+    if (!isNonEmptyString(nombre)) {
         return res.status(400).json({ error: 'El nombre es requerido' });
     }
     if (!email) {
         return res.status(400).json({ error: 'Email válido es requerido' });
     }
-    if (!isRequiredString(password)) {
+    if (!isNonEmptyString(password)) {
         return res.status(400).json({ error: 'Password es requerido' });
     }
-    if (!isRequiredString(fechaNacimiento)) {
+    if (!isNonEmptyString(fechaNacimiento)) {
         return res.status(400).json({ error: 'Fecha de nacimiento es requerida' });
     }
 
@@ -69,17 +68,29 @@ const validateRegisterBody = (req, res, next) => {
         return res.status(400).json({ error: 'Fecha de nacimiento inválida' });
     }
 
+    const optionalFields = {
+        nombreCompleto: body.nombreCompleto ? String(body.nombreCompleto).trim() : null,
+        numeroContacto: body.numeroContacto ? String(body.numeroContacto).trim() : null,
+        idiomaPreferido: (body.idiomaPreferido || body.idioma)
+            ? String(body.idiomaPreferido || body.idioma).trim()
+            : null,
+    };
+
     req.validatedBody = {
         nombre: String(nombre).trim(),
         email,
         password: String(password).trim(),
         fechaNacimiento: parsedDate.toISOString().split('T')[0],
-        nombreCompleto: body.nombreCompleto ? String(body.nombreCompleto).trim() : null,
-        numeroContacto: body.numeroContacto ? String(body.numeroContacto).trim() : null,
-        idiomaPreferido: body.idiomaPreferido || body.idioma ? String(body.idiomaPreferido || body.idioma).trim() : null,
+        ...optionalFields,
     };
     return next();
 };
+
+const buildUserPayload = (user) => ({
+    id: user.ID || user.id,
+    email: user.mail || user.email,
+    nombre: user.nombreCompleto || user.nombre,
+});
 
 router.get('/status', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] && req.headers['authorization'].split(' ')[1]);
@@ -106,17 +117,12 @@ router.post('/login', loginLimiter, validateLoginBody, async (req, res) => {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
         }
 
-        // DB column is "contrasena"
-        const stored = user.contrasena || user.password || user.contrasena;
+        const stored = user.contrasena || user.password;
         if (String(stored) !== String(password)) {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
         }
 
-        const payload = {
-            id: user.ID || user.id,
-            email: user.mail || user.email,
-            nombre: user.nombreCompleto || user.nombre,
-        };
+        const payload = buildUserPayload(user);
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' });
 
         return res.status(200).json({ token, user: payload });
@@ -131,20 +137,16 @@ router.post('/register', validateRegisterBody, async (req, res) => {
     console.log('POST /api/auth/register');
     try {
         const entity = req.validatedBody;
-        const id = await service.createAsync(entity);
+        await service.createAsync(entity);
         const user = await service.getByEmailAsync(entity.email || entity.mail);
-        const payload = {
-            id: user?.ID || user?.id,
-            email: user?.mail || user?.email,
-            nombre: user?.nombreCompleto || user?.nombre,
-        };
+        const payload = buildUserPayload(user);
         const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' });
         return res.status(201).json({ token, user: payload, message: 'Usuario registrado' });
     } catch (error) {
         console.log('Error register');
         console.log(error);
         if (error.name === 'ValidationError') return res.status(400).json({ error: error.message });
-        if (error.code === 'DUPLICATE_USER') return res.status(409).json({ error: error.message });
+        if (error.code === 'UsuarioDuplicado') return res.status(409).json({ error: error.message });
         res.status(500).json({ error: error.message || 'Error register' });
     }
 });

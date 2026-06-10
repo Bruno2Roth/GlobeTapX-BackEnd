@@ -23,7 +23,7 @@ export default class usuariosService {
     createDuplicateError(message) {
         const error = new Error(message);
         error.name = 'DuplicateError';
-        error.code = 'DUPLICATE_USER';
+        error.code = 'UsuarioDuplicado';
         return error;
     }
 
@@ -60,7 +60,7 @@ export default class usuariosService {
         }
 
         const email = entity.email.toString().trim();
-        const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+        const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/; 
         if (!emailRegex.test(email)) {
             throw this.createValidationError('El email del usuario no es válido');
         }

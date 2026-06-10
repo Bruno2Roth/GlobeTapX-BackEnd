@@ -41,6 +41,38 @@ export default class estadisticasRepository {
         return res.rows && res.rows[0] ? res.rows[0] : null;
     }
 
+    createAsync = async (entity) => {
+        console.log(`estadisticasRepository.createAsync(${JSON.stringify(entity)})`);
+
+        const sql = `
+            INSERT INTO "Estadisticas" (
+                "IDUsuario",
+                "paisesVisitados",
+                "expediciones",
+                "eventosAsistidos",
+                "continentesVisitados",
+                "diasViajando",
+                "nivelViajero",
+                "ultimaUbicacion"
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            RETURNING "ID"
+        `;
+
+        const values = [
+            entity.IDUsuario,
+            entity.paisesVisitados || 0,
+            entity.expediciones || 0,
+            entity.eventosAsistidos || 0,
+            entity.continentesVisitados || 0,
+            entity.diasViajando || 0,
+            entity.nivelViajero || 1,
+            entity.ultimaUbicacion || null,
+        ];
+
+        const res = await this.pool.query(sql, values);
+        return res.rows[0];
+    }
+
     updateAsync = async (entity) => {
         console.log(`estadisticasRepository.updateAsync(${JSON.stringify(entity)})`);
 
