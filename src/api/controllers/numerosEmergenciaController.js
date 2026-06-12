@@ -1,5 +1,6 @@
 import express from 'express';
 import numerosEmergenciaService from '../../application/services/numerosEmergenciaService.js';
+import { extractPaisInfo } from '../../helpers/emergencyPaisHelper.js';
 
 const router = express.Router();
 const service = new numerosEmergenciaService();
@@ -38,11 +39,12 @@ router.get('/country/:code', async (req, res) => {
         console.log(`numerosEmergenciaController: service.getCountry(${code}) returned:`, !!remote);
         setExpires(res, 24 * 3600 * 1000);
         res.set('X-EM-Source', service.baseRemota);
-        if (!remote) return res.status(404).json({ mensaje: MENSAJE, error: 'No encontrado', data: {} });
-        if (isNoDataCountry(remote)) return res.json({ mensaje: MENSAJE, error: 'Sin datos para este territorio', data: {} });
-        return res.json({ mensaje: MENSAJE, error: null, data: remote });
+        if (!remote) return res.status(404).json({ mensaje: MENSAJE, error: 'No encontrado', data: {}, pais: null });
+        if (isNoDataCountry(remote)) return res.json({ mensaje: MENSAJE, error: 'Sin datos para este territorio', data: {}, pais: null });
+        const pais = await extractPaisInfo(code, remote);
+        return res.json({ mensaje: MENSAJE, error: null, data: remote, pais });
     } catch (err) {
-        return res.status(502).json({ mensaje: MENSAJE, error: err.message || 'Error en servicio remoto', data: {} });
+        return res.status(502).json({ mensaje: MENSAJE, error: err.message || 'Error en servicio remoto', data: {}, pais: null });
     }
 });
 
@@ -66,11 +68,12 @@ router.get('/data/:code', async (req, res) => {
         console.log(`numerosEmergenciaController: service.getCountry(${code}) returned:`, !!remote);
         setExpires(res, 24 * 3600 * 1000);
         res.set('X-EM-Source', service.baseRemota);
-        if (!remote) return res.status(404).json({ mensaje: MENSAJE, error: 'No encontrado', data: {} });
-        if (isNoDataCountry(remote)) return res.json({ mensaje: MENSAJE, error: 'Sin datos para este territorio', data: {} });
-        return res.json({ mensaje: MENSAJE, error: null, data: remote });
+        if (!remote) return res.status(404).json({ mensaje: MENSAJE, error: 'No encontrado', data: {}, pais: null });
+        if (isNoDataCountry(remote)) return res.json({ mensaje: MENSAJE, error: 'Sin datos para este territorio', data: {}, pais: null });
+        const pais = await extractPaisInfo(code, remote);
+        return res.json({ mensaje: MENSAJE, error: null, data: remote, pais });
     } catch (err) {
-        return res.status(502).json({ mensaje: MENSAJE, error: err.message || 'Error en servicio remoto', data: {} });
+        return res.status(502).json({ mensaje: MENSAJE, error: err.message || 'Error en servicio remoto', data: {}, pais: null });
     }
 });
 
