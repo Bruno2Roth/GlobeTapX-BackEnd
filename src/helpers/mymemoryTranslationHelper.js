@@ -1,4 +1,5 @@
 import axios from 'axios';
+import https from 'https';
 
 // Helper para traducción dinámica usando la API de MyMemory.
 // Esta clase también implementa un cache simple en memoria para evitar
@@ -37,7 +38,7 @@ export default class mymemoryTranslationHelper {
         const url = `${this.apiBase}?q=${encodeURIComponent(cleanText)}&langpair=${encodeURIComponent(source)}|${encodeURIComponent(target)}`;
 
         try {
-            const response = await axios.get(url, { timeout: 10000 });
+            const response = await axios.get(url, { timeout: 10000, httpsAgent: new https.Agent({ rejectUnauthorized: process.env.NODE_ENV === 'production' }) });
             const body = response.data;
 
             if (body && body.responseData && typeof body.responseData.translatedText === 'string') {

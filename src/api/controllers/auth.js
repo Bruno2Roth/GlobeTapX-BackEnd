@@ -1,7 +1,7 @@
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcrypt';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import usuariosService from '../../application/services/usuariosService.js';
 import authMiddleware from '../../api/middlewares/auth.js';
 
@@ -24,7 +24,7 @@ const loginLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => {
-    return req.ip + '_' + (req.body?.email || req.body?.mail || 'unknown');
+    return ipKeyGenerator(req) + '_' + (req.body?.email || req.body?.mail || 'unknown');
   },
 });
 
@@ -87,12 +87,15 @@ const validateRegisterBody = (req, res, next) => {
     return next();
 };
 
+// Construye el payload del JWT con datos del usuario
 const buildUserPayload = (user) => ({
     id: user.ID || user.id,
     email: user.mail || user.email,
     nombre: user.nombreCompleto || user.nombre,
+    IsAdmin: user.IsAdmin || user.isAdmin || false,
 });
 
+// GET /api/auth/status — verifica si un token sigue siendo válido
 router.get('/status', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] && req.headers['authorization'].split(' ')[1]);
     if (!token) return res.json({ authenticated: false });
@@ -104,13 +107,16 @@ router.get('/status', (req, res) => {
     }
 });
 
+// GET /api/auth/me — devuelve el usuario autenticado (requiere token válido)
 router.get('/me', authMiddleware.required, (req, res) => {
     return res.status(200).json({ authenticated: true, user: req.user });
 });
 
+// POST /api/auth/login — autentica al usuario y devuelve un JWT (no expira, mismo token siempre)
 router.post('/login', loginLimiter, validateLoginBody, async (req, res) => {
     console.log('POST /api/auth/login');
     try {
+        // Validar credenciales del usuario
         const { email, password } = req.validatedBody;
 
         const user = await service.getByEmailAsync(email);
@@ -118,6 +124,7 @@ router.post('/login', loginLimiter, validateLoginBody, async (req, res) => {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
         }
 
+        // Comparar contraseña (soporta bcrypt y texto plano)
         const stored = user.contrasena || user.password;
         const coincide = stored.startsWith('$2b$') || stored.startsWith('$2a$') || stored.startsWith('$2y$')
             ? await bcrypt.compare(password, stored)
@@ -127,8 +134,9 @@ router.post('/login', loginLimiter, validateLoginBody, async (req, res) => {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
         }
 
+        // Generar token sin iat/exp para que sea siempre el mismo
         const payload = buildUserPayload(user);
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' });
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { noTimestamp: true });
 
         return res.status(200).json({ token, user: payload });
     } catch (error) {
@@ -137,6 +145,7 @@ router.post('/login', loginLimiter, validateLoginBody, async (req, res) => {
     }
 });
 
+// POST /api/auth/register — registra un nuevo usuario y devuelve un JWT
 router.post('/register', validateRegisterBody, async (req, res) => {
     console.log('POST /api/auth/register');
     try {
@@ -145,7 +154,8 @@ router.post('/register', validateRegisterBody, async (req, res) => {
         await service.createAsync(entity);
         const user = await service.getByEmailAsync(entity.email);
         const payload = buildUserPayload(user);
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '24h' });
+        // Mismo token siempre (sin expiración ni timestamp)
+        const token = jwt.sign(payload, process.env.JWT_SECRET, { noTimestamp: true });
         return res.status(201).json({ token, user: payload, message: 'Usuario registrado' });
     } catch (error) {
         console.log('Error en register:', error);

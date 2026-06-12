@@ -1,71 +1,48 @@
 import axios from 'axios';
+import https from 'https';
 import currency from '../entities/currency.js';
+
+const agent = new https.Agent({ rejectUnauthorized: process.env.NODE_ENV === 'production' });
 
 export default class currencyService {
     constructor() {
-        console.log('Estoy en: currencyService.constructor()');
         this.apiKey = process.env.CURRENCY_API_KEY;
         this.apiSecret = process.env.CURRENCY_API_SECRET;
     }
 
-    // Servicio para obtener información de moneda y convertir valores entre divisas.
-    // Usa REST Countries para obtener moneda por país y Apilayer/OpenER para conversiones.
-
-    // Normaliza el nombre del país para usarlo en la URL de RestCountries.
-    normalizeCountry(country) {
-        return country.toString().trim();
-    }
-
-    // Obtiene los datos de moneda para un país usando la API de RestCountries.
     async getCurrencyByCountryAsync(country) {
-        console.log(`currencyService.getCurrencyByCountryAsync(${country})`);
+        const apiKey = process.env.REST_COUNTRIES_KEY;
+        if (!apiKey) throw new Error('API key de REST Countries no configurada');
 
-        const normalized = this.normalizeCountry(country);
-        const url = `https://restcountries.com/v3.1/name/${normalized}`;
-        
-        const response = await axios.get(url);
-        const data = response.data[0];
+        const normalized = String(country).trim();
+        const url = `https://api.restcountries.com/countries/v5/names.common/${encodeURIComponent(normalized)}`;
+        const { data } = await axios.get(url, {
+            httpsAgent: agent,
+            headers: { Authorization: `Bearer ${apiKey}` },
+        });
 
-        if (!data || !data.currencies) {
-            throw new Error(`No se encontró información de moneda para el país: ${country}`);
-        }
+        const item = data?.data?.objects?.[0];
+        if (!item?.currencies) throw new Error(`No se encontró moneda para: ${country}`);
 
-        const currencyCodes = Object.keys(data.currencies);
-        const currencyCode = currencyCodes[0];
-        const currencyInfo = data.currencies[currencyCode];
+        const code = Object.keys(item.currencies)[0];
+        const info = item.currencies[code];
 
         return {
-            country: data.name.common,
-            country_official: data.name.official,
-            country_code: data.cca2,
-            currency_code: currencyCode,
-            currency_name: currencyInfo.name,
-            currency_symbol: currencyInfo.symbol,
-            currencies: data.currencies,
-            flag: data.flag,
-            region: data.region,
+            country: item.names?.common ?? country,
+            country_code: item.codes?.alpha_2 ?? '',
+            currency_code: code,
+            currency_name: info?.name ?? '',
+            currency_symbol: info?.symbol ?? '',
+            flag: item.flag?.emoji ?? '',
+            region: item.region ?? '',
         };
     }
 
-    // Valida los parámetros de conversión: monedas origen/destino y monto numérico.
     validateConversionParams(fromCurrency, toCurrency, amount) {
-        if (!fromCurrency || !toCurrency) {
-            throw new Error('Debe indicar las monedas origen y destino');
-        }
-
+        if (!fromCurrency || !toCurrency) throw new Error('Debe indicar las monedas origen y destino');
         const amountNumber = Number(amount);
-        if (Number.isNaN(amountNumber) || amountNumber <= 0) {
-            throw new Error('El monto debe ser un número mayor a cero');
-        }
-
+        if (Number.isNaN(amountNumber) || amountNumber <= 0) throw new Error('El monto debe ser un número mayor a cero');
         return amountNumber;
-    }
-
-    buildRequestConfig() {
-        return {
-            baseURL: 'https://api.apilayer.com/exchangerates_data',
-            headers: this.apiKey ? { apikey: this.apiKey } : {},
-        };
     }
 
     normalizeCurrency(currency) {
@@ -73,42 +50,30 @@ export default class currencyService {
     }
 
     async convertWithApilayer(from, to, amountNumber) {
-        const client = axios.create(this.buildRequestConfig());
-        const response = await client.get('/convert', {
+        const config = {
+            baseURL: 'https://api.apilayer.com/exchangerates_data',
+            headers: this.apiKey ? { apikey: this.apiKey } : {},
+            httpsAgent: agent,
+        };
+        const { data } = await axios.create(config).get('/convert', {
             params: { from, to, amount: amountNumber },
         });
-
-        const data = response.data;
-        const rate = data.info && data.info.rate ? data.info.rate : null;
-        const convertedAmount = data.result;
-        const date = data.date || null;
-
-        if (!rate || convertedAmount === undefined || convertedAmount === null) {
-            throw new Error('No se pudo obtener la conversión desde Apilayer');
-        }
-
-        return new currency(from, to, amountNumber, rate, convertedAmount, date, 'apilayer');
+        const rate = data?.info?.rate ?? null;
+        const converted = data?.result;
+        if (!rate || converted == null) throw new Error('No se pudo obtener la conversión desde Apilayer');
+        return new currency(from, to, amountNumber, rate, converted, data.date ?? null, 'apilayer');
     }
 
     async convertWithExchangeRateHost(from, to, amountNumber) {
-        const client = axios.create({ baseURL: 'https://open.er-api.com/v6' });
-        const response = await client.get(`/latest/${from}`);
-
-        const data = response.data;
-        const rate = data.rates && data.rates[to] ? data.rates[to] : null;
-        const convertedAmount = rate !== null ? amountNumber * rate : null;
-        const date = data.time_last_update_utc || null;
-
-        if (!rate || convertedAmount === undefined || convertedAmount === null) {
-            throw new Error('No se pudo obtener la conversión desde open.er-api.com');
-        }
-
-        return new currency(from, to, amountNumber, rate, convertedAmount, date, 'open.er-api.com');
+        const { data } = await axios.get(`https://open.er-api.com/v6/latest/${from}`, { httpsAgent: agent });
+        const rate = data?.rates?.[to] ?? null;
+        const converted = rate != null ? amountNumber * rate : null;
+        const date = data?.time_last_update_utc ?? null;
+        if (!rate || converted == null) throw new Error('No se pudo obtener la conversión desde open.er-api.com');
+        return new currency(from, to, amountNumber, rate, converted, date, 'open.er-api.com');
     }
 
-    convertAsync = async (fromCurrency, toCurrency, amount) => {
-        console.log(`currencyService.convertAsync(${fromCurrency}, ${toCurrency}, ${amount})`);
-
+    async convertAsync(fromCurrency, toCurrency, amount) {
         const amountNumber = this.validateConversionParams(fromCurrency, toCurrency, amount);
         const from = this.normalizeCurrency(fromCurrency);
         const to = this.normalizeCurrency(toCurrency);
@@ -117,10 +82,7 @@ export default class currencyService {
             try {
                 return await this.convertWithApilayer(from, to, amountNumber);
             } catch (error) {
-                console.log('Apilayer conversion failed:', error.message || error);
-                console.log('Falling back to open.er-api.com because Apilayer no está disponible o la clave es inválida');
                 return await this.convertWithExchangeRateHost(from, to, amountNumber);
-                throw error;
             }
         }
 

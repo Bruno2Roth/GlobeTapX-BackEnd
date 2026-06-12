@@ -43,12 +43,12 @@ app.use((req, res, next) => {
 // Cada controller expone las rutas de un recurso específico del backend.
 
 // Auth middleware: verifica login en TODAS las rutas excepto /auth
-app.use('/api', (req, res, next) => {
+/* app.use('/api', (req, res, next) => {
     if (req.path.startsWith('/auth')) {
         return next();
     }
     return authMiddleware.required(req, res, next);
-});
+}); */
 
 app.use("/api/auth", AuthController);
 app.use("/api/agendaUsuario", AgendaUsuarioController);
@@ -87,4 +87,3 @@ app.listen(port, () => {	// Inicio el servidor WEB (escuchar)
     console.log("server.js");
     console.log(`Listening on http://localhost:${port}`)
 })
-  

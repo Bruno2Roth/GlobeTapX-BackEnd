@@ -1,4 +1,5 @@
 import axios from 'axios';
+import https from 'https';
 import ubicacionRepository from '../../data/repositories/ubicacionRepository.js';
 
 export default class ubicacionService {
@@ -24,7 +25,7 @@ export default class ubicacionService {
 
         const normalizedIp = this.normalizeIp(ip);
         const url = normalizedIp ? `https://ipapi.co/${normalizedIp}/json/` : 'https://ipapi.co/json/';
-        const response = await axios.get(url, { timeout: 10000 });
+        const response = await axios.get(url, { timeout: 10000, httpsAgent: new https.Agent({ rejectUnauthorized: process.env.NODE_ENV === 'production' }) });
 
         if (response.data && response.data.error) {
             throw new Error(response.data.reason || 'Error al consultar ipapi.co');

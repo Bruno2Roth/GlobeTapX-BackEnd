@@ -35,7 +35,7 @@ router.get('/usuario/:usuarioId', async (req, res) => {
 
         const requester = req.user || null;
         const requesterId = requester ? Number(requester.id || requester.ID) : null;
-        const isAdmin = requester && (requester.role === 'admin' || requester.isAdmin === true);
+        const isAdmin = requester && (requester.role === 'admin' || requester.isAdmin === true || requester.IsAdmin === true || requester.IsAdmin === 'TRUE' || requester.IsAdmin === 'true');
 
         if (!requester && !isAdmin) {
             return res.status(401).json({ error: 'No autorizado. Token requerido.' });
