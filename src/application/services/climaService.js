@@ -1,6 +1,5 @@
 import axios from 'axios';
 import https from 'https';
-import clima from '../entities/clima.js';
 
 const agent = new https.Agent({ rejectUnauthorized: process.env.NODE_ENV === 'production' });
 
@@ -8,20 +7,28 @@ export default class climaService {
     constructor() {}
 
     async fetchWeatherAsync(latitude, longitude) {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current_weather=true`;
+        const params = new URLSearchParams({
+            latitude,
+            longitude,
+            current: 'temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m,wind_direction_10m',
+            daily: 'temperature_2m_max,temperature_2m_min,weather_code',
+            timezone: 'auto',
+        });
+        const url = `https://api.open-meteo.com/v1/forecast?${params}`;
         const { data } = await axios.get(url, { httpsAgent: agent });
         return data;
     }
 
     async getWeatherByCoordsAsync(latitude, longitude) {
         const weatherData = await this.fetchWeatherAsync(latitude, longitude);
-        const current = weatherData?.current_weather ?? null;
         return {
             latitude,
             longitude,
-            temperature: current?.temperature ?? null,
-            weather_code: current?.weathercode ?? null,
-            weather: current,
+            timezone: weatherData.timezone ?? null,
+            timezone_abbreviation: weatherData.timezone_abbreviation ?? null,
+            utc_offset_seconds: weatherData.utc_offset_seconds ?? null,
+            current: weatherData.current ?? null,
+            daily: weatherData.daily ?? null,
         };
     }
 
@@ -33,22 +40,18 @@ export default class climaService {
 
         const weather = await this.getWeatherByCoordsAsync(latitude, longitude);
 
-        return new clima(
-            data.ip,
-            data.city,
-            data.region,
-            data.country,
-            data.country_name ?? data.country,
-            data.country_code ?? data.country,
-            Number(latitude),
-            Number(longitude),
-            weather.temperature,
-            null,
-            weather.weather_code,
-            null,
-            weather.weather,
-            null
-        );
+        return {
+            ip: data.ip,
+            city: data.city,
+            region: data.region,
+            country: data.country,
+            country_name: data.country_name ?? data.country,
+            country_code: data.country_code ?? data.country,
+            latitude: Number(latitude),
+            longitude: Number(longitude),
+            current: weather.current,
+            daily: weather.daily,
+        };
     }
 
     async getWeatherByCountryAsync(country) {
