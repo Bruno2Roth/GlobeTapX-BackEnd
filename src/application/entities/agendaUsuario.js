@@ -1,8 +1,7 @@
 export default class agendaUsuario {
-    constructor(IDUsuario, IDEvento, interes, recordatorio) {
+    constructor(IDUsuario, IDEvento, recordatorio) {
         this.IDUsuario = IDUsuario;
         this.IDEvento = IDEvento;
-        this.interes = interes;
         this.recordatorio = recordatorio;
     }
 }

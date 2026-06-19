@@ -148,4 +148,34 @@ export default class AgendaUsuarioRepository {
 
         return result.rowCount;
     }
+
+    getAgendaConDetallesByUsuarioAsync = async (IDUsuario) => {
+
+        console.log(`AgendaUsuarioRepository.getAgendaConDetallesByUsuarioAsync(${IDUsuario})`);
+
+        const sql = `
+            SELECT
+                au."ID",
+                au."IDUsuario",
+                au."IDEvento",
+                au."recordatorio",
+                e."nombre" AS "eventoNombre",
+                e."descripcion" AS "eventoDescripcion",
+                e."fechaInicio",
+                e."fechaFin",
+                e."ubicacion",
+                e."IDPais",
+                e."IDCategoria",
+                c."nombre" AS "categoriaNombre"
+            FROM "AgendaUsuario" au
+            LEFT JOIN "Evento" e ON au."IDEvento" = e."ID"
+            LEFT JOIN "Categoria" c ON e."IDCategoria" = c."ID"
+            WHERE au."IDUsuario" = $1
+            ORDER BY e."fechaInicio" ASC
+        `;
+
+        const result = await this.pool.query(sql, [IDUsuario]);
+
+        return result.rows;
+    }
 }

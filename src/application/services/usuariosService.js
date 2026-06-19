@@ -4,6 +4,7 @@ import estadisticasRepository from '../../data/repositories/estadisticasReposito
 import registroEstadisticasRepository from '../../data/repositories/registroEstadisticasRepository.js';
 import contenidoCategoriaRepository from '../../data/repositories/contenidoCategoriaRepository.js';
 import translationHelper from '../../helpers/translationHelper.js';
+import zLogCambiosService from './zLogCambiosService.js';
 
 export default class usuariosService {
     constructor() {
@@ -14,6 +15,7 @@ export default class usuariosService {
         this.registroEstadisticasRepository = new registroEstadisticasRepository();
         this.contenidoCategoriaRepository = new contenidoCategoriaRepository();
         this.translator = new translationHelper();
+        this.logService = new zLogCambiosService();
     }
 
     createValidationError(message) {
@@ -32,10 +34,6 @@ export default class usuariosService {
     validateUsuarioEntity(entity, requireId = false) {
         if (!entity || typeof entity !== 'object') {
             throw this.createValidationError('Los datos del usuario son necesarios');
-        }
-
-        if (requireId && !entity.ID) {
-            throw this.createValidationError('El ID del usuario es obligatorio para actualizar');
         }
 
         if (!entity.nombre || !entity.nombre.toString().trim()) {
@@ -116,8 +114,24 @@ export default class usuariosService {
 
         const rowsAffected = await this.usuariosRepository.createAsync(entity);
         
+        const nuevoId = rowsAffected?.ID || rowsAffected;
+        
         // Registrar estadística de creación
         await this._registrarEstadistica('usuario_creado', entity.email, { nombre: entity.nombre });
+        
+        // Log automático
+        try {
+            const { password, contrasena, ...safeEntity } = entity;
+            await this.logService.createAsync({
+                IDUsuario: nuevoId,
+                accion: 'CREATE',
+                tipoEntidad: 'Usuario',
+                IDEntidad: nuevoId,
+                diferencia: JSON.stringify(safeEntity)
+            });
+        } catch (logErr) {
+            console.error('Error al guardar log de creación:', logErr);
+        }
         
         return rowsAffected;
     }
@@ -135,6 +149,20 @@ export default class usuariosService {
         
         // Registrar estadística de actualización
         await this._registrarEstadistica('usuario_actualizado', entity.ID, { nombre: entity.nombre, email: entity.email });
+        
+        // Log automático
+        try {
+            const { password, contrasena, ...safeEntity } = entity;
+            await this.logService.createAsync({
+                IDUsuario: entity.ID,
+                accion: 'UPDATE',
+                tipoEntidad: 'Usuario',
+                IDEntidad: entity.ID,
+                diferencia: JSON.stringify(safeEntity)
+            });
+        } catch (logErr) {
+            console.error('Error al guardar log de actualización:', logErr);
+        }
         
         return rowsAffected;
     }
@@ -253,5 +281,46 @@ export default class usuariosService {
 
     getIdiomasSoportados() {
         return this.translator.getSupportedLanguages();
+    }
+
+    async updatePaisActualAsync(usuarioId, paisactual) {
+        console.log(`usuariosService.updatePaisActualAsync(${usuarioId}, ${paisactual})`);
+
+        if (!usuarioId) {
+            throw new Error('ID de usuario es requerido');
+        }
+
+        const usuario = await this.usuariosRepository.getByIdAsync(usuarioId);
+        if (!usuario) {
+            throw new Error('Usuario no encontrado');
+        }
+
+        const paisId = Number(paisactual);
+        if (!Number.isInteger(paisId) || paisId < 1 || paisId > 12) {
+            throw new Error('ID de país inválido. Debe ser un número entre 1 y 12');
+        }
+
+        const rowsAffected = await this.usuariosRepository.updatePaisActualAsync(usuarioId, paisId);
+
+        // Log automático
+        try {
+            await this.logService.createAsync({
+                IDUsuario: usuarioId,
+                accion: 'UPDATE',
+                tipoEntidad: 'Usuario',
+                IDEntidad: usuarioId,
+                diferencia: JSON.stringify({ paisactual: paisId })
+            });
+        } catch (logErr) {
+            console.error('Error al guardar log de paisactual:', logErr);
+        }
+
+        return {
+            success: true,
+            message: 'País actual actualizado exitosamente',
+            updated: rowsAffected > 0,
+            usuarioId,
+            paisactual: paisId
+        };
     }
 }

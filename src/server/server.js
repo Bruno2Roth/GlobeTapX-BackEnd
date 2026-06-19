@@ -17,13 +17,13 @@ import PreferenciaUsuarioController     from "./../api/controllers/preferenciaUs
 import UbicacionController              from "./../api/controllers/ubicacionController.js"
 import UsuarioController                from "./../api/controllers/usuarioController.js"
 import TraduccionController             from "./../api/controllers/traduccionController.js"
-import HistorialController              from "./../api/controllers/zHistorialController.js"
 import LogCambiosController             from "./../api/controllers/zLogCambiosController.js"
 import CurrencyController               from "./../api/controllers/currencyController.js"
 import ClimaController                  from "./../api/controllers/climaController.js"
 import IdiomaController                 from "./../api/controllers/idiomaController.js"
 import PaisInfoController               from "./../api/controllers/paisInfoController.js"
 import NumerosEmergenciaController     from "./../api/controllers/numerosEmergenciaController.js"
+
 
 const app  = express();
 const port = process.env.PORT || 3000;  // si no esta definido en el archivo .env uso el 3000.
@@ -39,8 +39,6 @@ app.use((req, res, next) => {
     next();
 });
 
-// Endpoints (todos los Routers).
-// Cada controller expone las rutas de un recurso específico del backend.
 
 // Auth middleware: verifica login en TODAS las rutas excepto /auth
 /* app.use('/api', (req, res, next) => {
@@ -68,7 +66,6 @@ app.use("/api/clima", ClimaController);
 app.use("/api/idioma", IdiomaController);
 app.use("/api/paisInfo", PaisInfoController);
 app.use("/api", NumerosEmergenciaController);
-app.use("/api/historial", HistorialController);
 app.use("/api/logCambios", LogCambiosController);
 
 // Middleware global de errores

@@ -1,9 +1,11 @@
 import EventosRepository from '../../data/repositories/eventosRepository.js';
+import zLogCambiosService from './zLogCambiosService.js';
 
 export default class eventosService {
     constructor() {
         console.log('Estoy en: eventosService.constructor()');
         this.eventosRepository = new EventosRepository();
+        this.logService = new zLogCambiosService();
     }
 
     getAllAsync = async () => {
@@ -21,12 +23,44 @@ export default class eventosService {
     createAsync = async (entity) => {
         console.log(`eventosService.createAsync(${JSON.stringify(entity)})`);
         const rowsAffected = await this.eventosRepository.createAsync(entity);
+
+        const nuevoId = rowsAffected?.ID || rowsAffected;
+
+        // Log automático
+        try {
+            const usuarioId = entity.IDUsuario || entity.idUsuario || null;
+            await this.logService.createAsync({
+                IDUsuario: usuarioId,
+                accion: 'CREATE',
+                tipoEntidad: 'Evento',
+                IDEntidad: nuevoId,
+                diferencia: JSON.stringify(entity)
+            });
+        } catch (logErr) {
+            console.error('Error al guardar log de creación de evento:', logErr);
+        }
+
         return rowsAffected;
     }
 
     updateAsync = async (entity) => {
         console.log(`eventosService.updateAsync(${JSON.stringify(entity)})`);
         const rowsAffected = await this.eventosRepository.updateAsync(entity);
+
+        // Log automático
+        try {
+            const usuarioId = entity.IDUsuario || entity.idUsuario || null;
+            await this.logService.createAsync({
+                IDUsuario: usuarioId,
+                accion: 'UPDATE',
+                tipoEntidad: 'Evento',
+                IDEntidad: entity.ID,
+                diferencia: JSON.stringify(entity)
+            });
+        } catch (logErr) {
+            console.error('Error al guardar log de actualización de evento:', logErr);
+        }
+
         return rowsAffected;
     }
     

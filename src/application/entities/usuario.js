@@ -1,5 +1,5 @@
 export default class usuario {
-    constructor(nombre, mail, contrasena, fecha_nacimiento, nombreCompleto, numeroContacto, IDTipoAdmin, ESPremium) {
+    constructor(nombre, mail, contrasena, fecha_nacimiento, nombreCompleto, numeroContacto, IDTipoAdmin, ESPremium, paisactual) {
         this.nombre            = nombre;
         this.contrasena        = contrasena;
         this.mail              = mail;
@@ -8,5 +8,6 @@ export default class usuario {
         this.numeroContacto    = numeroContacto;
         this.IDTipoAdmin    = IDTipoAdmin;
         this.ESPremium    = ESPremium;
+        this.paisactual    = paisactual;
     }
 }

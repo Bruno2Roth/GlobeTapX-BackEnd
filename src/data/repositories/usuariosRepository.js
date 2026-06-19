@@ -55,9 +55,10 @@ export default class usuariosRepository {
                 "contrasena",
                 "nombreCompleto",
                 "numeroContacto",
-                "idiomapreferido"
+                "idiomapreferido",
+                "paisActual"
             )
-            VALUES ($1, $2, $3, $4, $5, $6)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
             RETURNING "ID"
         `;
 
@@ -67,7 +68,8 @@ export default class usuariosRepository {
             entity.password,
             entity.nombreCompleto || null,
             entity.numeroContacto || null,
-            entity.idiomaPreferido || entity.idioma || 'es'
+            entity.idiomaPreferido || entity.idioma || 'es',
+            entity.paisactual || null
         ];
 
         const res = await this.pool.query(sql, values);
@@ -85,7 +87,8 @@ export default class usuariosRepository {
                 "contrasena" = $4,
                 "nombreCompleto" = $5,
                 "numeroContacto" = $6,
-                "idiomapreferido" = $7
+                "idiomapreferido" = $7,
+                "paisActual" = $8
             WHERE "ID" = $1
         `;
 
@@ -96,7 +99,8 @@ export default class usuariosRepository {
             entity.password,
             entity.nombreCompleto || null,
             entity.numeroContacto || null,
-            entity.idiomaPreferido || entity.idioma || null
+            entity.idiomaPreferido || entity.idioma || null,
+            entity.paisactual || null
         ];
 
         const res = await this.pool.query(sql, values);
@@ -139,6 +143,19 @@ export default class usuariosRepository {
         `;
 
         const res = await this.pool.query(sql, [usuarioId, codigoIdioma]);
+        return res.rowCount;
+    }
+
+    updatePaisActualAsync = async (usuarioId, paisactual) => {
+        console.log(`usuariosRepository.updatePaisActualAsync(${usuarioId}, ${paisactual})`);
+
+        const sql = `
+            UPDATE "Usuario"
+            SET "paisActual" = $2
+            WHERE "ID" = $1
+        `;
+
+        const res = await this.pool.query(sql, [usuarioId, paisactual]);
         return res.rowCount;
     }
 }
