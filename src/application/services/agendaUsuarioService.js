@@ -2,31 +2,16 @@ import axios from 'axios';
 import https from 'https';
 import agendaUsuarioRepository from '../../data/repositories/agendaUsuarioRepository.js';
 import usuariosRepository from '../../data/repositories/usuariosRepository.js';
+import paisRepository from '../../data/repositories/paisRepository.js';
 
 const agent = new https.Agent({ rejectUnauthorized: process.env.NODE_ENV === 'production' });
-
-const paisIdToCode = {
-  1: "AR", 2: "AU", 3: "US", 4: "BR", 5: "GB", 6: "FR",
-  7: "IL", 8: "KR", 9: "CN", 10: "IT", 11: "ES", 12: "CL"
-};
-
-const paisIdToNombre = {
-  1: "Argentina", 2: "Australia", 3: "Estados Unidos", 4: "Brasil",
-  5: "Inglaterra", 6: "Francia", 7: "Israel", 8: "Corea del Sur",
-  9: "China", 10: "Italia", 11: "España", 12: "Chile"
-};
-
-const supportedCountryCodes = Object.values(paisIdToCode);
-
-const codeToPaisId = Object.fromEntries(
-  Object.entries(paisIdToCode).map(([id, code]) => [code, Number(id)])
-);
 
 export default class agendaUsuarioService {
     constructor() {
         console.log('Estoy en: agendaUsuarioService.constructor()');
         this.agendaUsuarioRepository = new agendaUsuarioRepository();
         this.usuariosRepository = new usuariosRepository();
+        this.paisRepository = new paisRepository();
     }
 
     getAllAsync = async () => {
@@ -71,15 +56,24 @@ export default class agendaUsuarioService {
         return rowsAffected;
     }
 
-    getSupportedCountries = () => {
-        return paisIdToNombre;
+    getSupportedCountries = async () => {
+        const paises = await this.paisRepository.getAllAsync();
+        const result = {};
+        for (const p of paises) {
+            if (p.codigo) {
+                result[p.ID] = p.nombre;
+            }
+        }
+        return result;
     }
 
-    validateCountryCode = (countryCode) => {
+    validateCountryCode = async (countryCode) => {
         const code = String(countryCode).toUpperCase().trim();
-        if (!supportedCountryCodes.includes(code)) {
-            const supported = supportedCountryCodes.join(', ');
-            throw new Error(`País no soportado: ${countryCode}. Países disponibles: ${supported}`);
+        const paises = await this.paisRepository.getAllAsync();
+        const valido = paises.some(p => p.codigo && p.codigo.toUpperCase() === code);
+        if (!valido) {
+            const disponibles = paises.filter(p => p.codigo).map(p => p.codigo).join(', ');
+            throw new Error(`País no soportado: ${countryCode}. Países disponibles: ${disponibles}`);
         }
         return code;
     }
@@ -93,7 +87,7 @@ export default class agendaUsuarioService {
     }
 
     getPublicHolidaysAsync = async (countryCode, year) => {
-        const code = this.validateCountryCode(countryCode);
+        const code = await this.validateCountryCode(countryCode);
         const yearNum = this.validateYear(year);
 
         let data;
@@ -129,29 +123,17 @@ export default class agendaUsuarioService {
         const agenda = await this.agendaUsuarioRepository.getAgendaConDetallesByUsuarioAsync(userId);
 
         const usuario = await this.usuariosRepository.getByIdAsync(userId);
-        const paisactual = usuario?.paisactual || null;
-
-        const paisesIds = new Set();
-        if (paisactual) {
-            paisesIds.add(Number(paisactual));
-        }
-        if (agenda && agenda.length > 0) {
-            for (const item of agenda) {
-                if (item.IDPais) {
-                    paisesIds.add(Number(item.IDPais));
-                }
-            }
-        }
+        const paisactual = usuario?.paisactual ? Number(usuario.paisactual) : null;
 
         const feriados = {};
         const anioActual = new Date().getFullYear();
-        for (const paisId of paisesIds) {
-            const paisCode = paisIdToCode[paisId];
-            if (paisCode) {
+        if (paisactual) {
+            const pais = await this.paisRepository.getByIdAsync(paisactual);
+            if (pais?.codigo) {
                 try {
-                    feriados[paisId] = await this.getPublicHolidaysAsync(paisCode, anioActual);
+                    feriados[paisactual] = await this.getPublicHolidaysAsync(pais.codigo, anioActual);
                 } catch (error) {
-                    feriados[paisId] = { error: error.message };
+                    feriados[paisactual] = { error: error.message };
                 }
             }
         }

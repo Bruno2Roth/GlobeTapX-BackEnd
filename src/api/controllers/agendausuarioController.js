@@ -132,7 +132,7 @@ router.delete('/:id', async (req, res) => {
 
 router.get('/feriados/paises', async (req, res) => {
     try {
-        const paises = service.getSupportedCountries();
+        const paises = await service.getSupportedCountries();
         res.status(200).json(paises);
     } catch (error) {
         console.log('Error en GET /api/agendaUsuario/feriados/paises', error);
