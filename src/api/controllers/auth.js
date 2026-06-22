@@ -53,7 +53,6 @@ const validateRegisterBody = (req, res, next) => {
     const nombre = body.nombre || body.nombreCompleto;
     const email = validateEmail(body.email || body.mail);
     const password = body.password || body.contrasena;
-    const fechaNacimiento = body.fechaNacimiento || body.fecha_nacimiento;
 
     if (!isNonEmptyString(nombre)) {
         return res.status(400).json({ error: 'El nombre es requerido' });
@@ -64,14 +63,6 @@ const validateRegisterBody = (req, res, next) => {
     if (!isNonEmptyString(password)) {
         return res.status(400).json({ error: 'Contraseña es requerida' });
     }
-    if (!isNonEmptyString(fechaNacimiento)) {
-        return res.status(400).json({ error: 'Fecha de nacimiento es requerida' });
-    }
-
-    const parsedDate = new Date(String(fechaNacimiento).trim());
-    if (Number.isNaN(parsedDate.getTime())) {
-        return res.status(400).json({ error: 'Fecha de nacimiento inválida' });
-    }
 
     const optionalFields = {
         nombreCompleto: body.nombreCompleto ? String(body.nombreCompleto).trim() : null,
@@ -79,13 +70,16 @@ const validateRegisterBody = (req, res, next) => {
         idiomaPreferido: (body.idiomaPreferido || body.idioma)
             ? String(body.idiomaPreferido || body.idioma).trim()
             : null,
+        paisActual: body.paisActual || body.paisactual || null,
+        fotoPerfil: body.fotoPerfil || body.fotoperfil || null,
+        IsAdmin: false,
+        ESPremium: false,
     };
 
     req.validatedBody = {
         nombre: String(nombre).trim(),
         email,
         password: String(password).trim(),
-        fechaNacimiento: parsedDate.toISOString().split('T')[0],
         ...optionalFields,
     };
     return next();
@@ -97,7 +91,10 @@ const buildUserPayload = (user) => ({
     id: user.ID || user.id,
     email: user.mail || user.email,
     nombre: user.nombreCompleto || user.nombre,
-    IsAdmin: user.IsAdmin || user.isAdmin || false,
+    IsAdmin: user.IsAdmin ?? user.isAdmin ?? false,
+    ESPremium: user.ESPremium ?? user.esPremium ?? false,
+    paisActual: user.paisActual ?? user.paisactual ?? null,
+    fotoPerfil: user.fotoPerfil ?? user.fotoperfil ?? null,
 });
 
 

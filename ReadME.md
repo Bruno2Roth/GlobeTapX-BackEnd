@@ -46,7 +46,6 @@ URL_API_REMOTA="..."
     "nombre": "Juan Pérez",
     "email": "juan@test.com",
     "password": "123456",
-    "fechaNacimiento": "2000-01-01"
 }
 ```
 Respuesta: `{ "token": "...", "user": {...}, "message": "Usuario registrado" }`
@@ -111,7 +110,6 @@ Dos tablas: `Estadisticas` (stats agregadas por usuario, 1:1) y `RegistroEstadis
 | `IDUsuario` | `INTEGER` | FK al usuario |
 | `tipoEvento` | `VARCHAR(100)` | Tipo de acción |
 | `detalle` | `TEXT` | Info adicional (JSON) |
-| `fecha` | `TIMESTAMP` | `now()` |
 
 ### Tipos de evento
 
@@ -272,7 +270,6 @@ CREATE TABLE IF NOT EXISTS "RegistroEstadisticas" (
     "IDUsuario" INTEGER NOT NULL,
     "tipoEvento" VARCHAR(100) NOT NULL,
     "detalle" TEXT,
-    "fecha" TIMESTAMP DEFAULT NOW()
 );
 
 CREATE INDEX IF NOT EXISTS idx_registro_estadisticas_usuario

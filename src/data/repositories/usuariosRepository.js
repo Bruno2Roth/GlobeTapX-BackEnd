@@ -56,9 +56,12 @@ export default class usuariosRepository {
                 "nombreCompleto",
                 "numeroContacto",
                 "idiomapreferido",
-                "paisActual"
+                "paisActual",
+                "fotoPerfil",
+                "IsAdmin",
+                "ESPremium"
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             RETURNING "ID"
         `;
 
@@ -69,7 +72,10 @@ export default class usuariosRepository {
             entity.nombreCompleto || null,
             entity.numeroContacto || null,
             entity.idiomaPreferido || entity.idioma || 'es',
-            entity.paisactual || null
+            entity.paisActual || entity.paisactual || null,
+            entity.fotoPerfil || entity.fotoperfil || null,
+            entity.IsAdmin ?? entity.isAdmin ?? false,
+            entity.ESPremium ?? entity.esPremium ?? false
         ];
 
         const res = await this.pool.query(sql, values);
@@ -88,7 +94,10 @@ export default class usuariosRepository {
                 "nombreCompleto" = $5,
                 "numeroContacto" = $6,
                 "idiomapreferido" = $7,
-                "paisActual" = $8
+                "paisActual" = $8,
+                "fotoPerfil" = $9,
+                "IsAdmin" = $10,
+                "ESPremium" = $11
             WHERE "ID" = $1
         `;
 
@@ -100,7 +109,10 @@ export default class usuariosRepository {
             entity.nombreCompleto || null,
             entity.numeroContacto || null,
             entity.idiomaPreferido || entity.idioma || null,
-            entity.paisactual || null
+            entity.paisActual || entity.paisactual || null,
+            entity.fotoPerfil || entity.fotoperfil || null,
+            entity.IsAdmin ?? entity.isAdmin ?? false,
+            entity.ESPremium ?? entity.esPremium ?? false
         ];
 
         const res = await this.pool.query(sql, values);

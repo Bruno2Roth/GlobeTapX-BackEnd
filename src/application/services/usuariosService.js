@@ -68,15 +68,6 @@ export default class usuariosService {
         if (!entity.password || !entity.password.toString().trim()) {
             throw this.createValidationError('La contraseña del usuario es obligatoria');
         }
-
-        if (!entity.fechaNacimiento || !entity.fechaNacimiento.toString().trim()) {
-            throw this.createValidationError('La fecha de nacimiento del usuario es obligatoria');
-        }
-
-        const fecha = new Date(entity.fechaNacimiento);
-        if (Number.isNaN(fecha.getTime())) {
-            throw this.createValidationError('La fecha de nacimiento no es una fecha válida');
-        }
     }
 
     getAllAsync = async () => {
