@@ -8,6 +8,8 @@ import authMiddleware from '../../api/middlewares/auth.js';
 const router = express.Router();
 const service = new usuariosService();
 
+// Validar
+
 const isNonEmptyString = (v) => typeof v === 'string' && v.trim().length > 0;
 
 const validateEmail = (email) => {
@@ -18,8 +20,8 @@ const validateEmail = (email) => {
 };
 
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
+  windowMs: 15 * 60 * 1000,   // ventana de 15 min
+  max: 10,                    // máx 10 intentos por ventana
   message: { error: 'Demasiados intentos de inicio de sesión. Intente de nuevo en 15 minutos.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -27,6 +29,8 @@ const loginLimiter = rateLimit({
     return ipKeyGenerator(req) + '_' + (req.body?.email || req.body?.mail || 'unknown');
   },
 });
+
+//Middlewares de validación
 
 const validateLoginBody = (req, res, next) => {
     const body = req.body || {};
@@ -87,13 +91,15 @@ const validateRegisterBody = (req, res, next) => {
     return next();
 };
 
-// Construye el payload del JWT con datos del usuario
+// Payload del JWT
+
 const buildUserPayload = (user) => ({
     id: user.ID || user.id,
     email: user.mail || user.email,
     nombre: user.nombreCompleto || user.nombre,
     IsAdmin: user.IsAdmin || user.isAdmin || false,
 });
+
 
 // GET /api/auth/status — verifica si un token sigue siendo válido
 router.get('/status', (req, res) => {
@@ -112,11 +118,12 @@ router.get('/me', authMiddleware.required, (req, res) => {
     return res.status(200).json({ authenticated: true, user: req.user });
 });
 
-// POST /api/auth/login — autentica al usuario y devuelve un JWT (no expira, mismo token siempre)
+// Auth
+
+// POST /api/auth/login — autentica al usuario y devuelve un JWT (expira en 7 días)
 router.post('/login', loginLimiter, validateLoginBody, async (req, res) => {
     console.log('POST /api/auth/login');
     try {
-        // Validar credenciales del usuario
         const { email, password } = req.validatedBody;
 
         const user = await service.getByEmailAsync(email);
@@ -134,9 +141,9 @@ router.post('/login', loginLimiter, validateLoginBody, async (req, res) => {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
         }
 
-        // Generar token sin iat/exp para que sea siempre el mismo
+        const exp = Math.floor(Date.now() / 1000) + 7 * 24 * 3600;
         const payload = buildUserPayload(user);
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { noTimestamp: true });
+        const token = jwt.sign({ ...payload, exp }, process.env.JWT_SECRET, { noTimestamp: true });
 
         return res.status(200).json({ token, user: payload });
     } catch (error) {
@@ -153,9 +160,9 @@ router.post('/register', validateRegisterBody, async (req, res) => {
         entity.password = await bcrypt.hash(entity.password, 10);
         await service.createAsync(entity);
         const user = await service.getByEmailAsync(entity.email);
+        const exp = Math.floor(Date.now() / 1000) + 7 * 24 * 3600;
         const payload = buildUserPayload(user);
-        // Mismo token siempre (sin expiración ni timestamp)
-        const token = jwt.sign(payload, process.env.JWT_SECRET, { noTimestamp: true });
+        const token = jwt.sign({ ...payload, exp }, process.env.JWT_SECRET, { noTimestamp: true });
         return res.status(201).json({ token, user: payload, message: 'Usuario registrado' });
     } catch (error) {
         console.log('Error en register:', error);

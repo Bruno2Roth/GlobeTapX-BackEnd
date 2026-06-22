@@ -41,12 +41,12 @@ app.use((req, res, next) => {
 
 
 // Auth middleware: verifica login en TODAS las rutas excepto /auth
-/* app.use('/api', (req, res, next) => {
+app.use('/api', (req, res, next) => {
     if (req.path.startsWith('/auth')) {
         return next();
     }
     return authMiddleware.required(req, res, next);
-}); */
+});
 
 app.use("/api/auth", AuthController);
 app.use("/api/agendaUsuario", AgendaUsuarioController);
