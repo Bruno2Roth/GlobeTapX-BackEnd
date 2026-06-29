@@ -19,14 +19,25 @@ export default class climaService {
         return data;
     }
 
-    async getWeatherByCoordsAsync(latitude, longitude) {
+    async getWeatherByCoordsAsync(latitude, longitude, countryName = null, countryCode = null) {
         const weatherData = await this.fetchWeatherAsync(latitude, longitude);
+        const utcOffsetSeconds = weatherData.utc_offset_seconds ?? 0;
+        const localTime = new Date(Date.now() + utcOffsetSeconds * 1000)
+            .toISOString()
+            .replace('Z', '');
+        const flagUrl = countryCode
+            ? `https://flagcdn.com/${countryCode.toLowerCase()}.svg`
+            : null;
         return {
             latitude,
             longitude,
+            country_name: countryName,
+            country_code: countryCode,
+            flag_url: flagUrl,
             timezone: weatherData.timezone ?? null,
             timezone_abbreviation: weatherData.timezone_abbreviation ?? null,
-            utc_offset_seconds: weatherData.utc_offset_seconds ?? null,
+            utc_offset_seconds: utcOffsetSeconds,
+            local_time: localTime,
             current: weatherData.current ?? null,
             daily: weatherData.daily ?? null,
         };
@@ -38,7 +49,12 @@ export default class climaService {
         const longitude = data.longitude ?? data.lon;
         if (!latitude || !longitude) throw new Error('No se pudo obtener ubicación desde ipapi.co');
 
-        const weather = await this.getWeatherByCoordsAsync(latitude, longitude);
+        const weather = await this.getWeatherByCoordsAsync(
+            latitude,
+            longitude,
+            data.country_name ?? data.country,
+            data.country_code ?? data.country
+        );
 
         return {
             ip: data.ip,
@@ -47,8 +63,13 @@ export default class climaService {
             country: data.country,
             country_name: data.country_name ?? data.country,
             country_code: data.country_code ?? data.country,
+            flag_url: weather.flag_url,
             latitude: Number(latitude),
             longitude: Number(longitude),
+            timezone: weather.timezone,
+            timezone_abbreviation: weather.timezone_abbreviation,
+            utc_offset_seconds: weather.utc_offset_seconds,
+            local_time: weather.local_time,
             current: weather.current,
             daily: weather.daily,
         };
@@ -63,6 +84,11 @@ export default class climaService {
         const result = data?.results?.[0];
         if (!result) throw new Error(`No se encontró el país: ${country}`);
 
-        return this.getWeatherByCoordsAsync(result.latitude, result.longitude);
+        return this.getWeatherByCoordsAsync(
+            result.latitude,
+            result.longitude,
+            result.country ?? String(country).trim(),
+            result.country_code ?? null
+        );
     }
 }
