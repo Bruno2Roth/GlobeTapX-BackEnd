@@ -7,10 +7,6 @@ const service = new numerosEmergenciaService();
 
 const MENSAJE = 'Números de emergencia provistos tal cual; verifique localmente.';
 
-function setExpires(res, ms) {
-    res.set('Expires', new Date(Date.now() + ms).toUTCString());
-}
-
 function isNoDataCountry(obj) {
     if (!obj) return true;
     // Chequear formato nuevo (minúsculas)
@@ -37,7 +33,7 @@ router.get('/country/:code', async (req, res) => {
         console.log(`numerosEmergenciaController: request for code=${code}, remoteBase=${service.baseRemota}`);
         const remote = await service.getCountry(code);
         console.log(`numerosEmergenciaController: service.getCountry(${code}) returned:`, !!remote);
-        setExpires(res, 24 * 3600 * 1000);
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.set('X-EM-Source', service.baseRemota);
         if (!remote) return res.status(404).json({ mensaje: MENSAJE, error: 'No encontrado', data: {}, pais: null });
         if (isNoDataCountry(remote)) return res.json({ mensaje: MENSAJE, error: 'Sin datos para este territorio', data: {}, pais: null });
@@ -51,7 +47,7 @@ router.get('/country/:code', async (req, res) => {
 router.get('/data/all', async (req, res) => {
     try {
         const allRemote = await service.getAll();
-        setExpires(res, 7 * 24 * 3600 * 1000);
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
         return res.json({ mensaje: MENSAJE, error: null, data: allRemote });
     } catch (err) {
         return res.status(502).json({ mensaje: MENSAJE, error: err.message || 'Error en servicio remoto', data: [] });
@@ -66,7 +62,7 @@ router.get('/data/:code', async (req, res) => {
         console.log(`numerosEmergenciaController: alias request for code=${code}, remoteBase=${service.baseRemota}`);
         const remote = await service.getCountry(code);
         console.log(`numerosEmergenciaController: service.getCountry(${code}) returned:`, !!remote);
-        setExpires(res, 24 * 3600 * 1000);
+        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
         res.set('X-EM-Source', service.baseRemota);
         if (!remote) return res.status(404).json({ mensaje: MENSAJE, error: 'No encontrado', data: {}, pais: null });
         if (isNoDataCountry(remote)) return res.json({ mensaje: MENSAJE, error: 'Sin datos para este territorio', data: {}, pais: null });

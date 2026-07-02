@@ -3,6 +3,7 @@ import agendaUsuarioRepository from '../../data/repositories/agendaUsuarioReposi
 import estadisticasRepository from '../../data/repositories/estadisticasRepository.js';
 import registroEstadisticasRepository from '../../data/repositories/registroEstadisticasRepository.js';
 import contenidoCategoriaRepository from '../../data/repositories/contenidoCategoriaRepository.js';
+import paisRepository from '../../data/repositories/paisRepository.js';
 import translationHelper from '../../helpers/translationHelper.js';
 import zLogCambiosService from './zLogCambiosService.js';
 
@@ -13,6 +14,7 @@ export default class usuariosService {
         this.agendaUsuarioRepository = new agendaUsuarioRepository();
         this.estadisticasRepository = new estadisticasRepository();
         this.registroEstadisticasRepository = new registroEstadisticasRepository();
+        this.paisRepository = new paisRepository();
         this.contenidoCategoriaRepository = new contenidoCategoriaRepository();
         this.translator = new translationHelper();
         this.logService = new zLogCambiosService();
@@ -34,6 +36,14 @@ export default class usuariosService {
     validateUsuarioEntity(entity, requireId = false) {
         if (!entity || typeof entity !== 'object') {
             throw this.createValidationError('Los datos del usuario son necesarios');
+        }
+
+        if (requireId && !entity.ID && !entity.id) {
+            throw this.createValidationError('El ID del usuario es obligatorio');
+        }
+
+        if (!entity.nombre && entity.nombreCompleto) {
+            entity.nombre = entity.nombreCompleto;
         }
 
         if (!entity.nombre || !entity.nombre.toString().trim()) {
@@ -65,7 +75,7 @@ export default class usuariosService {
             throw this.createValidationError('El email del usuario no es válido');
         }
 
-        if (!entity.password || !entity.password.toString().trim()) {
+        if (!requireId && (!entity.password || !entity.password.toString().trim())) {
             throw this.createValidationError('La contraseña del usuario es obligatoria');
         }
     }
@@ -129,10 +139,33 @@ export default class usuariosService {
 
     updateAsync = async (entity) => {
         console.log(`usuariosService.updateAsync(${JSON.stringify(entity)})`);
+
+        const userId = entity.ID || entity.id;
+        if (!userId) {
+            throw this.createValidationError('El ID del usuario es obligatorio');
+        }
+
+        const currentUser = await this.usuariosRepository.getByIdAsync(userId);
+        if (!currentUser) {
+            throw new Error('Usuario no encontrado');
+        }
+
+        if (!entity.email) {
+            entity.email = currentUser?.mail || currentUser?.email;
+        }
+
+        if (!entity.nombre) {
+            entity.nombre = currentUser?.nombre;
+        }
+
+        if (!entity.password) {
+            entity.password = currentUser?.contrasena || currentUser?.password;
+        }
+
         this.validateUsuarioEntity(entity, true);
 
         const existingUser = await this.usuariosRepository.getByEmailAsync(entity.email);
-        if (existingUser && Number(existingUser.ID) !== Number(entity.ID)) {
+        if (existingUser && Number(existingUser.ID) !== Number(userId)) {
             throw this.createDuplicateError(`Ya existe otro usuario con email ${entity.email}`);
         }
 
@@ -287,8 +320,12 @@ export default class usuariosService {
         }
 
         const paisId = Number(paisactual);
-        if (!Number.isInteger(paisId) || paisId < 1 || paisId > 12) {
-            throw new Error('ID de país inválido. Debe ser un número entre 1 y 12');
+        if (!Number.isInteger(paisId) || paisId < 1) {
+            throw new Error('ID de país inválido');
+        }
+        const paisValido = await this.paisRepository.getByIdAsync(paisId);
+        if (!paisValido) {
+            throw new Error(`País con ID ${paisId} no encontrado`);
         }
 
         const rowsAffected = await this.usuariosRepository.updatePaisActualAsync(usuarioId, paisId);

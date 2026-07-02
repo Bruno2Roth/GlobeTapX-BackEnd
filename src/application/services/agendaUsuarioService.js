@@ -123,7 +123,8 @@ export default class agendaUsuarioService {
         const agenda = await this.agendaUsuarioRepository.getAgendaConDetallesByUsuarioAsync(userId);
 
         const usuario = await this.usuariosRepository.getByIdAsync(userId);
-        const paisactual = usuario?.paisactual ? Number(usuario.paisactual) : null;
+        const paisId = usuario?.paisActual ?? usuario?.paisactual ?? null;
+        const paisactual = paisId ? Number(paisId) : null;
 
         const feriados = {};
         const anioActual = new Date().getFullYear();

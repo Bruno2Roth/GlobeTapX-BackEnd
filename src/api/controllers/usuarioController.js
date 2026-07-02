@@ -148,6 +148,25 @@ router.put('/', async (req, res) => {
     }
 });
 
+router.put('/:id', async (req, res) => {
+    try {
+        const entity = { ...req.body, ID: req.params.id };
+        const targetId = entity.ID;
+
+        const result = await service.updateAsync(entity);
+        res.status(200).json({ success: true, message: 'Usuario actualizado', updated: result });
+    } catch (error) {
+        console.log('Error en PUT /usuarios/:id', error);
+        if (error.name === 'ValidationError') {
+            return res.status(400).json({ error: error.message });
+        }
+        if (error.code === 'UsuarioDuplicado') {
+            return res.status(409).json({ error: error.message });
+        }
+        res.status(500).json({ error: 'Error al actualizar usuario' });
+    }
+});
+
 router.put('/paisactual', async (req, res) => {
     try {
         const { usuarioId, paisactual } = req.body;

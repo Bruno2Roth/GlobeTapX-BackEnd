@@ -1,9 +1,75 @@
 import pool from '../../configs/SPConfig.js'
 
+const COLUMN_MAP = {
+    nombre: ['nombre'],
+    mail: ['mail', 'email'],
+    contrasena: ['contrasena', 'password'],
+    nombreCompleto: ['nombreCompleto', 'nombrecompleto'],
+    numeroContacto: ['numeroContacto', 'numerocontacto'],
+    idiomaPreferido: ['idiomaPreferido', 'idioma', 'idiomapreferido'],
+    paisActual: ['paisActual', 'paisactual'],
+    fotoPerfil: ['fotoPerfil', 'fotoperfil'],
+    IsAdmin: ['IsAdmin', 'isadmin', 'is_admin', 'IDTipoAdmin'],
+    ESPremium: ['ESPremium', 'espremium', 'es_premium'],
+};
+
+function _entityValue(entity, fieldKeys) {
+    for (const key of fieldKeys) {
+        if (entity[key] !== undefined && entity[key] !== null) return entity[key];
+    }
+    return null;
+}
+
 export default class usuariosRepository {
     constructor() {
         console.log('Estoy en: usuariosRepository.constructor()');
         this.pool = pool;
+        this._columns = null;
+    }
+
+    async _getTableColumns() {
+        if (this._columns) return this._columns;
+        const sql = `
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'Usuario'
+        `;
+        const res = await this.pool.query(sql);
+        this._columns = res.rows.map(r => r.column_name);
+        return this._columns;
+    }
+
+    _buildInsert(entity, dbColumns) {
+        const cols = [];
+        const vals = [];
+        for (const [colName, entityKeys] of Object.entries(COLUMN_MAP)) {
+            if (!dbColumns.includes(colName)) continue;
+            cols.push(`"${colName}"`);
+            vals.push(_entityValue(entity, entityKeys));
+        }
+        if (!cols.length) throw new Error('No hay columnas válidas para insert');
+        const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
+        return {
+            sql: `INSERT INTO "Usuario" (${cols.join(', ')}) VALUES (${placeholders}) RETURNING "ID"`,
+            values: vals,
+        };
+    }
+
+    _buildUpdate(entity, dbColumns) {
+        const userId = entity.ID || entity.id;
+        if (!userId) throw new Error('ID es requerido para update');
+        const sets = [];
+        const vals = [userId];
+        for (const [colName, entityKeys] of Object.entries(COLUMN_MAP)) {
+            if (!dbColumns.includes(colName)) continue;
+            sets.push(`"${colName}" = $${sets.length + 2}`);
+            vals.push(_entityValue(entity, entityKeys));
+        }
+        if (!sets.length) throw new Error('No hay columnas válidas para update');
+        return {
+            sql: `UPDATE "Usuario" SET ${sets.join(', ')} WHERE "ID" = $1`,
+            values: vals,
+        };
     }
 
     getAllAsync = async () => {
@@ -47,36 +113,8 @@ export default class usuariosRepository {
     createAsync = async (entity) => {
         console.log(`usuariosRepository.createAsync(${JSON.stringify(entity)})`);
 
-        const sql = `
-            INSERT INTO "Usuario"
-            (
-                "nombre",
-                "mail",
-                "contrasena",
-                "nombreCompleto",
-                "numeroContacto",
-                "idiomapreferido",
-                "paisActual",
-                "fotoPerfil",
-                "IsAdmin",
-                "ESPremium"
-            )
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-            RETURNING "ID"
-        `;
-
-        const values = [
-            entity.nombre,
-            entity.email,
-            entity.password,
-            entity.nombreCompleto || null,
-            entity.numeroContacto || null,
-            entity.idiomaPreferido || entity.idioma || 'es',
-            entity.paisActual || entity.paisactual || null,
-            entity.fotoPerfil || entity.fotoperfil || null,
-            entity.IsAdmin ?? entity.isAdmin ?? false,
-            entity.ESPremium ?? entity.esPremium ?? false
-        ];
+        const dbColumns = await this._getTableColumns();
+        const { sql, values } = this._buildInsert(entity, dbColumns);
 
         const res = await this.pool.query(sql, values);
         return res.rows && res.rows[0] ? (res.rows[0].ID || res.rows[0].id) : null;
@@ -85,35 +123,8 @@ export default class usuariosRepository {
     updateAsync = async (entity) => {
         console.log(`usuariosRepository.updateAsync(${JSON.stringify(entity)})`);
 
-        const sql = `
-            UPDATE "Usuario"
-            SET
-                "nombre" = $2,
-                "mail" = $3,
-                "contrasena" = $4,
-                "nombreCompleto" = $5,
-                "numeroContacto" = $6,
-                "idiomapreferido" = $7,
-                "paisActual" = $8,
-                "fotoPerfil" = $9,
-                "IsAdmin" = $10,
-                "ESPremium" = $11
-            WHERE "ID" = $1
-        `;
-
-        const values = [
-            entity.ID,
-            entity.nombre,
-            entity.email,
-            entity.password,
-            entity.nombreCompleto || null,
-            entity.numeroContacto || null,
-            entity.idiomaPreferido || entity.idioma || null,
-            entity.paisActual || entity.paisactual || null,
-            entity.fotoPerfil || entity.fotoperfil || null,
-            entity.IsAdmin ?? entity.isAdmin ?? false,
-            entity.ESPremium ?? entity.esPremium ?? false
-        ];
+        const dbColumns = await this._getTableColumns();
+        const { sql, values } = this._buildUpdate(entity, dbColumns);
 
         const res = await this.pool.query(sql, values);
         return res.rowCount;

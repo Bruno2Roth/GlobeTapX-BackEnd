@@ -74,12 +74,12 @@ export default class NumerosEmergenciaService {
         if (cache) return cache;
         try {
             const remoto = await this._obtenerRemotoTodo();
-            if (remoto && remoto.length) { this._setCache(clave, remoto, 7 * 24 * 3600 * 1000); return remoto; }
+            if (remoto && remoto.length) { this._setCache(clave, remoto, 7 * 60 * 1000); return remoto; }
         } catch (e) {
             // usar fallback local
         }
         const local = await this._cargarLocal();
-        this._setCache(clave, local, 7 * 24 * 3600 * 1000);
+        this._setCache(clave, local, 7 * 60 * 1000);
         return local;
     }
 
@@ -99,7 +99,7 @@ export default class NumerosEmergenciaService {
             try {
                 const lista = await this.getAll();
                 const encontrado = this._buscarEnLista(lista, normalizado, codigo);
-                this._setCache(clave, encontrado || null, 24 * 3600 * 1000);
+                this._setCache(clave, encontrado || null, 60 * 1000);
                 if (encontrado) return encontrado;
             } catch (e) { remotoFallido = true; }
         } else {
@@ -109,12 +109,12 @@ export default class NumerosEmergenciaService {
                 const r1 = await this.cliente.get(`/country/${normalizado}`).catch(() => null);
                 if (r1 && r1.data) {
                     const maybe = Array.isArray(r1.data) ? r1.data[0] : r1.data;
-                    if (this._coincidePais(maybe, normalizado, codigo)) { this._setCache(clave, maybe, 24 * 3600 * 1000); return maybe; }
+                    if (this._coincidePais(maybe, normalizado, codigo)) { this._setCache(clave, maybe, 60 * 1000); return maybe; }
                 }
                 const r2 = await this.cliente.get(`/${normalizado}`).catch(() => null);
                 if (r2 && r2.data) {
                     const maybe = Array.isArray(r2.data) ? r2.data[0] : r2.data;
-                    if (this._coincidePais(maybe, normalizado, codigo)) { this._setCache(clave, maybe, 24 * 3600 * 1000); return maybe; }
+                    if (this._coincidePais(maybe, normalizado, codigo)) { this._setCache(clave, maybe, 60 * 1000); return maybe; }
                 }
             } catch (e) { remotoFallido = true; }
 
@@ -123,7 +123,7 @@ export default class NumerosEmergenciaService {
                 remotoIntentado = true;
                 const lista = await this._obtenerRemotoTodo();
                 const encontrado = this._buscarEnLista(lista, normalizado, codigo);
-                this._setCache(clave, encontrado || null, 24 * 3600 * 1000);
+                this._setCache(clave, encontrado || null, 60 * 1000);
                 if (encontrado) return encontrado;
             } catch (e) { remotoFallido = true; }
         }
@@ -131,7 +131,7 @@ export default class NumerosEmergenciaService {
         // fallback local
         const local = await this._cargarLocal();
         const encontradoLocal = this._buscarEnLista(local, normalizado, codigo);
-        this._setCache(clave, encontradoLocal || null, 24 * 3600 * 1000);
+        this._setCache(clave, encontradoLocal || null, 60 * 1000);
         if (encontradoLocal) return encontradoLocal;
 
         if (remotoIntentado && remotoFallido) {
