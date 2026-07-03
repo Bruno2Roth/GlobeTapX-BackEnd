@@ -48,32 +48,32 @@ export default class usuariosService {
             throw this.createValidationError('El nombre del usuario es obligatorio');
         }
 
-        if (!entity.email && entity.mail) {
-            entity.email = entity.mail;
+        if (!entity.mail && entity.mail) {
+            entity.mail = entity.mail;
         }
 
-        if (!entity.password && entity.contrasena) {
-            entity.password = entity.contrasena;
+        if (!entity.contrasena && entity.contrasena) {
+            entity.contrasena = entity.contrasena;
         }
 
         const nombre = entity.nombre.toString().trim();
         const apellido = entity.apellido && entity.apellido.toString().trim() ? entity.apellido.toString().trim() : '';
 
-        if (!entity.email || !entity.email.toString().trim()) {
-            throw this.createValidationError('El email del usuario es obligatorio');
+        if (!entity.mail || !entity.mail.toString().trim()) {
+            throw this.createValidationError('El mail del usuario es obligatorio');
         }
 
         if (!entity.nombreCompleto || !entity.nombreCompleto.toString().trim()) {
             entity.nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
         }
 
-        const email = entity.email.toString().trim();
-        const emailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/; 
-        if (!emailRegex.test(email)) {
-            throw this.createValidationError('El email del usuario no es válido');
+        const mail = entity.mail.toString().trim();
+        const mailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/; 
+        if (!mailRegex.test(mail)) {
+            throw this.createValidationError('El mail del usuario no es válido');
         }
 
-        if (!requireId && (!entity.password || !entity.password.toString().trim())) {
+        if (!requireId && (!entity.contrasena || !entity.contrasena.toString().trim())) {
             throw this.createValidationError('La contraseña del usuario es obligatoria');
         }
     }
@@ -90,9 +90,9 @@ export default class usuariosService {
         return returnEntity;
     }
 
-    getByEmailAsync = async (email) => {
-        console.log(`usuariosService.getByEmailAsync(${email})`);
-        const returnEntity = await this.usuariosRepository.getByEmailAsync(email);
+    getBymailAsync = async (mail) => {
+        console.log(`usuariosService.getBymailAsync(${mail})`);
+        const returnEntity = await this.usuariosRepository.getBymailAsync(mail);
         return returnEntity;
     }
 
@@ -106,9 +106,9 @@ export default class usuariosService {
         console.log(`usuariosService.createAsync(${JSON.stringify(entity)})`);
         this.validateUsuarioEntity(entity);
 
-        const existingUser = await this.usuariosRepository.getByEmailAsync(entity.email);
+        const existingUser = await this.usuariosRepository.getBymailAsync(entity.mail);
         if (existingUser) {
-            throw this.createDuplicateError(`Ya existe un usuario con email ${entity.email}`);
+            throw this.createDuplicateError(`Ya existe un usuario con mail ${entity.mail}`);
         }
 
         const rowsAffected = await this.usuariosRepository.createAsync(entity);
@@ -116,11 +116,11 @@ export default class usuariosService {
         const nuevoId = rowsAffected?.ID || rowsAffected;
         
         // Registrar estadística de creación
-        await this._registrarEstadistica('usuario_creado', entity.email, { nombre: entity.nombre });
+        await this._registrarEstadistica('usuario_creado', entity.mail, { nombre: entity.nombre });
         
         // Log automático
         try {
-            const { password, contrasena, ...safeEntity } = entity;
+            const { contrasena, ...safeEntity } = entity;
             await this.logService.createAsync({
                 IDUsuario: nuevoId,
                 accion: 'CREATE',
@@ -148,33 +148,33 @@ export default class usuariosService {
             throw new Error('Usuario no encontrado');
         }
 
-        if (!entity.email) {
-            entity.email = currentUser?.mail || currentUser?.email;
+        if (!entity.mail) {
+            entity.mail = currentUser?.mail || currentUser?.mail;
         }
 
         if (!entity.nombre) {
             entity.nombre = currentUser?.nombre;
         }
 
-        if (!entity.password) {
-            entity.password = currentUser?.contrasena || currentUser?.password;
+        if (!entity.contrasena) {
+            entity.contrasena = currentUser?.contrasena || currentUser?.contrasena;
         }
 
         this.validateUsuarioEntity(entity, true);
 
-        const existingUser = await this.usuariosRepository.getByEmailAsync(entity.email);
+        const existingUser = await this.usuariosRepository.getBymailAsync(entity.mail);
         if (existingUser && Number(existingUser.ID) !== Number(userId)) {
-            throw this.createDuplicateError(`Ya existe otro usuario con email ${entity.email}`);
+            throw this.createDuplicateError(`Ya existe otro usuario con mail ${entity.mail}`);
         }
 
         const rowsAffected = await this.usuariosRepository.updateAsync(entity);
         
         // Registrar estadística de actualización
-        await this._registrarEstadistica('usuario_actualizado', entity.ID, { nombre: entity.nombre, email: entity.email });
+        await this._registrarEstadistica('usuario_actualizado', entity.ID, { nombre: entity.nombre, mail: entity.mail });
         
         // Log automático
         try {
-            const { password, contrasena, ...safeEntity } = entity;
+            const { contrasena, ...safeEntity } = entity;
             await this.logService.createAsync({
                 IDUsuario: entity.ID,
                 accion: 'UPDATE',
@@ -241,7 +241,7 @@ export default class usuariosService {
             throw new Error('Usuario no encontrado');
         }
 
-        const preferido = usuario.idiomapreferido || usuario.idioma || null;
+        const preferido = usuario.idiomaPreferido || usuario.idioma || null;
 
         if (preferido) {
             return {

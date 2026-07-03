@@ -1,5 +1,5 @@
 export default class evento {
-    constructor(nombre, mail, contrasena, fecha_nacimiento, nombreCompleto, numeroContacto, IDTipoAdmin, ESPremium) {
+    constructor(nombre, mail, contrasena, fecha_nacimiento, nombreCompleto, numeroContacto, IDTipoAdmin, esPremium) {
         this.nombre            = nombre;
         this.contrasena        = contrasena;
         this.mail              = mail;
@@ -7,6 +7,6 @@ export default class evento {
         this.nombreCompleto    = nombreCompleto;
         this.numeroContacto    = numeroContacto;
         this.IDTipoAdmin    = IDTipoAdmin;
-        this.ESPremium    = ESPremium;
+        this.esPremium    = esPremium;
     }
 }

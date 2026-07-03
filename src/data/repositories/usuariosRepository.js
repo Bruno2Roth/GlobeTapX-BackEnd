@@ -1,22 +1,33 @@
 import pool from '../../configs/SPConfig.js'
 
 const COLUMN_MAP = {
-    nombre: ['nombre'],
-    mail: ['mail', 'email'],
-    contrasena: ['contrasena', 'password'],
-    nombreCompleto: ['nombreCompleto', 'nombrecompleto'],
-    numeroContacto: ['numeroContacto', 'numerocontacto'],
-    idiomaPreferido: ['idiomaPreferido', 'idioma', 'idiomapreferido'],
-    paisActual: ['paisActual', 'paisactual'],
-    fotoPerfil: ['fotoPerfil', 'fotoperfil'],
-    IsAdmin: ['IsAdmin', 'isadmin', 'is_admin', 'IDTipoAdmin'],
-    ESPremium: ['ESPremium', 'espremium', 'es_premium'],
+    nombre: 'nombre',
+    mail: 'mail',
+    contrasena: 'contrasena',
+    nombreCompleto: 'nombreCompleto',
+    numeroContacto: 'numeroContacto',
+    idiomaPreferido: 'idiomaPreferido',
+    paisActual: 'paisActual',
+    fotoPerfil: 'fotoPerfil',
+    isAdmin: 'isAdmin',
+    esPremium: 'esPremium',
 };
 
 function _entityValue(entity, fieldKeys) {
-    for (const key of fieldKeys) {
-        if (entity[key] !== undefined && entity[key] !== null) return entity[key];
+    // Si el mapeo es un string (ej: "nombre")
+    if (typeof fieldKeys === 'string') {
+        return entity[fieldKeys] ?? null;
     }
+
+    // Si el mapeo es un array (ej: ["nombre", "Nombre"])
+    if (Array.isArray(fieldKeys)) {
+        for (const key of fieldKeys) {
+            if (entity[key] !== undefined && entity[key] !== null) {
+                return entity[key];
+            }
+        }
+    }
+
     return null;
 }
 
@@ -89,11 +100,11 @@ export default class usuariosRepository {
         return res.rows && res.rows[0] ? res.rows[0] : null;
     }
 
-    getByEmailAsync = async (email) => {
-        console.log(`usuariosRepository.getByEmailAsync(${email})`);
+    getBymailAsync = async (mail) => {
+        console.log(`usuariosRepository.getBymailAsync(${mail})`);
 
         const sql = `SELECT * FROM "Usuario" WHERE "mail" = $1`;
-        const res = await this.pool.query(sql, [email]);
+        const res = await this.pool.query(sql, [mail]);
         return res.rows && res.rows[0] ? res.rows[0] : null;
     }
 
@@ -114,10 +125,26 @@ export default class usuariosRepository {
         console.log(`usuariosRepository.createAsync(${JSON.stringify(entity)})`);
 
         const dbColumns = await this._getTableColumns();
+
+        console.log("=== ENTITY ===");
+        console.log(entity);
+
+        console.log("=== DB COLUMNS ===");
+        console.log(dbColumns);
+
         const { sql, values } = this._buildInsert(entity, dbColumns);
 
+        console.log("=== SQL ===");
+        console.log(sql);
+
+        console.log("=== VALUES ===");
+        console.log(values);
+
         const res = await this.pool.query(sql, values);
-        return res.rows && res.rows[0] ? (res.rows[0].ID || res.rows[0].id) : null;
+
+        return res.rows && res.rows[0]
+            ? (res.rows[0].ID || res.rows[0].id)
+            : null;
     }
 
     updateAsync = async (entity) => {
@@ -161,7 +188,7 @@ export default class usuariosRepository {
 
         const sql = `
             UPDATE "Usuario"
-            SET "idiomapreferido" = $2
+            SET "idiomaPreferido" = $2
             WHERE "ID" = $1
         `;
 

@@ -1,12 +1,12 @@
 import pool from '../../configs/SPConfig.js'
 
-export default class traduccionRepository {
+export default class idiomaRepository {
     constructor() {
         this.pool = pool;
     }
 
     getIdiomasSoportadosAsync = async () => {
-        const sql = `SELECT DISTINCT "idiomapreferido" AS "codigo" FROM "Usuario" WHERE "idiomapreferido" IS NOT NULL`;
+        const sql = `SELECT DISTINCT "idiomaPreferido" AS "codigo" FROM "Usuario" WHERE "" IS NOT NULL`;
         const res = await this.pool.query(sql);
         return res.rows;
     }

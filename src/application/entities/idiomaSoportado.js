@@ -1,4 +1,4 @@
-export default class idiomapreferido {
+export default class idiomaPreferido {
     constructor(codigo, nombre, nombreNativo) {
         this.codigo = codigo;
         this.nombre = nombre;

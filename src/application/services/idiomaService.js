@@ -9,45 +9,53 @@ export default class idiomaService {
     }
 
     getIdiomasSoportadosAsync = async () => {
-        const rows = await this.traduccionRepo.getIdiomasSoportadosAsync();
-        const result = {};
-        const nombres = { es: 'Español', en: 'English', fr: 'Français', it: 'Italiano', pt: 'Português', ko: '한국어', zh: '中文', he: 'עברית' };
-        for (const row of rows) {
-            const codigo = row.codigo;
-            result[codigo] = { name: nombres[codigo] || codigo };
+        const paises = await this.paisService.getAllAsync();
+
+        const idiomas = {};
+
+        for (const pais of paises) {
+            const codigo = this.getLanguageCodeForCountry(pais.nombre);
+
+            if (!idiomas[codigo]) {
+                idiomas[codigo] = {
+                    name: pais.nombre
+                };
+            }
         }
-        return result;
+
+        return idiomas;
     }
 
     getTraduccionesPorIdiomaAsync = async (codigoIdioma) => {
         const rows = await this.traduccionRepo.getTraduccionesPorIdiomaAsync(codigoIdioma);
+
         const result = {};
+
         for (const row of rows) {
             result[row.clave] = row.valor;
         }
+
         return result;
     }
 
     getTodasLasTraduccionesAsync = async () => {
         const rows = await this.traduccionRepo.getTodasLasTraduccionesAsync();
+
         const result = {};
+
         for (const row of rows) {
-            if (!result[row.codigoIdioma]) result[row.codigoIdioma] = {};
+            if (!result[row.codigoIdioma]) {
+                result[row.codigoIdioma] = {};
+            }
+
             result[row.codigoIdioma][row.clave] = row.valor;
         }
+
         return result;
     }
 
-// Servicio para obtener idioma por país, usando la tabla Pais como fuente.
-
     async getIdiomaByCountryAsync({ paisId, nombre }) {
-        console.log(`idiomaService.getIdiomaByCountryAsync(${paisId}, ${nombre})`);
-
-        if (!paisId && !nombre) {
-            throw new Error('paisId o nombre de país son requeridos');
-        }
-
-        let pais;
+        let pais = null;
 
         if (paisId) {
             pais = await this.paisService.getByIdAsync(paisId);
@@ -61,15 +69,14 @@ export default class idiomaService {
             throw new Error('País no encontrado');
         }
 
-        const codigoIdioma = this.getLanguageCodeForCountry(pais.nombre || pais.descripcion || nombre);
-        const supported = this.translator.getSupportedLanguages();
+        const codigoIdioma = this.getLanguageCodeForCountry(pais.nombre);
 
         return {
-            paisId: pais.ID || paisId,
-            nombrePais: pais.nombre || pais.descripcion || null,
+            paisId: pais.ID,
+            nombrePais: pais.nombre,
             idioma: {
                 codigoIdioma,
-                nombreIdioma: supported[codigoIdioma]?.name || supported.en.name,
+                nombreIdioma: pais.nombre,
                 origen: 'pais',
                 source: 'DB'
             }
@@ -77,11 +84,9 @@ export default class idiomaService {
     }
 
     getLanguageCodeForCountry(countryName) {
-        if (!countryName || typeof countryName !== 'string') {
-            return 'en';
-        }
+        if (!countryName) return 'en';
 
-        const normalized = countryName.trim().toLowerCase();
+        const normalized = countryName.toLowerCase();
 
         const map = {
             argentina: 'es',
@@ -91,28 +96,22 @@ export default class idiomaService {
             chile: 'es',
             españa: 'es',
             espana: 'es',
-            spain: 'es',
             brazil: 'pt',
             brasil: 'pt',
             portugal: 'pt',
             usa: 'en',
-            uk: 'en',
+            'united states': 'en',
             england: 'en',
             australia: 'en',
             canada: 'en',
             france: 'fr',
             italy: 'it',
-            italian: 'it',
             china: 'zh',
-            israel: 'he'
+            israel: 'he',
+            'south korea': 'ko',
+            'corea del sur': 'ko'
         };
 
-        for (const key of Object.keys(map)) {
-            if (normalized.includes(key)) {
-                return map[key];
-            }
-        }
-
-        return 'en';
+        return map[normalized] || 'en';
     }
 }

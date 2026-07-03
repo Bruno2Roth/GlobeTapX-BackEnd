@@ -13,7 +13,7 @@ const getRequesterId = (req) => {
 };
 
 const isAdmin = (req) => {
-  return req.user && (req.user.role === 'admin' || req.user.isAdmin === true || req.user.IsAdmin === true || req.user.IsAdmin === 'TRUE' || req.user.IsAdmin === 'true');
+  return req.user && (req.user.role === 'admin' || req.user.isAdmin === true || req.user.isAdmin === true || req.user.isAdmin === 'TRUE' || req.user.isAdmin === 'true');
 };
 
 router.get('/', async (req, res) => {

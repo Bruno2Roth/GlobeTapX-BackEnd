@@ -44,8 +44,8 @@ URL_API_REMOTA="..."
 ```json
 {
     "nombre": "Juan Pérez",
-    "email": "juan@test.com",
-    "password": "123456",
+    "mail": "juan@test.com",
+    "contrasena": "123456",
 }
 ```
 Respuesta: `{ "token": "...", "user": {...}, "message": "Usuario registrado" }`
@@ -53,8 +53,8 @@ Respuesta: `{ "token": "...", "user": {...}, "message": "Usuario registrado" }`
 ### POST /api/auth/login
 ```json
 {
-    "email": "juan@test.com",
-    "password": "123456"
+    "mail": "juan@test.com",
+    "contrasena": "123456"
 }
 ```
 Respuesta: `{ "token": "...", "user": {...} }`
@@ -62,7 +62,7 @@ Respuesta: `{ "token": "...", "user": {...} }`
 ### GET /api/auth/status
 Header: `Authorization: Bearer <token>` o query: `?token=<token>`
 ```json
-{ "authenticated": true, "user": { "id": 1, "email": "...", "nombre": "..." } }
+{ "authenticated": true, "user": { "id": 1, "mail": "...", "nombre": "..." } }
 ```
 
 ### GET /api/auth/me
@@ -145,8 +145,8 @@ Lista todos los usuarios.
 ### GET /api/usuario/:id
 Usuario por ID.
 
-### GET /api/usuario/email/:email
-Usuario por email.
+### GET /api/usuario/mail/:mail
+Usuario por mail.
 
 ### DELETE /api/usuario/:id
 Elimina usuario y sus referencias en cascada (agenda, estadísticas, timeline, contenido categoría).
