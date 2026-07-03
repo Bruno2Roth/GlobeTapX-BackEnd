@@ -1,14 +1,44 @@
 import paisService from './paisService.js';
-import translationHelper from '../../helpers/translationHelper.js';
+import traduccionRepository from '../../data/repositories/traduccionRepository.js';
 
 export default class idiomaService {
     constructor() {
         console.log('Estoy en: idiomaService.constructor()');
         this.paisService = new paisService();
-        this.translator = new translationHelper();
+        this.traduccionRepo = new traduccionRepository();
     }
 
-    // Servicio para obtener idioma por país, usando la tabla Pais como fuente.
+    getIdiomasSoportadosAsync = async () => {
+        const rows = await this.traduccionRepo.getIdiomasSoportadosAsync();
+        const result = {};
+        const nombres = { es: 'Español', en: 'English', fr: 'Français', it: 'Italiano', pt: 'Português', ko: '한국어', zh: '中文', he: 'עברית' };
+        for (const row of rows) {
+            const codigo = row.codigo;
+            result[codigo] = { name: nombres[codigo] || codigo };
+        }
+        return result;
+    }
+
+    getTraduccionesPorIdiomaAsync = async (codigoIdioma) => {
+        const rows = await this.traduccionRepo.getTraduccionesPorIdiomaAsync(codigoIdioma);
+        const result = {};
+        for (const row of rows) {
+            result[row.clave] = row.valor;
+        }
+        return result;
+    }
+
+    getTodasLasTraduccionesAsync = async () => {
+        const rows = await this.traduccionRepo.getTodasLasTraduccionesAsync();
+        const result = {};
+        for (const row of rows) {
+            if (!result[row.codigoIdioma]) result[row.codigoIdioma] = {};
+            result[row.codigoIdioma][row.clave] = row.valor;
+        }
+        return result;
+    }
+
+// Servicio para obtener idioma por país, usando la tabla Pais como fuente.
 
     async getIdiomaByCountryAsync({ paisId, nombre }) {
         console.log(`idiomaService.getIdiomaByCountryAsync(${paisId}, ${nombre})`);

@@ -6,15 +6,27 @@ const router = express.Router();
 const usuarioService = new usuariosService();
 const idiomaServiceInstance = new idiomaService();
 
-// Controlador de idioma. Expone rutas para idiomas soportados, idioma por país y preferencias de usuario.
+// Controlador de idioma. Expone rutas para idiomas soportados, traducciones, idioma por país y preferencias de usuario.
 router.get('/supported', async (req, res) => {
     try {
-        const data = usuarioService.getIdiomasSoportados();
+        const data = await idiomaServiceInstance.getIdiomasSoportadosAsync();
         res.status(200).json({ success: true, data });
     } catch (error) {
         console.log('Error en GET /idioma/supported');
         console.log(error);
         res.status(500).json({ error: error.message || 'Error al obtener idiomas soportados' });
+    }
+});
+
+router.get('/translations', async (req, res) => {
+    try {
+        const lang = req.query.lang || req.query.codigoIdioma || 'es';
+        const data = await idiomaServiceInstance.getTraduccionesPorIdiomaAsync(lang);
+        res.status(200).json({ success: true, data });
+    } catch (error) {
+        console.log('Error en GET /idioma/translations');
+        console.log(error);
+        res.status(500).json({ error: error.message || 'Error al obtener traducciones' });
     }
 });
 

@@ -4,7 +4,6 @@ import estadisticasRepository from '../../data/repositories/estadisticasReposito
 import registroEstadisticasRepository from '../../data/repositories/registroEstadisticasRepository.js';
 import contenidoCategoriaRepository from '../../data/repositories/contenidoCategoriaRepository.js';
 import paisRepository from '../../data/repositories/paisRepository.js';
-import translationHelper from '../../helpers/translationHelper.js';
 import zLogCambiosService from './zLogCambiosService.js';
 
 export default class usuariosService {
@@ -16,7 +15,6 @@ export default class usuariosService {
         this.registroEstadisticasRepository = new registroEstadisticasRepository();
         this.paisRepository = new paisRepository();
         this.contenidoCategoriaRepository = new contenidoCategoriaRepository();
-        this.translator = new translationHelper();
         this.logService = new zLogCambiosService();
     }
 

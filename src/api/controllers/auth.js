@@ -8,7 +8,9 @@ import authMiddleware from '../../api/middlewares/auth.js';
 const router = express.Router();
 const service = new usuariosService();
 
-// Validar
+// ──────────────────────────────────────────────
+// VALIDACIONES DE ENTRADA
+// ──────────────────────────────────────────────
 
 const isNonEmptyString = (v) => typeof v === 'string' && v.trim().length > 0;
 
@@ -19,6 +21,12 @@ const validateEmail = (email) => {
   return emailRegex.test(trimmed) ? trimmed : null;
 };
 
+// ──────────────────────────────────────────────
+// RATE LIMITER — Limita intentos de login
+// ──────────────────────────────────────────────
+// Clave única por IP + email: si un atacante prueba
+// combinaciones, cada email diferente tiene su propio
+// contador de 10 intentos cada 15 minutos.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,   // ventana de 15 min
   max: 10,                    // máx 10 intentos por ventana
@@ -30,7 +38,12 @@ const loginLimiter = rateLimit({
   },
 });
 
-//Middlewares de validación
+// ──────────────────────────────────────────────
+// MIDDLEWARES DE VALIDACIÓN
+// ──────────────────────────────────────────────
+// Aceptan tanto nombres en inglés como en español
+// (email/mail, password/contrasena, nombre/nombreCompleto)
+// para ser tolerantes con distintos clientes.
 
 const validateLoginBody = (req, res, next) => {
     const body = req.body || {};
@@ -67,11 +80,9 @@ const validateRegisterBody = (req, res, next) => {
     const optionalFields = {
         nombreCompleto: body.nombreCompleto ? String(body.nombreCompleto).trim() : null,
         numeroContacto: body.numeroContacto ? String(body.numeroContacto).trim() : null,
-        idiomaPreferido: (body.idiomaPreferido || body.idioma)
-            ? String(body.idiomaPreferido || body.idioma).trim()
-            : null,
-        paisActual: body.paisActual || body.paisactual || null,
-        fotoPerfil: body.fotoPerfil || body.fotoperfil || null,
+        idiomaPreferido: body.idiomaPreferido || body.idiomapreferido || null,
+        paisActual: body.paisActual || null,
+        fotoPerfil: body.fotoPerfil || null,
         IsAdmin: false,
         ESPremium: false,
     };
@@ -85,20 +96,31 @@ const validateRegisterBody = (req, res, next) => {
     return next();
 };
 
-// Payload del JWT
+// ──────────────────────────────────────────────
+// CONSTRUCCIÓN DEL PAYLOAD JWT
+// ──────────────────────────────────────────────
+// Extrae del usuario de BD los campos que se
+// incluirán en el token. Soporta naming tanto
+// de BD (mail, contrasena) como de cliente
+// (email, password) mediante fallbacks.
 
 const buildUserPayload = (user) => ({
-    id: user.ID || user.id,
-    email: user.mail || user.email,
-    nombre: user.nombreCompleto || user.nombre,
-    IsAdmin: user.IsAdmin ?? user.isAdmin ?? false,
-    ESPremium: user.ESPremium ?? user.esPremium ?? false,
-    paisActual: user.paisActual ?? user.paisactual ?? null,
-    fotoPerfil: user.fotoPerfil ?? user.fotoperfil ?? null,
+    id: user.ID,
+    email: user.mail,
+    nombre: user.nombre,
+    IsAdmin: user.IsAdmin ?? false,
+    ESPremium: user.esPremium ?? false,
+    paisActual: user.paisActual ?? null, 
+    fotoPerfil: user.fotoPerfil ?? null,
 });
 
 
-// GET /api/auth/status — verifica si un token sigue siendo válido
+// ──────────────────────────────────────────────
+// GET /api/auth/status — Verifica estado del token
+// ──────────────────────────────────────────────
+// Útil para que el frontend compruebe si la sesión
+// sigue activa al recargar la página. Acepta el
+// token por query string o por header Authorization.
 router.get('/status', (req, res) => {
     const token = req.query.token || (req.headers['authorization'] && req.headers['authorization'].split(' ')[1]);
     if (!token) return res.json({ authenticated: false });
@@ -110,14 +132,25 @@ router.get('/status', (req, res) => {
     }
 });
 
-// GET /api/auth/me — devuelve el usuario autenticado (requiere token válido)
+// ──────────────────────────────────────────────
+// GET /api/auth/me — Devuelve el usuario autenticado
+// ──────────────────────────────────────────────
+// Requiere token JWT válido en header Authorization.
+// authMiddleware.required se encarga de verificar
+// el token y poblar req.user antes de llegar aquí.
 router.get('/me', authMiddleware.required, (req, res) => {
     return res.status(200).json({ authenticated: true, user: req.user });
 });
 
-// Auth
-
-// POST /api/auth/login — autentica al usuario y devuelve un JWT (expira en 7 días)
+// ──────────────────────────────────────────────
+// POST /api/auth/login — Inicio de sesión
+// ──────────────────────────────────────────────
+// 1. Pasa por rate limiter (10 intentos/15 min por IP+email)
+// 2. Valida email y contraseña con validateLoginBody
+// 3. Busca el usuario por email en BD
+// 4. Compara contraseña: soporta bcrypt (hash) y texto plano
+// 5. Genera JWT con expiración de 7 días
+// 6. Devuelve { token, user }
 router.post('/login', loginLimiter, validateLoginBody, async (req, res) => {
     console.log('POST /api/auth/login');
     try {
@@ -149,7 +182,16 @@ router.post('/login', loginLimiter, validateLoginBody, async (req, res) => {
     }
 });
 
-// POST /api/auth/register — registra un nuevo usuario y devuelve un JWT
+// ──────────────────────────────────────────────
+// POST /api/auth/register — Registro de nuevo usuario
+// ──────────────────────────────────────────────
+// 1. Valida nombre, email y contraseña con validateRegisterBody
+// 2. Hashea la contraseña con bcrypt (10 rondas)
+// 3. Crea el usuario en BD a través de usuariosService.createAsync
+// 4. Vuelve a buscar el usuario para obtener el ID generado
+// 5. Genera JWT con expiración de 7 días
+// 6. Devuelve { token, user, message } con status 201
+// Maneja errores de validación (400) y usuario duplicado (409)
 router.post('/register', validateRegisterBody, async (req, res) => {
     console.log('POST /api/auth/register');
     try {
