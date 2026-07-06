@@ -3,10 +3,12 @@
  * Usa MyMemory API y cache local para evitar peticiones repetidas.
  */
 
+import mymemoryTranslationHelper from '../../helpers/mymemoryTranslationHelper.js';
 
 export default class traduccionService {
     constructor() {
         console.log('Estoy en: traduccionService.constructor()');
+        this.translator = new mymemoryTranslationHelper();
     }
 
     async translateTextAsync(text, targetLanguage, sourceLanguage = 'auto') {

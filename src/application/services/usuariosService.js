@@ -5,6 +5,7 @@ import registroEstadisticasRepository from '../../data/repositories/registroEsta
 import contenidoCategoriaRepository from '../../data/repositories/contenidoCategoriaRepository.js';
 import paisRepository from '../../data/repositories/paisRepository.js';
 import zLogCambiosService from './zLogCambiosService.js';
+import mymemoryTranslationHelper from '../../helpers/mymemoryTranslationHelper.js';
 
 export default class usuariosService {
     constructor() {
@@ -16,6 +17,7 @@ export default class usuariosService {
         this.paisRepository = new paisRepository();
         this.contenidoCategoriaRepository = new contenidoCategoriaRepository();
         this.logService = new zLogCambiosService();
+        this.translator = new mymemoryTranslationHelper();
     }
 
     createValidationError(message) {

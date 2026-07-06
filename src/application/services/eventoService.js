@@ -43,6 +43,24 @@ export default class eventosService {
         return rowsAffected;
     }
 
+    getByPaisAsync = async (IDPais) => {
+        console.log(`eventosService.getByPaisAsync(${IDPais})`);
+        const returnArray = await this.eventosRepository.getByPaisAsync(IDPais);
+        return returnArray;
+    }
+
+    getByCategoriaAsync = async (IDCategoria) => {
+        console.log(`eventosService.getByCategoriaAsync(${IDCategoria})`);
+        const returnArray = await this.eventosRepository.getByCategoriaAsync(IDCategoria);
+        return returnArray;
+    }
+
+    getByFechaAsync = async (fechaInicio, fechaFin) => {
+        console.log(`eventosService.getByFechaAsync(${fechaInicio}, ${fechaFin})`);
+        const returnArray = await this.eventosRepository.getByFechaAsync(fechaInicio, fechaFin);
+        return returnArray;
+    }
+
     updateAsync = async (entity) => {
         console.log(`eventosService.updateAsync(${JSON.stringify(entity)})`);
         const rowsAffected = await this.eventosRepository.updateAsync(entity);

@@ -91,9 +91,11 @@ export default class EventosRepository {
                 "descripcion",
                 "fechaInicio",
                 "fechaFin",
-                "ubicacion"
+                "ubicacion",
+                "imagen",
+                "activo"
             )
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING "ID"
         `;
 
@@ -104,7 +106,9 @@ export default class EventosRepository {
             entity.descripcion,
             entity.fechaInicio,
             entity.fechaFin,
-            entity.ubicacion
+            entity.ubicacion,
+            entity.imagen || null,
+            entity.activo !== undefined ? entity.activo : true
         ];
 
         const result = await this.pool.query(sql, values);
@@ -125,7 +129,9 @@ export default class EventosRepository {
                 "descripcion" = $5,
                 "fechaInicio" = $6,
                 "fechaFin" = $7,
-                "ubicacion" = $8
+                "ubicacion" = $8,
+                "imagen" = $9,
+                "activo" = $10
             WHERE "ID" = $1
         `;
 
@@ -137,12 +143,30 @@ export default class EventosRepository {
             entity.descripcion,
             entity.fechaInicio,
             entity.fechaFin,
-            entity.ubicacion
+            entity.ubicacion,
+            entity.imagen || null,
+            entity.activo !== undefined ? entity.activo : true
         ];
 
         const result = await this.pool.query(sql, values);
 
         return result.rowCount;
+    }
+
+    getByFechaAsync = async (fechaInicio, fechaFin) => {
+
+        console.log(`EventosRepository.getByFechaAsync(${fechaInicio}, ${fechaFin})`);
+
+        const sql = `
+            SELECT *
+            FROM "Evento"
+            WHERE "fechaInicio" >= $1
+              AND ("fechaFin" <= $2 OR "fechaFin" IS NULL)
+            ORDER BY "fechaInicio" ASC
+        `;
+
+        const result = await this.pool.query(sql, [fechaInicio, fechaFin]);
+        return result.rows;
     }
 
     deleteByIdAsync = async (id) => {

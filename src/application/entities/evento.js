@@ -1,12 +1,13 @@
-export default class evento {
-    constructor(nombre, mail, contrasena, fecha_nacimiento, nombreCompleto, numeroContacto, IDTipoAdmin, esPremium) {
-        this.nombre            = nombre;
-        this.contrasena        = contrasena;
-        this.mail              = mail;
-        this.fecha_nacimiento  = fecha_nacimiento;
-        this.nombreCompleto    = nombreCompleto;
-        this.numeroContacto    = numeroContacto;
-        this.IDTipoAdmin    = IDTipoAdmin;
-        this.esPremium    = esPremium;
+export default class Evento {
+    constructor(nombre, descripcion, fechaInicio, fechaFin, ubicacion, IDPais, imagen, IDCategoria, activo = true) {
+        this.nombre = nombre;
+        this.descripcion = descripcion;
+        this.fechaInicio = fechaInicio;
+        this.fechaFin = fechaFin;
+        this.ubicacion = ubicacion;
+        this.IDPais = IDPais;
+        this.imagen = imagen;
+        this.IDCategoria = IDCategoria;
+        this.activo = activo;
     }
 }

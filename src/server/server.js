@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import express 	from "express";    // hacer npm i express
+import http 	from "http";
 import cors 	from "cors";          // hacer npm i cors
 
 // Controllers
@@ -81,7 +82,8 @@ app.use((err, req, res, next) => {
 //
 // Inicio el Server y lo pongo a escuchar.
 //
-app.listen(port, () => {	// Inicio el servidor WEB (escuchar)
+const server = http.createServer({ maxHeadersSize: 32768 }, app);
+server.listen(port, () => {	// Inicio el servidor WEB (escuchar)
     console.log("server.js");
     console.log(`Listening on http://localhost:${port}`)
 })

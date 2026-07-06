@@ -111,9 +111,23 @@ const buildUserPayload = (user) => ({
     isAdmin: user.isAdmin ?? false,
     esPremium: user.esPremium ?? false,
     paisActual: user.paisActual ?? null,
-    fotoPerfil: user.fotoPerfil ?? null,
 });
 
+
+// ──────────────────────────────────────────────
+// GET /api/auth/foto/:id — Foto de perfil pública
+// ──────────────────────────────────────────────
+router.get('/foto/:id', async (req, res) => {
+    try {
+        const user = await service.getByIdAsync(req.params.id);
+        if (!user || !user.fotoPerfil) {
+            return res.status(404).json({ error: 'Foto no encontrada' });
+        }
+        res.json({ fotoPerfil: user.fotoPerfil });
+    } catch (error) {
+        res.status(500).json({ error: 'Error al obtener la foto' });
+    }
+});
 
 // ──────────────────────────────────────────────
 // GET /api/auth/status — Verifica estado del token
@@ -174,6 +188,9 @@ router.post('/login', loginLimiter, validateLoginBody, async (req, res) => {
         const exp = Math.floor(Date.now() / 1000) + 7 * 24 * 3600;
         const payload = buildUserPayload(user);
         const token = jwt.sign({ ...payload, exp }, process.env.JWT_SECRET, { noTimestamp: true });
+        if (token.length > 5000) {
+            return res.status(500).json({ error: "Token generado demasiado grande" });
+        }
 
         return res.status(200).json({ token, user: payload });
     } catch (error) {
@@ -217,6 +234,9 @@ router.post('/register', validateRegisterBody, async (req, res) => {
         const exp = Math.floor(Date.now() / 1000) + 7 * 24 * 3600;
         const payload = buildUserPayload(user);
         const token = jwt.sign({ ...payload, exp }, process.env.JWT_SECRET, { noTimestamp: true });
+        if (token.length > 5000) {
+            return res.status(500).json({ error: "Token generado demasiado grande" });
+        }
 
         return res.status(201).json({
             token,

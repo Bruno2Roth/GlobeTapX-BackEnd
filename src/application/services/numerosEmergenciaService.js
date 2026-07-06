@@ -1,14 +1,9 @@
-// Servicio unificado `numerosEmergenciaService`
-// - Intenta obtener datos desde una URL remota JSON (por defecto la provista por el usuario).
-// - Si la remota falla o no tiene datos, usa una copia local `src/data/emergencyNumbers.json`.
-// - Provee `getAll()` y `getCountry(code)` con cache en memoria.
 import axios from 'axios';
 import https from 'https';
-import { promises as fs } from 'fs';
-import path from 'path';
 
 const DEFAULT_BASE = process.env.REMOTE_EM_API_URL || 'https://gleeful-halva-f173ab.netlify.app/emergency-numbers.json';
 const TIMEOUT_MS = 5000;
+const CACHE_TTL = 24 * 60 * 60 * 1000;
 
 export default class NumerosEmergenciaService {
     constructor() {
@@ -19,7 +14,6 @@ export default class NumerosEmergenciaService {
             httpsAgent: new https.Agent({ rejectUnauthorized: process.env.NODE_ENV === 'production' })
         });
         this.cache = new Map();
-        this.datosLocales = null;
     }
 
     _getCache(clave) {
@@ -31,20 +25,6 @@ export default class NumerosEmergenciaService {
 
     _setCache(clave, valor, ttlMs) {
         this.cache.set(clave, { valor, expira: Date.now() + ttlMs });
-    }
-
-    async _cargarLocal() {
-        if (this.datosLocales) return this.datosLocales;
-        const ruta = path.resolve(process.cwd(), 'src', 'data', 'emergencyNumbers.json');
-        try {
-            const raw = await fs.readFile(ruta, 'utf8');
-            const parsed = JSON.parse(raw);
-            this.datosLocales = parsed.countries || parsed || [];
-            return this.datosLocales;
-        } catch (e) {
-            this.datosLocales = [];
-            return this.datosLocales;
-        }
     }
 
     async _obtenerRemotoTodo() {
@@ -72,15 +52,9 @@ export default class NumerosEmergenciaService {
         const clave = 'all';
         const cache = this._getCache(clave);
         if (cache) return cache;
-        try {
-            const remoto = await this._obtenerRemotoTodo();
-            if (remoto && remoto.length) { this._setCache(clave, remoto, 7 * 60 * 1000); return remoto; }
-        } catch (e) {
-            // usar fallback local
-        }
-        const local = await this._cargarLocal();
-        this._setCache(clave, local, 7 * 60 * 1000);
-        return local;
+        const remoto = await this._obtenerRemotoTodo();
+        this._setCache(clave, remoto, CACHE_TTL);
+        return remoto;
     }
 
     async getCountry(codigo) {
@@ -99,7 +73,7 @@ export default class NumerosEmergenciaService {
             try {
                 const lista = await this.getAll();
                 const encontrado = this._buscarEnLista(lista, normalizado, codigo);
-                this._setCache(clave, encontrado || null, 60 * 1000);
+                this._setCache(clave, encontrado || null, CACHE_TTL);
                 if (encontrado) return encontrado;
             } catch (e) { remotoFallido = true; }
         } else {
@@ -109,12 +83,12 @@ export default class NumerosEmergenciaService {
                 const r1 = await this.cliente.get(`/country/${normalizado}`).catch(() => null);
                 if (r1 && r1.data) {
                     const maybe = Array.isArray(r1.data) ? r1.data[0] : r1.data;
-                    if (this._coincidePais(maybe, normalizado, codigo)) { this._setCache(clave, maybe, 60 * 1000); return maybe; }
+                    if (this._coincidePais(maybe, normalizado, codigo)) { this._setCache(clave, maybe, CACHE_TTL); return maybe; }
                 }
                 const r2 = await this.cliente.get(`/${normalizado}`).catch(() => null);
                 if (r2 && r2.data) {
                     const maybe = Array.isArray(r2.data) ? r2.data[0] : r2.data;
-                    if (this._coincidePais(maybe, normalizado, codigo)) { this._setCache(clave, maybe, 60 * 1000); return maybe; }
+                    if (this._coincidePais(maybe, normalizado, codigo)) { this._setCache(clave, maybe, CACHE_TTL); return maybe; }
                 }
             } catch (e) { remotoFallido = true; }
 
@@ -123,16 +97,10 @@ export default class NumerosEmergenciaService {
                 remotoIntentado = true;
                 const lista = await this._obtenerRemotoTodo();
                 const encontrado = this._buscarEnLista(lista, normalizado, codigo);
-                this._setCache(clave, encontrado || null, 60 * 1000);
+                this._setCache(clave, encontrado || null, CACHE_TTL);
                 if (encontrado) return encontrado;
             } catch (e) { remotoFallido = true; }
         }
-
-        // fallback local
-        const local = await this._cargarLocal();
-        const encontradoLocal = this._buscarEnLista(local, normalizado, codigo);
-        this._setCache(clave, encontradoLocal || null, 60 * 1000);
-        if (encontradoLocal) return encontradoLocal;
 
         if (remotoIntentado && remotoFallido) {
             const err = new Error('No se pudo contactar la API remota de números de emergencia');
