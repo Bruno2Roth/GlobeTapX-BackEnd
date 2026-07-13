@@ -7,24 +7,36 @@ const service = new numerosEmergenciaService();
 
 const MENSAJE = 'Números de emergencia provistos tal cual; verifique localmente.';
 
+function hasDataValue(value) {
+    if (Array.isArray(value)) return value.length > 0;
+    if (typeof value === 'string') return value.trim().length > 0;
+    if (typeof value === 'object' && value !== null) {
+        return Object.values(value).some(hasDataValue);
+    }
+    return false;
+}
+
 function isNoDataCountry(obj) {
     if (!obj) return true;
-    // Chequear formato nuevo (minúsculas)
-    if (obj.ambulance && Array.isArray(obj.ambulance) && obj.ambulance.length) return false;
-    if (obj.fire && Array.isArray(obj.fire) && obj.fire.length) return false;
-    if (obj.police && Array.isArray(obj.police) && obj.police.length) return false;
-    if (obj.dispatch && Array.isArray(obj.dispatch) && obj.dispatch.length) return false;
-    // Chequear formato antiguo (mayúsculas)
-    const keys = ['Fire', 'Ambulance', 'Police', 'Dispatch'];
-    for (const k of keys) {
-        const v = obj[k];
-        if (!v) continue;
-        if (Array.isArray(v.All) && v.All.length) return false;
-        if (Array.isArray(v.GSM) && v.GSM.length) return false;
-        if (Array.isArray(v.Fixed) && v.Fixed.length) return false;
-        if (k === 'Police' && Array.isArray(v.Special) && v.Special.length) return false;
+
+    const keys = [
+        'ambulance',
+        'fire',
+        'firedepartment',
+        'fireDepartment',
+        'police',
+        'dispatch',
+        'emergencydispatch',
+        'emergencyDispatch',
+        'emergency_dispatch',
+    ];
+
+    for (const key of keys) {
+        if (hasDataValue(obj[key])) return false;
     }
-    return true;
+
+    // Also consider any nested object values for backward-compatible formats
+    return !Object.values(obj).some(hasDataValue);
 }
 
 router.get('/country/:code', async (req, res) => {
