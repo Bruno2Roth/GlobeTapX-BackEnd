@@ -108,4 +108,60 @@ export default class paisInfoRepository {
         const res = await this.pool.query(sql, [name]);
         return res.rows;
     }
+
+    getDocumentationByPaisIdAsync = async (paisId) => {
+        console.log(`paisInfoRepository.getDocumentationByPaisIdAsync(${paisId})`);
+
+        const sql = `
+            SELECT
+                p."ID" AS "paisId",
+                p."nombre" AS "paisNombre",
+                COALESCE(dp."imagen", p."imagen") AS "imagen",
+                dp."documentacion" AS "documentacion"
+            FROM "Pais" p
+            LEFT JOIN "PaisDocumentacion" dp ON dp."IDPais" = p."ID"
+            WHERE p."ID" = $1
+        `;
+
+        const res = await this.pool.query(sql, [paisId]);
+        return res.rows && res.rows[0] ? res.rows[0] : null;
+    }
+
+    getDocumentationByPaisNameAsync = async (nombre) => {
+        console.log(`paisInfoRepository.getDocumentationByPaisNameAsync(${nombre})`);
+
+        const sql = `
+            SELECT
+                p."ID" AS "paisId",
+                p."nombre" AS "paisNombre",
+                COALESCE(dp."imagen", p."imagen") AS "imagen",
+                dp."documentacion" AS "documentacion"
+            FROM "Pais" p
+            LEFT JOIN "PaisDocumentacion" dp ON dp."IDPais" = p."ID"
+            WHERE p."nombre" ILIKE '%' || $1 || '%'
+            ORDER BY p."nombre"
+            LIMIT 1
+        `;
+
+        const res = await this.pool.query(sql, [nombre]);
+        return res.rows && res.rows[0] ? res.rows[0] : null;
+    }
+
+    getAllDocumentationAsync = async () => {
+        console.log('paisInfoRepository.getAllDocumentationAsync()');
+
+        const sql = `
+            SELECT
+                p."ID" AS "paisId",
+                p."nombre" AS "paisNombre",
+                COALESCE(dp."imagen", p."imagen") AS "imagen",
+                dp."documentacion" AS "documentacion"
+            FROM "Pais" p
+            LEFT JOIN "PaisDocumentacion" dp ON dp."IDPais" = p."ID"
+            ORDER BY p."nombre"
+        `;
+
+        const res = await this.pool.query(sql);
+        return res.rows;
+    }
 }

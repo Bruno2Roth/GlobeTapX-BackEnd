@@ -4,12 +4,40 @@
  */
 
 import mymemoryTranslationHelper from '../../helpers/mymemoryTranslationHelper.js';
+import traduccionRepository from '../../data/repositories/traduccionRepository.js';
 
 export default class traduccionService {
     constructor() {
         console.log('Estoy en: traduccionService.constructor()');
         this.translator = new mymemoryTranslationHelper();
+        this.traduccionRepository = new traduccionRepository();
     }
+
+    getTraduccionesPorIdiomaAsync = async (codigoIdioma) => {
+        const rows = await this.traduccionRepository.getTraduccionesPorIdiomaAsync(codigoIdioma);
+        const result = {};
+
+        for (const row of rows) {
+            result[row.clave] = row.valor;
+        }
+
+        return result;
+    };
+
+    getTodasLasTraduccionesAsync = async () => {
+        const rows = await this.traduccionRepository.getTodasLasTraduccionesAsync();
+        const result = {};
+
+        for (const row of rows) {
+            if (!result[row.codigoIdioma]) {
+                result[row.codigoIdioma] = {};
+            }
+
+            result[row.codigoIdioma][row.clave] = row.valor;
+        }
+
+        return result;
+    };
 
     async translateTextAsync(text, targetLanguage, sourceLanguage = 'auto') {
         const result = await this.translator.translateTextAsync(text, targetLanguage, sourceLanguage);

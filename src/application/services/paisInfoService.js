@@ -62,4 +62,32 @@ export default class paisInfoService {
         const rows = await this.paisInfoRepository.getRulesByPaisNameAsync(name);
         return this.mapRowsToEntities(rows);
     }
+
+    mapDocumentationRow(row) {
+        if (!row) {
+            return null;
+        }
+
+        return {
+            paisId: row.paisId,
+            paisNombre: row.paisNombre,
+            imagen: row.imagen || null,
+            documentacion: row.documentacion ?? null
+        };
+    }
+
+    getDocumentacionByPaisIdAsync = async (paisId) => {
+        const row = await this.paisInfoRepository.getDocumentationByPaisIdAsync(paisId);
+        return this.mapDocumentationRow(row);
+    }
+
+    getDocumentacionByPaisNameAsync = async (nombre) => {
+        const row = await this.paisInfoRepository.getDocumentationByPaisNameAsync(nombre);
+        return this.mapDocumentationRow(row);
+    }
+
+    getTodaLaDocumentacionAsync = async () => {
+        const rows = await this.paisInfoRepository.getAllDocumentationAsync();
+        return rows.map((row) => this.mapDocumentationRow(row));
+    }
 }

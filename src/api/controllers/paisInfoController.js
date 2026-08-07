@@ -61,6 +61,66 @@ const pickFields = (row, fields) => {
     return result;
 };
 
+const parsePaisId = (value) => {
+    const paisId = Number(value);
+    return Number.isInteger(paisId) && paisId > 0 ? paisId : null;
+};
+
+const sendDocumentation = (res, data) => {
+    if (!data) {
+        return res.status(404).json({
+            success: false,
+            error: 'País no encontrado'
+        });
+    }
+
+    return res.status(200).json({
+        success: true,
+        data
+    });
+};
+
+// Las rutas de documentación deben declararse antes de /:id.
+router.get('/:paisId/documentacion', async (req, res, next) => {
+    try {
+        const paisId = parsePaisId(req.params.paisId);
+        if (!paisId) {
+            return res.status(400).json({ success: false, error: 'paisId inválido' });
+        }
+
+        const data = await service.getDocumentacionByPaisIdAsync(paisId);
+        return sendDocumentation(res, data);
+    } catch (error) {
+        next(error);
+    }
+});
+
+router.get('/documentacion', async (req, res, next) => {
+    try {
+        const { paisId, nombre } = req.query;
+
+        if (paisId !== undefined) {
+            const parsedPaisId = parsePaisId(paisId);
+            if (!parsedPaisId) {
+                return res.status(400).json({ success: false, error: 'paisId inválido' });
+            }
+
+            const data = await service.getDocumentacionByPaisIdAsync(parsedPaisId);
+            return sendDocumentation(res, data);
+        }
+
+        if (nombre !== undefined && String(nombre).trim()) {
+            const data = await service.getDocumentacionByPaisNameAsync(String(nombre).trim());
+            return sendDocumentation(res, data);
+        }
+
+        const data = await service.getTodaLaDocumentacionAsync();
+        return res.status(200).json({ success: true, data });
+    } catch (error) {
+        next(error);
+    }
+});
+
 // GET /api/paisInfo
 // - sin parámetros devuelve todos los registros de PaisInfo
 // - con paisId devuelve los registros para ese país

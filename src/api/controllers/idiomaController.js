@@ -1,10 +1,12 @@
 import express from 'express';
 import usuariosService from '../../application/services/usuariosService.js';
 import idiomaService from '../../application/services/idiomaService.js';
+import traduccionService from '../../application/services/traduccionService.js';
 
 const router = express.Router();
 const usuarioService = new usuariosService();
 const idiomaServiceInstance = new idiomaService();
+const traduccionServiceInstance = new traduccionService();
 
 // Controlador de idioma. Expone rutas para idiomas soportados, traducciones, idioma por país y preferencias de usuario.
 router.get('/supported', async (req, res) => {
@@ -21,7 +23,7 @@ router.get('/supported', async (req, res) => {
 router.get('/translations', async (req, res) => {
     try {
         const lang = req.query.lang || req.query.codigoIdioma || 'es';
-        const data = await idiomaServiceInstance.getTraduccionesPorIdiomaAsync(lang);
+        const data = await traduccionServiceInstance.getTraduccionesPorIdiomaAsync(lang);
         res.status(200).json({ success: true, data });
     } catch (error) {
         console.log('Error en GET /idioma/translations');

@@ -1,57 +1,38 @@
 import paisService from './paisService.js';
-import traduccionRepository from '../../data/repositories/traduccionRepository.js';
+import idiomaRepository from '../../data/repositories/idiomaRepository.js';
 
 export default class idiomaService {
     constructor() {
         console.log('Estoy en: idiomaService.constructor()');
         this.paisService = new paisService();
-        this.traduccionRepo = new traduccionRepository();
+        this.idiomaRepository = new idiomaRepository();
     }
 
     getIdiomasSoportadosAsync = async () => {
-        const paises = await this.paisService.getAllAsync();
+        const rows = await this.idiomaRepository.getIdiomasSoportadosAsync();
+        const nombres = {
+            es: 'Español',
+            en: 'Inglés',
+            fr: 'Francés',
+            it: 'Italiano',
+            pt: 'Portugués',
+            ko: 'Coreano',
+            zh: 'Chino',
+            he: 'Hebreo'
+        };
 
         const idiomas = {};
 
-        for (const pais of paises) {
-            const codigo = this.getLanguageCodeForCountry(pais.nombre);
-
-            if (!idiomas[codigo]) {
+        for (const row of rows) {
+            const codigo = row.codigo;
+            if (codigo) {
                 idiomas[codigo] = {
-                    name: pais.nombre
+                    name: nombres[codigo] || codigo
                 };
             }
         }
 
         return idiomas;
-    }
-
-    getTraduccionesPorIdiomaAsync = async (codigoIdioma) => {
-        const rows = await this.traduccionRepo.getTraduccionesPorIdiomaAsync(codigoIdioma);
-
-        const result = {};
-
-        for (const row of rows) {
-            result[row.clave] = row.valor;
-        }
-
-        return result;
-    }
-
-    getTodasLasTraduccionesAsync = async () => {
-        const rows = await this.traduccionRepo.getTodasLasTraduccionesAsync();
-
-        const result = {};
-
-        for (const row of rows) {
-            if (!result[row.codigoIdioma]) {
-                result[row.codigoIdioma] = {};
-            }
-
-            result[row.codigoIdioma][row.clave] = row.valor;
-        }
-
-        return result;
     }
 
     async getIdiomaByCountryAsync({ paisId, nombre }) {

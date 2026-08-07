@@ -41,6 +41,22 @@ app.use((req, res, next) => {
 });
 
 
+// Registra el tiempo total de respuesta de cada request.
+app.use((req, res, next) => {
+    const inicio = process.hrtime.bigint();
+
+    res.on('finish', () => {
+        const tiempoMs = Number(process.hrtime.bigint() - inicio) / 1_000_000;
+        console.log(
+            `${req.method} ${req.originalUrl} | ` +
+            `Status: ${res.statusCode} | ` +
+            `Tiempo de respuesta: ${tiempoMs.toFixed(2)} ms`
+        );
+    });
+
+    next();
+});
+
 // Auth middleware: verifica login en TODAS las rutas excepto /auth
 app.use('/api', (req, res, next) => {
     const publicPaths = ['/auth', '/pais', '/country', '/data', '/idioma'];
