@@ -59,7 +59,7 @@ app.use((req, res, next) => {
 
 // Auth middleware: verifica login en TODAS las rutas excepto /auth
 app.use('/api', (req, res, next) => {
-    const publicPaths = ['/auth', '/pais', '/country', '/data', '/idioma'];
+    const publicPaths = ['/auth', '/pais', '/country', '/data', '/idioma', '/traduccion'];
     if (publicPaths.some(p => req.path.startsWith(p))) {
         return next();
     }
