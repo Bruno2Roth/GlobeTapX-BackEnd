@@ -34,7 +34,7 @@ const loginLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: (req) => {
-        return ipKeyGenerator(req) + '_' + (req.body?.mail || req.body?.mail || 'unknown');
+        return ipKeyGenerator(req) + '_' + (req.body?.mail || req.body?.email || 'unknown');
     },
 });
 
@@ -47,8 +47,8 @@ const loginLimiter = rateLimit({
 
 const validateLoginBody = (req, res, next) => {
     const body = req.body || {};
-    const mail = validatemail(body.mail || body.mail);
-    const contrasena = body.contrasena;
+    const mail = validatemail(body.mail || body.email);
+    const contrasena = body.contrasena ?? body.password;
 
     if (!mail) {
         return res.status(400).json({ error: 'mail válido es requerido' });
@@ -64,8 +64,10 @@ const validateLoginBody = (req, res, next) => {
 const validateRegisterBody = (req, res, next) => {
     const body = req.body || {};
     const nombre = body.nombre || body.nombreCompleto;
-    const mail = validatemail(body.mail || body.mail);
-    const contrasena = body.contrasena || body.contrasena;
+    const mail = validatemail(body.mail || body.email);
+    const contrasena = body.contrasena ?? body.password;
+    const idiomaPreferido = body.idiomaPreferido ?? body.codigoIdioma ?? body.language ?? null;
+    const fotoPerfil = body.fotoPerfil ?? body.foto ?? body.photo ?? body.image ?? body.profileImage ?? null;
 
     if (!isNonEmptyString(nombre)) {
         return res.status(400).json({ error: 'El nombre es requerido' });
@@ -80,9 +82,9 @@ const validateRegisterBody = (req, res, next) => {
     const optionalFields = {
         nombreCompleto: body.nombreCompleto ? String(body.nombreCompleto).trim() : null,
         numeroContacto: body.numeroContacto ? String(body.numeroContacto).trim() : null,
-        idiomaPreferido: body.idiomaPreferido || null,
+        idiomaPreferido,
         paisActual: body.paisActual || null,
-        fotoPerfil: body.fotoPerfil || null,
+        fotoPerfil,
         isAdmin: false,
         esPremium: false,
     };
@@ -104,14 +106,25 @@ const validateRegisterBody = (req, res, next) => {
 // de BD (mail, contrasena) como de cliente
 // (mail, contrasena) mediante fallbacks.
 
-const buildUserPayload = (user) => ({
-    id: user.ID,
-    mail: user.mail,
-    nombre: user.nombre,
-    isAdmin: user.isAdmin ?? false,
-    esPremium: user.esPremium ?? false,
-    paisActual: user.paisActual ?? null,
-});
+const buildUserPayload = (user) => {
+    const storedPhoto = user.fotoPerfil ?? null;
+    const fotoPerfil = storedPhoto && !/^data:/i.test(String(storedPhoto))
+        ? (/^https?:\/\//i.test(String(storedPhoto))
+            ? storedPhoto
+            : `/api/auth/foto/${user.ID}`)
+        : null;
+
+    return {
+        id: user.ID ?? user.id,
+        mail: user.mail,
+        nombre: user.nombre,
+        isAdmin: user.isAdmin ?? false,
+        esPremium: user.esPremium ?? false,
+        paisActual: user.paisActual ?? null,
+        idiomaPreferido: user.idiomaPreferido ?? user.idioma ?? null,
+        fotoPerfil,
+    };
+};
 
 
 // ──────────────────────────────────────────────
@@ -123,8 +136,12 @@ router.get('/foto/:id', async (req, res) => {
         if (!user || !user.fotoPerfil) {
             return res.status(404).json({ error: 'Foto no encontrada' });
         }
-        res.json({ fotoPerfil: user.fotoPerfil });
+        const fotoPerfil = await service.getFotoPerfilUrlAsync(user.fotoPerfil);
+        res.json({ fotoPerfil, fotoPath: user.fotoPerfil });
     } catch (error) {
+        if (error.message?.includes('Storage no configurado')) {
+            return res.status(503).json({ error: error.message });
+        }
         res.status(500).json({ error: 'Error al obtener la foto' });
     }
 });
@@ -152,8 +169,15 @@ router.get('/status', (req, res) => {
 // Requiere token JWT válido en header Authorization.
 // authMiddleware.required se encarga de verificar
 // el token y poblar req.user antes de llegar aquí.
-router.get('/me', authMiddleware.required, (req, res) => {
-    return res.status(200).json({ authenticated: true, user: req.user });
+router.get('/me', authMiddleware.required, async (req, res) => {
+    try {
+        const currentUser = await service.getByIdAsync(req.user.id || req.user.ID);
+        const user = currentUser ? buildUserPayload(currentUser) : req.user;
+        return res.status(200).json({ authenticated: true, user });
+    } catch (error) {
+        console.log('Error en GET /api/auth/me:', error);
+        return res.status(500).json({ error: 'Error al obtener el usuario autenticado' });
+    }
 });
 
 // ──────────────────────────────────────────────
@@ -176,10 +200,11 @@ router.post('/login', loginLimiter, validateLoginBody, async (req, res) => {
         }
 
         // Comparar contraseña (soporta bcrypt y texto plano)
-        const stored = user.contrasena || user.contrasena;
-        const coincide = stored.startsWith('$2b$') || stored.startsWith('$2a$') || stored.startsWith('$2y$')
+        const stored = user.contrasena ?? user.password;
+        const isBcryptHash = typeof stored === 'string' && /^\$2[aby]\$\d{2}\$/.test(stored);
+        const coincide = isBcryptHash
             ? await bcrypt.compare(contrasena, stored)
-            : String(stored) === String(contrasena);
+            : typeof stored === 'string' && stored.trim() === contrasena;
 
         if (!coincide) {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
@@ -213,19 +238,10 @@ router.post('/register', validateRegisterBody, async (req, res) => {
     console.log('POST /api/auth/register');
 
     try {
-        console.log("BODY RECIBIDO:");
-        console.log(req.body);
-
-        console.log("BODY VALIDADO:");
-        console.log(req.validatedBody);
+        console.log('Campos recibidos en registro:', Object.keys(req.body || {}));
 
         const entity = req.validatedBody;
-        console.log("ENTITY:");
-        console.log(entity);
         entity.contrasena = await bcrypt.hash(entity.contrasena, 10);
-
-        console.log("ENTITY FINAL:");
-        console.log(entity);
 
         await service.createAsync(entity);
 

@@ -24,6 +24,7 @@ import ClimaController                  from "./../api/controllers/climaControll
 import IdiomaController                 from "./../api/controllers/idiomaController.js"
 import PaisInfoController               from "./../api/controllers/paisInfoController.js"
 import NumerosEmergenciaController     from "./../api/controllers/numerosEmergenciaController.js"
+import StorageController               from "./../api/controllers/storageController.js"
 
 
 const app  = express();
@@ -78,6 +79,7 @@ app.use("/api/pais", PaisController);
 app.use("/api/preferenciaUsuario", PreferenciaUsuarioController);
 app.use("/api/ubicacion", UbicacionController);
 app.use("/api/usuario", UsuarioController);
+app.use("/api/storage", StorageController);
 app.use("/api/traduccion", TraduccionController);
 app.use("/api/currency", CurrencyController);
 app.use("/api/clima", ClimaController);

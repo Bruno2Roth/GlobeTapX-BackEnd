@@ -159,6 +159,25 @@ Elimina usuario y sus referencias en cascada (agenda, estadísticas, timeline, c
 | `GET` | `/api/idioma/preferred?usuarioId=<id>` | Idioma con fallback |
 | `PUT` | `/api/idioma/preferred` | Cambiar idioma |
 
+### Supabase Storage
+
+El bucket privado `perfil` guarda las fotos de perfil. El backend almacena en
+`Usuario.fotoPerfil` únicamente el path del objeto y genera una URL firmada
+cuando el cliente solicita la imagen.
+
+| Método | Ruta | Descripción |
+|--------|------|-------------|
+| `GET` | `/api/storage/health` | Verifica configuración y acceso al bucket |
+| `GET` | `/api/storage/profile/:id` | Obtiene la URL vigente de la foto |
+| `PUT` | `/api/storage/profile/:id` | Sube foto usando FormData (`fotoPerfil`) |
+| `GET` | `/api/storage/profile/:id/files` | Lista archivos del usuario |
+| `DELETE` | `/api/storage/profile/:id` | Elimina la foto del usuario |
+
+También se mantiene `PUT /api/usuario/:id/foto` como ruta compatible.
+
+La `SUPABASE_SERVICE_ROLE_KEY` solo debe existir en el backend. Nunca debe
+enviarse al frontend.
+
 ---
 
 ## Países

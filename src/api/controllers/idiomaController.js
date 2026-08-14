@@ -91,7 +91,10 @@ router.get('/preferred', async (req, res) => {
 
 router.put('/preferred', async (req, res) => {
     try {
-        const { usuarioId, codigoIdioma } = req.body;
+        const usuarioId = req.body.usuarioId ?? req.body.id ?? req.body.userId;
+        const codigoIdioma = req.body.codigoIdioma
+            ?? req.body.idiomaPreferido
+            ?? req.body.language;
 
         if (!usuarioId || !codigoIdioma) {
             return res.status(400).json({ error: 'usuarioId y codigoIdioma son requeridos' });

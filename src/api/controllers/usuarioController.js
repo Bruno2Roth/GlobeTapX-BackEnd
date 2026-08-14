@@ -1,8 +1,10 @@
 import express from 'express';
 import usuariosService from '../../application/services/usuariosService.js';
+import { getUploadedPhoto, parseProfilePhoto } from '../middlewares/profilePhotoUpload.js';
 
 const router = express.Router();
 const service = new usuariosService();
+
 
 const getRequesterId = (req) => {
   return req.user ? Number(req.user.id || req.user.ID) : null;
@@ -42,6 +44,8 @@ router.get('/', async (req, res) => {
 router.get('/idioma', async (req, res) => {
     try {
         const usuarioId = req.query.usuarioId || req.query.id;
+        const blocked = checkOwnUser(req, res, usuarioId);
+        if (blocked) return blocked;
 
         // TEMPORALMENTE DESHABILITADO PARA TESTING
         // REACTIVAR ANTES DE PRODUCCIÓN
@@ -65,7 +69,12 @@ router.get('/idioma', async (req, res) => {
 
 router.put('/idioma', async (req, res) => {
     try {
-        const { usuarioId, codigoIdioma } = req.body;
+        const usuarioId = req.body.usuarioId ?? req.body.id ?? req.body.userId;
+        const codigoIdioma = req.body.codigoIdioma
+          ?? req.body.idiomaPreferido
+          ?? req.body.language;
+        const blocked = checkOwnUser(req, res, usuarioId);
+        if (blocked) return blocked;
 
         // TEMPORALMENTE DESHABILITADO PARA TESTING
         // REACTIVAR ANTES DE PRODUCCIÓN
@@ -104,6 +113,51 @@ router.get('/:id', async (req, res) => {
     } catch (error) {
         console.log('Error en GET /usuarios/:id', error);
         res.status(500).json({ error: 'Error al obtener usuario' });
+    }
+});
+
+router.put('/:id/foto', parseProfilePhoto, async (req, res) => {
+    const id = req.params.id;
+    try {
+        const blocked = checkOwnUser(req, res, id);
+        if (blocked) return blocked;
+
+        const file = getUploadedPhoto(req);
+        if (!file) {
+            return res.status(400).json({
+                error: 'Debe enviarse una imagen en FormData con el campo fotoPerfil',
+            });
+        }
+
+        const result = await service.updateFotoPerfilAsync(id, file);
+        return res.status(200).json(result);
+    } catch (error) {
+        console.log('Error en PUT /usuarios/:id/foto', error);
+        if (error.message === 'Usuario no encontrado') {
+            return res.status(404).json({ error: error.message });
+        }
+        if (error.message?.includes('Storage no configurado')) {
+            return res.status(503).json({ error: error.message });
+        }
+        return res.status(500).json({ error: error.message || 'Error al actualizar foto de perfil' });
+    }
+});
+
+// Ruta compatible para eliminar la foto desde el recurso de usuario.
+router.delete('/:id/foto', async (req, res) => {
+    const id = req.params.id;
+    try {
+        const blocked = checkOwnUser(req, res, id);
+        if (blocked) return blocked;
+
+        const result = await service.deleteFotoPerfilAsync(id);
+        return res.status(200).json(result);
+    } catch (error) {
+        console.log('Error en DELETE /usuarios/:id/foto', error);
+        if (error.message === 'Usuario no encontrado') {
+            return res.status(404).json({ error: error.message });
+        }
+        return res.status(500).json({ error: error.message || 'Error al eliminar foto de perfil' });
     }
 });
 

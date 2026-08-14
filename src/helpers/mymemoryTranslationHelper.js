@@ -81,4 +81,28 @@ export default class mymemoryTranslationHelper {
         }
         return results;
     }
+
+    getSupportedLanguages() {
+        return {
+            es: { name: 'Español', nativeName: 'Español' },
+            en: { name: 'Inglés', nativeName: 'English' },
+            fr: { name: 'Francés', nativeName: 'Français' },
+            it: { name: 'Italiano', nativeName: 'Italiano' },
+            pt: { name: 'Portugués', nativeName: 'Português' },
+            ko: { name: 'Coreano', nativeName: '한국어' },
+            zh: { name: 'Chino', nativeName: '中文' },
+            he: { name: 'Hebreo', nativeName: 'עברית' },
+        };
+    }
+
+    normalizeLanguageCode(language) {
+        const raw = String(language || 'es').trim().toLowerCase();
+        const code = raw.split(',')[0].split(/[-_]/)[0].trim();
+        return code || 'es';
+    }
+
+    isValidLanguageCode(language) {
+        const code = this.normalizeLanguageCode(language);
+        return Object.prototype.hasOwnProperty.call(this.getSupportedLanguages(), code);
+    }
 }

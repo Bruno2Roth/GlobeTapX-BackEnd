@@ -6,6 +6,7 @@ import contenidoCategoriaRepository from '../../data/repositories/contenidoCateg
 import paisRepository from '../../data/repositories/paisRepository.js';
 import zLogCambiosService from './zLogCambiosService.js';
 import mymemoryTranslationHelper from '../../helpers/mymemoryTranslationHelper.js';
+import storageService from './storageService.js';
 
 export default class usuariosService {
     constructor() {
@@ -18,6 +19,7 @@ export default class usuariosService {
         this.contenidoCategoriaRepository = new contenidoCategoriaRepository();
         this.logService = new zLogCambiosService();
         this.translator = new mymemoryTranslationHelper();
+        this.storageService = new storageService();
     }
 
     createValidationError(message) {
@@ -150,6 +152,10 @@ export default class usuariosService {
             throw new Error('Usuario no encontrado');
         }
 
+        // Normaliza el identificador para que el log y las estadísticas
+        // funcionen igual con { ID } y con { id }.
+        entity.ID = userId;
+
         if (!entity.mail) {
             entity.mail = currentUser?.mail || currentUser?.mail;
         }
@@ -243,7 +249,10 @@ export default class usuariosService {
             throw new Error('Usuario no encontrado');
         }
 
-        const preferido = usuario.idiomaPreferido || usuario.idioma || null;
+        const idiomaGuardado = usuario.idiomaPreferido || usuario.idioma || null;
+        const preferido = idiomaGuardado
+            ? this.translator.normalizeLanguageCode(idiomaGuardado)
+            : null;
 
         if (preferido) {
             return {
@@ -301,6 +310,74 @@ export default class usuariosService {
             codigoIdioma: normalizedLanguage,
             nombreIdioma: this.translator.getSupportedLanguages()[normalizedLanguage]?.name || 'Desconocido'
         };
+    }
+
+    async updateFotoPerfilAsync(usuarioId, file) {
+        console.log(`usuariosService.updateFotoPerfilAsync(${usuarioId})`);
+
+        if (!usuarioId || !Number.isInteger(Number(usuarioId))) {
+            throw new Error('ID de usuario es requerido');
+        }
+
+        const usuario = await this.usuariosRepository.getByIdAsync(usuarioId);
+        if (!usuario) {
+            throw new Error('Usuario no encontrado');
+        }
+
+        const uploaded = await this.storageService.uploadProfilePhoto(usuarioId, file);
+        const rowsAffected = await this.usuariosRepository.updateFotoPerfilAsync(usuarioId, uploaded.path);
+
+        return {
+            success: rowsAffected > 0,
+            message: 'Foto de perfil actualizada exitosamente',
+            usuarioId: Number(usuarioId),
+            fotoPerfil: uploaded.url,
+            fotoPath: uploaded.path,
+        };
+    }
+
+    async getFotoPerfilUrlAsync(storedPhoto) {
+        return this.storageService.getPhotoUrl(storedPhoto);
+    }
+
+    /**
+     * Quita la referencia de la foto del usuario y elimina el objeto remoto.
+     * Si era una foto antigua guardada como URL/data URL, solo se limpia la BD.
+     */
+    async deleteFotoPerfilAsync(usuarioId) {
+        console.log(`usuariosService.deleteFotoPerfilAsync(${usuarioId})`);
+
+        if (!usuarioId || !Number.isInteger(Number(usuarioId))) {
+            throw new Error('ID de usuario es requerido');
+        }
+
+        const usuario = await this.usuariosRepository.getByIdAsync(usuarioId);
+        if (!usuario) {
+            throw new Error('Usuario no encontrado');
+        }
+
+        const previousPhoto = usuario.fotoPerfil || null;
+        const rowsAffected = await this.usuariosRepository.updateFotoPerfilAsync(usuarioId, null);
+
+        if (previousPhoto) {
+            try {
+                await this.storageService.deletePhoto(previousPhoto);
+            } catch (cleanupError) {
+                // La referencia ya fue quitada; el error queda visible para
+                // limpieza posterior sin hacer fallar la respuesta al usuario.
+                console.error('No se pudo limpiar el archivo anterior:', cleanupError.message);
+            }
+        }
+
+        return {
+            success: rowsAffected > 0,
+            message: 'Foto de perfil eliminada exitosamente',
+            usuarioId: Number(usuarioId),
+        };
+    }
+
+    async listFotosPerfilAsync(usuarioId) {
+        return this.storageService.listUserPhotos(usuarioId);
     }
 
     getIdiomasSoportados() {

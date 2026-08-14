@@ -1,38 +1,19 @@
 import paisService from './paisService.js';
 import idiomaRepository from '../../data/repositories/idiomaRepository.js';
+import mymemoryTranslationHelper from '../../helpers/mymemoryTranslationHelper.js';
 
 export default class idiomaService {
     constructor() {
         console.log('Estoy en: idiomaService.constructor()');
         this.paisService = new paisService();
         this.idiomaRepository = new idiomaRepository();
+        this.translator = new mymemoryTranslationHelper();
     }
 
     getIdiomasSoportadosAsync = async () => {
-        const rows = await this.idiomaRepository.getIdiomasSoportadosAsync();
-        const nombres = {
-            es: 'Español',
-            en: 'Inglés',
-            fr: 'Francés',
-            it: 'Italiano',
-            pt: 'Portugués',
-            ko: 'Coreano',
-            zh: 'Chino',
-            he: 'Hebreo'
-        };
-
-        const idiomas = {};
-
-        for (const row of rows) {
-            const codigo = row.codigo;
-            if (codigo) {
-                idiomas[codigo] = {
-                    name: nombres[codigo] || codigo
-                };
-            }
-        }
-
-        return idiomas;
+        // La lista soportada no puede depender de que ya exista un usuario
+        // con ese idioma guardado en la base de datos.
+        return this.translator.getSupportedLanguages();
     }
 
     async getIdiomaByCountryAsync({ paisId, nombre }) {
@@ -51,13 +32,14 @@ export default class idiomaService {
         }
 
         const codigoIdioma = this.getLanguageCodeForCountry(pais.nombre);
+        const idiomaInfo = this.translator.getSupportedLanguages()[codigoIdioma];
 
         return {
             paisId: pais.ID,
             nombrePais: pais.nombre,
             idioma: {
                 codigoIdioma,
-                nombreIdioma: pais.nombre,
+                nombreIdioma: idiomaInfo?.name || codigoIdioma,
                 origen: 'pais',
                 source: 'DB'
             }

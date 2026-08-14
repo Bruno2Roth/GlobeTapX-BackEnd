@@ -1,33 +1,30 @@
 import pool from '../../configs/SPConfig.js'
 
 const COLUMN_MAP = {
-    nombre: 'nombre',
-    mail: 'mail',
-    contrasena: 'contrasena',
-    nombreCompleto: 'nombreCompleto',
-    numeroContacto: 'numeroContacto',
-    idiomaPreferido: 'idiomaPreferido',
-    paisActual: 'paisActual',
-    fotoPerfil: 'fotoPerfil',
-    isAdmin: 'isAdmin',
-    esPremium: 'esPremium',
+    nombre: ['nombre', 'name'],
+    mail: ['mail', 'email'],
+    contrasena: ['contrasena', 'password'],
+    nombreCompleto: ['nombreCompleto', 'fullName'],
+    numeroContacto: ['numeroContacto', 'phone'],
+    idiomaPreferido: ['idiomaPreferido', 'idioma', 'language', 'preferredLanguage'],
+    paisActual: ['paisActual', 'paisactual', 'countryId'],
+    fotoPerfil: ['fotoPerfil', 'foto', 'photo', 'image', 'profileImage'],
+    isAdmin: ['isAdmin'],
+    esPremium: ['esPremium'],
 };
 
-function _entityValue(entity, fieldKeys) {
-    // Si el mapeo es un string (ej: "nombre")
-    if (typeof fieldKeys === 'string') {
-        return entity[fieldKeys] ?? null;
-    }
+function _hasEntityValue(entity, fieldKeys) {
+    const keys = typeof fieldKeys === 'string' ? [fieldKeys] : fieldKeys;
+    return keys.some(key => Object.prototype.hasOwnProperty.call(entity, key));
+}
 
-    // Si el mapeo es un array (ej: ["nombre", "Nombre"])
-    if (Array.isArray(fieldKeys)) {
-        for (const key of fieldKeys) {
-            if (entity[key] !== undefined && entity[key] !== null) {
-                return entity[key];
-            }
+function _entityValue(entity, fieldKeys) {
+    const keys = typeof fieldKeys === 'string' ? [fieldKeys] : fieldKeys;
+    for (const key of keys) {
+        if (Object.prototype.hasOwnProperty.call(entity, key) && entity[key] !== undefined) {
+            return entity[key] ?? null;
         }
     }
-
     return null;
 }
 
@@ -73,6 +70,9 @@ export default class usuariosRepository {
         const vals = [userId];
         for (const [colName, entityKeys] of Object.entries(COLUMN_MAP)) {
             if (!dbColumns.includes(colName)) continue;
+            // PUT es parcial: solo se actualizan los campos que llegaron.
+            // Un campo omitido nunca debe transformarse en NULL.
+            if (!_hasEntityValue(entity, entityKeys)) continue;
             sets.push(`"${colName}" = $${sets.length + 2}`);
             vals.push(_entityValue(entity, entityKeys));
         }
@@ -103,7 +103,7 @@ export default class usuariosRepository {
     getBymailAsync = async (mail) => {
         console.log(`usuariosRepository.getBymailAsync(${mail})`);
 
-        const sql = `SELECT * FROM "Usuario" WHERE "mail" = $1`;
+        const sql = `SELECT * FROM "Usuario" WHERE LOWER(TRIM("mail")) = LOWER(TRIM($1))`;
         const res = await this.pool.query(sql, [mail]);
         return res.rows && res.rows[0] ? res.rows[0] : null;
     }
@@ -180,7 +180,7 @@ export default class usuariosRepository {
         }
 
         const user = res.rows[0];
-        return user.idiomapreferido || user.idioma || null;
+        return user.idiomaPreferido || user.idioma || null;
     }
 
     updateIdiomaPreferidoAsync = async (usuarioId, codigoIdioma) => {
@@ -193,6 +193,19 @@ export default class usuariosRepository {
         `;
 
         const res = await this.pool.query(sql, [usuarioId, codigoIdioma]);
+        return res.rowCount;
+    }
+
+    updateFotoPerfilAsync = async (usuarioId, fotoPerfil) => {
+        console.log(`usuariosRepository.updateFotoPerfilAsync(${usuarioId})`);
+
+        const sql = `
+            UPDATE "Usuario"
+            SET "fotoPerfil" = $2
+            WHERE "ID" = $1
+        `;
+
+        const res = await this.pool.query(sql, [usuarioId, fotoPerfil]);
         return res.rowCount;
     }
 
