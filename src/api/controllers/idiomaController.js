@@ -41,11 +41,42 @@ router.get('/supported', async (req, res) => {
 
 router.get('/translations', async (req, res) => {
     try {
-        const lang = req.query.lang || req.query.codigoIdioma || 'es';
+        const lang = req.query.idiomaId || req.query.lang || req.query.codigoIdioma || 'es';
         const data = await traduccionServiceInstance.getTraduccionesPorIdiomaAsync(lang);
         return res.status(200).json({ success: true, data });
     } catch (error) {
         return sendPublicError(res, error, 'No se pudieron obtener las traducciones');
+    }
+});
+
+// Catálogo local: no consulta la base de datos ni un proveedor externo.
+router.get('/catalogo', async (req, res) => {
+    try {
+        const data = await idiomaServiceInstance.getIdiomasSoportadosAsync();
+        return res.status(200).json({ success: true, data });
+    } catch (error) {
+        return sendPublicError(res, error, 'No se pudieron obtener los idiomas');
+    }
+});
+
+router.get('/catalogo/:idiomaId/tag/:tagId', async (req, res) => {
+    try {
+        const data = traduccionServiceInstance.getTagIdioma(
+            req.params.idiomaId,
+            req.params.tagId,
+        );
+        return res.status(200).json({ success: true, ...data });
+    } catch (error) {
+        return sendPublicError(res, error, 'No se pudo obtener el texto');
+    }
+});
+
+router.get('/catalogo/:idiomaId', async (req, res) => {
+    try {
+        const idioma = traduccionServiceInstance.getCatalogoIdioma(req.params.idiomaId);
+        return res.status(200).json({ success: true, idioma });
+    } catch (error) {
+        return sendPublicError(res, error, 'No se pudo obtener el catálogo');
     }
 });
 
@@ -100,13 +131,22 @@ router.get('/preferred', authMiddleware.required, async (req, res) => {
 
 router.put('/preferred', authMiddleware.required, async (req, res) => {
     const id = authorizeUser(req, res, req.body?.usuarioId);
-    if (!id || typeof req.body?.codigoIdioma !== 'string') {
+    const idiomaId = req.body?.idiomaId;
+    const codigoIdioma = req.body?.codigoIdioma;
+    const languageReference = idiomaId ?? codigoIdioma;
+    const validLanguageReference = (
+        typeof languageReference === 'string' && languageReference.trim().length > 0
+    ) || (
+        Number.isInteger(languageReference) && languageReference > 0
+    );
+
+    if (!id || !validLanguageReference) {
         if (id) res.status(400).json({ success: false, message: 'Solicitud no válida' });
         return null;
     }
 
     try {
-        const data = await usuarioService.cambiarIdiomaAsync(id, req.body.codigoIdioma);
+        const data = await usuarioService.cambiarIdiomaAsync(id, codigoIdioma, idiomaId);
         return res.status(200).json({ success: true, data });
     } catch (error) {
         return sendPublicError(res, error, 'No se pudo actualizar el idioma preferido');

@@ -41,6 +41,7 @@ const authorizeTarget = (req, res, targetId) => {
 
 const containsLanguageField = (body = {}) => [
     'idiomaPreferido',
+    'idiomaId',
     'codigoIdioma',
     'language',
     'idioma',
@@ -95,8 +96,16 @@ router.put('/idioma', async (req, res) => {
     const body = req.body || {};
     const usuarioId = Number(body.usuarioId);
     const codigoIdioma = body.codigoIdioma;
+    const idiomaId = body.idiomaId;
+    const languageReference = idiomaId ?? codigoIdioma;
 
-    if (!Number.isInteger(usuarioId) || usuarioId <= 0 || typeof codigoIdioma !== 'string') {
+    const validLanguageReference = (
+        typeof languageReference === 'string' && languageReference.trim().length > 0
+    ) || (
+        Number.isInteger(languageReference) && languageReference > 0
+    );
+
+    if (!Number.isInteger(usuarioId) || usuarioId <= 0 || !validLanguageReference) {
         return res.status(400).json({ success: false, message: 'Solicitud no válida' });
     }
 
@@ -104,10 +113,11 @@ router.put('/idioma', async (req, res) => {
     if (!id) return null;
 
     try {
-        const result = await service.cambiarIdiomaAsync(id, codigoIdioma);
+        const result = await service.cambiarIdiomaAsync(id, codigoIdioma, idiomaId);
         return res.status(200).json({
             success: true,
             codigoIdioma: result.codigoIdioma,
+            idiomaId: result.idiomaId,
         });
     } catch (error) {
         return handleKnownUserError(res, error, 'No se pudo actualizar el idioma');

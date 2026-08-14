@@ -5,9 +5,9 @@ import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import usuariosService from '../../application/services/usuariosService.js';
 import authMiddleware from '../../api/middlewares/auth.js';
 import {
-    isSupportedLanguageCode,
     toPublicUser,
 } from '../../application/dtos/userProfile.js';
+import { resolveLanguageForWrite } from '../../idiomas/index.js';
 import {
     BadRequestError,
     ServiceUnavailableError,
@@ -52,13 +52,18 @@ const validateRegisterBody = (req, res, next) => {
     const nombre = body.nombre || body.nombreCompleto;
     const mail = validateMail(body.mail || body.email);
     const password = body.contrasena ?? body.password;
-    const language = body.idiomaPreferido ?? body.codigoIdioma ?? body.language ?? 'es';
+    const language = body.idiomaId
+        ?? body.idiomaPreferido
+        ?? body.codigoIdioma
+        ?? body.language
+        ?? 'es';
     const photo = body.fotoPerfil ?? body.foto ?? body.photo ?? body.image ?? body.profileImage;
 
     if (!isNonEmptyString(nombre) || !mail || !isNonEmptyString(password)) {
         return res.status(400).json({ success: false, message: 'Solicitud no válida' });
     }
-    if (!isSupportedLanguageCode(language)) {
+    const languageInfo = resolveLanguageForWrite(language);
+    if (!languageInfo) {
         return res.status(400).json({ success: false, message: 'Solicitud no válida' });
     }
     // Las fotos se reciben únicamente por PUT multipart/form-data.
@@ -72,7 +77,8 @@ const validateRegisterBody = (req, res, next) => {
         mail,
         contrasena: String(password).trim(),
         numeroContacto: body.numeroContacto ? String(body.numeroContacto).trim() : null,
-        idiomaPreferido: String(language).trim().toLowerCase(),
+        // Se persiste el ID estable; la API pública sigue exponiendo el código.
+        idiomaPreferido: String(languageInfo.id),
         paisActual: body.paisActual ?? null,
         fotoPerfil: null,
         isAdmin: false,

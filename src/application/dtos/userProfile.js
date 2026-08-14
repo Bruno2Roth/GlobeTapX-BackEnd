@@ -1,23 +1,30 @@
-export const SUPPORTED_LANGUAGE_CODES = Object.freeze([
-    'es',
-    'en',
-    'fr',
-    'it',
-    'pt',
-    'ko',
-    'zh',
-    'he',
-]);
+import {
+    SUPPORTED_LANGUAGE_CODES,
+    getLanguageCode,
+    getLanguageId,
+    resolveLanguage,
+} from '../../idiomas/index.js';
 
-export const normalizeLanguageCode = (value, fallback = 'es') => {
-    const code = String(value || '').trim().toLowerCase().split(/[-_,]/)[0];
-    return SUPPORTED_LANGUAGE_CODES.includes(code) ? code : fallback;
-};
+export { SUPPORTED_LANGUAGE_CODES };
+
+export const normalizeLanguageCode = (value, fallback = 'es') => (
+    getLanguageCode(value) || getLanguageCode(fallback) || 'es'
+);
+
+export const normalizeLanguageId = (value, fallback = 1) => (
+    getLanguageId(value) || getLanguageId(fallback) || 1
+);
 
 export const isSupportedLanguageCode = (value) => {
     const code = String(value || '').trim().toLowerCase();
     return SUPPORTED_LANGUAGE_CODES.includes(code);
 };
+
+export const isSupportedLanguageId = value => Number.isInteger(getLanguageId(value));
+
+export const resolveUserLanguage = (value, fallback = 'es') => (
+    resolveLanguage(value, fallback)
+);
 
 export const profilePhotoEndpoint = (request, userId) => {
     const configuredBaseUrl = String(process.env.PUBLIC_API_URL || '').trim().replace(/\/$/, '');

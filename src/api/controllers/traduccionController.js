@@ -1,63 +1,74 @@
-/**
- * Controller de traducción dinámica
- * Endpoint para traducir texto usando MyMemory API.
- */
-
 import express from 'express';
 import traduccionService from '../../application/services/traduccionService.js';
+import { logInternalError, sendPublicError } from '../errors.js';
 
 const router = express.Router();
 const service = new traduccionService();
 
+const hasValue = value => value !== undefined && value !== null && String(value).trim() !== '';
+
 router.post('/', async (req, res) => {
     try {
-        const { text, targetLanguage, sourceLanguage = 'auto' } = req.body;
+        const body = req.body || {};
+        const reference = body.tagId ?? body.text;
+        const targetLanguage = body.idiomaId ?? body.targetLanguage ?? body.codigoIdioma;
 
-        if (!text || !targetLanguage) {
+        if (!hasValue(reference) || !hasValue(targetLanguage)) {
             return res.status(400).json({
                 success: false,
-                error: 'text y targetLanguage son requeridos'
+                message: 'Solicitud no válida',
             });
         }
 
-        const result = await service.translateTextAsync(text, targetLanguage, sourceLanguage);
+        const text = body.tagId !== undefined
+            ? { tagId: body.tagId, text: body.text ?? body.tagId }
+            : body.text;
+        const result = await service.translateTextAsync(
+            text,
+            targetLanguage,
+            body.sourceLanguage || 'auto',
+        );
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
-            data: result
+            data: result,
         });
     } catch (error) {
-        console.error('Error en POST /api/traduccion', error);
-        res.status(500).json({
-            success: false,
-            error: error.message || 'Error al traducir el texto'
-        });
+        logInternalError('POST /api/traduccion', error);
+        return sendPublicError(res, error, 'No se pudo obtener el texto');
     }
 });
 
 router.post('/batch', async (req, res) => {
     try {
-        const { texts, targetLanguage, sourceLanguage = 'auto' } = req.body;
+        const body = req.body || {};
+        const targetLanguage = body.idiomaId ?? body.targetLanguage ?? body.codigoIdioma;
+        let texts = body.texts;
 
-        if (!texts || !Array.isArray(texts) || !targetLanguage) {
+        if (!Array.isArray(texts) && Array.isArray(body.tagIds)) {
+            texts = body.tagIds.map(tagId => ({ tagId }));
+        }
+
+        if (!Array.isArray(texts) || !texts.length || !hasValue(targetLanguage)) {
             return res.status(400).json({
                 success: false,
-                error: 'texts (array) y targetLanguage son requeridos'
+                message: 'Solicitud no válida',
             });
         }
 
-        const result = await service.translateBatchAsync(texts, targetLanguage, sourceLanguage);
+        const result = await service.translateBatchAsync(
+            texts,
+            targetLanguage,
+            body.sourceLanguage || 'auto',
+        );
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
-            data: result
+            data: result,
         });
     } catch (error) {
-        console.error('Error en POST /api/traduccion/batch', error);
-        res.status(500).json({
-            success: false,
-            error: error.message || 'Error al traducir los textos'
-        });
+        logInternalError('POST /api/traduccion/batch', error);
+        return sendPublicError(res, error, 'No se pudieron obtener los textos');
     }
 });
 

@@ -1,69 +1,88 @@
+import { BadRequestError } from '../../api/errors.js';
+import {
+    getLanguageCatalog,
+    getTagId,
+    getTagValue,
+    getTranslationMaps,
+    resolveLanguage,
+} from '../../idiomas/index.js';
+
 /**
- * Servicio de traducción dinámico
- * Usa MyMemory API y cache local para evitar peticiones repetidas.
+ * Resuelve traducciones desde el catálogo local.
+ *
+ * Las rutas de traducción ya no dependen de MyMemory ni de la tabla
+ * Traduccion: el frontend envía un tagId (o una clave antigua) y el valor se
+ * obtiene directamente del archivo del idioma seleccionado.
  */
-
-import mymemoryTranslationHelper from '../../helpers/mymemoryTranslationHelper.js';
-import traduccionRepository from '../../data/repositories/traduccionRepository.js';
-
 export default class traduccionService {
-    constructor() {
-        console.log('Estoy en: traduccionService.constructor()');
-        this.translator = new mymemoryTranslationHelper();
-        this.traduccionRepository = new traduccionRepository();
-    }
-
-    getTraduccionesPorIdiomaAsync = async (codigoIdioma) => {
-        const rows = await this.traduccionRepository.getTraduccionesPorIdiomaAsync(codigoIdioma);
-        const result = {};
-
-        for (const row of rows) {
-            result[row.clave] = row.valor;
-        }
-
+    getTraduccionesPorIdiomaAsync = async (languageReference) => {
+        const result = getTranslationMaps(languageReference);
+        if (!result) throw new BadRequestError('Solicitud no válida');
         return result;
     };
 
     getTodasLasTraduccionesAsync = async () => {
-        const rows = await this.traduccionRepository.getTodasLasTraduccionesAsync();
-        const result = {};
-
-        for (const row of rows) {
-            if (!result[row.codigoIdioma]) {
-                result[row.codigoIdioma] = {};
-            }
-
-            result[row.codigoIdioma][row.clave] = row.valor;
-        }
-
-        return result;
+        const languages = ['es', 'en', 'fr', 'it', 'pt', 'ko', 'zh', 'he'];
+        return Object.fromEntries(languages.map(codigo => [
+            codigo,
+            getTranslationMaps(codigo),
+        ]));
     };
 
     async translateTextAsync(text, targetLanguage, sourceLanguage = 'auto') {
-        const result = await this.translator.translateTextAsync(text, targetLanguage, sourceLanguage);
+        const language = resolveLanguage(targetLanguage);
+        if (!language) throw new BadRequestError('Solicitud no válida');
+
+        const isObject = text && typeof text === 'object';
+        const originalText = isObject
+            ? (text.text ?? text.tag ?? text.tagId ?? text.id ?? '')
+            : text;
+        const explicitTag = isObject ? (text.tagId ?? text.id ?? text.tag ?? null) : null;
+        const tagId = getTagId(explicitTag ?? originalText);
+        const translatedText = tagId
+            ? getTagValue(language, tagId)
+            : String(originalText ?? '');
+
         return {
-            text,
-            targetLanguage,
+            text: originalText,
+            tagId,
+            targetLanguage: language.codigoIdioma,
+            targetLanguageId: language.id,
             sourceLanguage,
-            translatedText: result.translatedText,
-            cached: result.cached,
-            error: result.error || null
+            translatedText,
+            cached: true,
+            source: 'catalogo-local',
+            error: null,
         };
     }
 
     async translateBatchAsync(texts, targetLanguage, sourceLanguage = 'auto') {
-        if (!Array.isArray(texts)) {
-            texts = [texts];
-        }
+        const values = Array.isArray(texts) ? texts : [texts];
+        return Promise.all(values.map(value => (
+            this.translateTextAsync(value, targetLanguage, sourceLanguage)
+        )));
+    }
 
-        const translated = await this.translator.translateBatchAsync(texts, targetLanguage, sourceLanguage);
-        return translated.map(item => ({
-            text: item.text,
-            translatedText: item.translatedText,
-            cached: item.cached,
-            error: item.error || null,
-            targetLanguage,
-            sourceLanguage
-        }));
+    getCatalogoIdioma(languageReference) {
+        const catalog = getLanguageCatalog(languageReference);
+        if (!catalog) throw new BadRequestError('Solicitud no válida');
+        return catalog;
+    }
+
+    getTagIdioma(languageReference, tagReference) {
+        const catalog = this.getCatalogoIdioma(languageReference);
+        const tagId = getTagId(tagReference);
+        const tag = catalog.tags.find(item => item.id === tagId);
+        if (!tag) throw new BadRequestError('Solicitud no válida');
+        return {
+            idiomaId: catalog.idiomaId,
+            codigoIdioma: catalog.codigoIdioma,
+            tag: {
+                id: tag.id,
+                tagId: tag.id,
+                clave: tag.clave,
+                valor: tag.valor,
+            },
+        };
     }
 }

@@ -63,6 +63,8 @@ const publicApiRequest = (req) => {
     if (req.method === 'GET' && (
         path === '/idioma/supported'
         || path === '/idioma/translations'
+        || path === '/idioma/catalogo'
+        || path.startsWith('/idioma/catalogo/')
         || path === '/idioma/byCountry'
         || /^\/idioma\/byCountry\/\d+$/.test(path)
     )) return true;

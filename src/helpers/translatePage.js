@@ -2,7 +2,8 @@
  * Helper de frontend para traducir automáticamente la página.
  *
  * Este helper solo debe utilizarse en el navegador, porque accede a
- * localStorage y a elementos DOM con el atributo `data-translate`.
+ * localStorage y a elementos DOM con `data-translate-id` (preferido) o
+ * `data-translate` (compatibilidad).
  */
 
 const STORAGE_KEY = 'preferredLanguage';
@@ -25,27 +26,19 @@ export function setPreferredLanguage(language) {
 export async function translatePage(targetLanguage) {
     targetLanguage = normalizeLanguage(targetLanguage || getPreferredLanguage());
 
-    const elements = document.querySelectorAll('[data-translate]');
-    const texts = Array.from(elements)
-        .map(el => el.dataset.translate && el.dataset.translate.toString().trim())
-        .filter(Boolean);
+    const elements = document.querySelectorAll('[data-translate-id], [data-translate]');
+    const items = Array.from(elements).map((element) => {
+        const rawTagId = element.dataset.translateId;
+        const tagId = rawTagId && /^\d+$/.test(rawTagId.trim()) ? Number(rawTagId) : null;
+        const text = element.dataset.translate && element.dataset.translate.toString().trim();
+        return { element, tagId, text: text || tagId };
+    }).filter(item => item.text !== null && item.text !== undefined && item.text !== '');
+
+    const texts = items.map(item => item.tagId
+        ? { tagId: item.tagId, text: item.text }
+        : item.text);
 
     // Recopila los textos únicos que se deben traducir.
-
-    const uniqueTexts = [...new Set(texts)];
-
-    if (targetLanguage === 'es') {
-        elements.forEach((el) => {
-            const originalText = el.dataset.translate.toString().trim();
-            if (el.placeholder !== undefined && el.placeholder !== '') {
-                el.placeholder = originalText;
-            }
-            if (el.innerText !== undefined) {
-                el.innerText = originalText;
-            }
-        });
-        return;
-    }
 
     const response = await fetch('/api/traduccion/batch', {
         method: 'POST',
@@ -57,7 +50,7 @@ export async function translatePage(targetLanguage) {
         },
         credentials: 'same-origin',
         body: JSON.stringify({
-            texts: uniqueTexts,
+            texts,
             targetLanguage,
             sourceLanguage: 'es'
         })
@@ -65,20 +58,22 @@ export async function translatePage(targetLanguage) {
 
     const payload = await response.json();
     if (!response.ok || !payload.success) {
-        console.warn('No se pudieron traducir los textos:', payload.error);
+        console.warn('No se pudieron obtener los textos:', payload.message);
         return;
     }
 
     const translatedMap = {};
     payload.data.forEach(item => {
-        translatedMap[item.text] = item.translatedText;
+        if (item.tagId) translatedMap[`tag:${item.tagId}`] = item.translatedText;
+        translatedMap[String(item.text)] = item.translatedText;
     });
 
     // Reemplaza en el DOM cada texto traducido.
 
-    elements.forEach(el => {
-        const key = el.dataset.translate && el.dataset.translate.toString().trim();
-        const translated = translatedMap[key] || key;
+    items.forEach(({ element: el, tagId, text }) => {
+        const translated = (tagId && translatedMap[`tag:${tagId}`])
+            || translatedMap[String(text)]
+            || text;
         if (el.placeholder !== undefined && el.placeholder !== '') {
             el.placeholder = translated;
         }

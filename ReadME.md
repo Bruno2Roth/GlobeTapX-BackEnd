@@ -221,11 +221,17 @@ Datos de ubicación según IP.
 |--------|------|-------------|
 | `POST` | `/api/traduccion` | Traducir texto |
 | `POST` | `/api/traduccion/batch` | Traducir varios textos |
+| `GET` | `/api/idioma/catalogo` | Listar idiomas con ID estable |
+| `GET` | `/api/idioma/catalogo/:idiomaId` | Obtener tags de un idioma |
+| `GET` | `/api/idioma/catalogo/:idiomaId/tag/:tagId` | Resolver un texto por IDs |
 
 Body:
 ```json
-{ "text": "Hello", "targetLanguage": "es" }
+{ "tagId": 1, "idiomaId": 2 }
 ```
+
+Los tags y sus valores viven en `src/idiomas/`. Los IDs de idioma son
+`es=1`, `en=2`, `fr=3`, `it=4`, `pt=5`, `ko=6`, `zh=7` y `he=8`.
 
 ---
 
@@ -300,3 +306,7 @@ ON "RegistroEstadisticas" ("IDUsuario");
 El contrato actualizado de autenticación, fotos, idioma, caché de países,
 timeouts, índices y pruebas está documentado en
 [`docs/PERFIL_API.md`](docs/PERFIL_API.md).
+
+La guía para adaptar el frontend al catálogo de idiomas y a la carga no
+bloqueante del perfil está en
+[`docs/FRONTEND_IDIOMAS_Y_PERFIL.md`](docs/FRONTEND_IDIOMAS_Y_PERFIL.md).

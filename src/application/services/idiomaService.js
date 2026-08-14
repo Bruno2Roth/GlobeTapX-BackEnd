@@ -1,19 +1,19 @@
 import paisService from './paisService.js';
-import idiomaRepository from '../../data/repositories/idiomaRepository.js';
-import mymemoryTranslationHelper from '../../helpers/mymemoryTranslationHelper.js';
+import {
+    getLanguageByCode,
+    getSupportedLanguages,
+} from '../../idiomas/index.js';
 
 export default class idiomaService {
     constructor() {
         console.log('Estoy en: idiomaService.constructor()');
         this.paisService = new paisService();
-        this.idiomaRepository = new idiomaRepository();
-        this.translator = new mymemoryTranslationHelper();
     }
 
     getIdiomasSoportadosAsync = async () => {
-        // La lista soportada no puede depender de que ya exista un usuario
-        // con ese idioma guardado en la base de datos.
-        return this.translator.getSupportedLanguages();
+        // La lista es estática y no necesita una lectura de usuarios ni una
+        // llamada a un proveedor de traducción.
+        return getSupportedLanguages();
     }
 
     async getIdiomaByCountryAsync({ paisId, nombre }) {
@@ -32,14 +32,16 @@ export default class idiomaService {
         }
 
         const codigoIdioma = this.getLanguageCodeForCountry(pais.nombre);
-        const idiomaInfo = this.translator.getSupportedLanguages()[codigoIdioma];
+        const idiomaInfo = getLanguageByCode(codigoIdioma);
 
         return {
             paisId: pais.ID,
             nombrePais: pais.nombre,
             idioma: {
+                idiomaId: idiomaInfo?.id || null,
                 codigoIdioma,
-                nombreIdioma: idiomaInfo?.name || codigoIdioma,
+                nombreIdioma: idiomaInfo?.nombre || codigoIdioma,
+                nombreNativo: idiomaInfo?.nombreNativo || codigoIdioma,
                 origen: 'pais',
                 source: 'DB'
             }

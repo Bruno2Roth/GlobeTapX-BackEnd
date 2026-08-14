@@ -5,10 +5,14 @@ import registroEstadisticasRepository from '../../data/repositories/registroEsta
 import contenidoCategoriaRepository from '../../data/repositories/contenidoCategoriaRepository.js';
 import paisRepository from '../../data/repositories/paisRepository.js';
 import zLogCambiosService from './zLogCambiosService.js';
-import mymemoryTranslationHelper from '../../helpers/mymemoryTranslationHelper.js';
 import storageService from './storageService.js';
 import { BadRequestError } from '../../api/errors.js';
-import { isSupportedLanguageCode, normalizeLanguageCode } from '../dtos/userProfile.js';
+import {
+    getLanguageCode,
+    getSupportedLanguages,
+    resolveLanguage,
+    resolveLanguageForWrite,
+} from '../../idiomas/index.js';
 
 export default class usuariosService {
     constructor() {
@@ -19,7 +23,6 @@ export default class usuariosService {
         this.paisRepository = new paisRepository();
         this.contenidoCategoriaRepository = new contenidoCategoriaRepository();
         this.logService = new zLogCambiosService();
-        this.translator = new mymemoryTranslationHelper();
         this.storageService = new storageService();
     }
 
@@ -75,12 +78,25 @@ export default class usuariosService {
     getByNombreAsync = async (nombre) => this.usuariosRepository.getByNombreAsync(nombre);
 
     createAsync = async (entity) => {
-        this.validateUsuarioEntity(entity);
+        const normalizedEntity = { ...(entity || {}) };
+        const languageInput = normalizedEntity.idiomaPreferido
+            ?? normalizedEntity.codigoIdioma
+            ?? normalizedEntity.language;
 
-        const existingUser = await this.usuariosRepository.getBymailAsync(entity.mail);
+        if (languageInput !== undefined && languageInput !== null && String(languageInput).trim() !== '') {
+            const language = resolveLanguageForWrite(languageInput);
+            if (!language) throw new BadRequestError('Solicitud no válida');
+            // La columna actual es varchar: se guarda el ID estable y se
+            // siguen aceptando códigos antiguos al leer.
+            normalizedEntity.idiomaPreferido = String(language.id);
+        }
+
+        this.validateUsuarioEntity(normalizedEntity);
+
+        const existingUser = await this.usuariosRepository.getBymailAsync(normalizedEntity.mail);
         if (existingUser) throw this.createDuplicateError('Ya existe un usuario con ese mail');
 
-        const result = await this.usuariosRepository.createAsync(entity);
+        const result = await this.usuariosRepository.createAsync(normalizedEntity);
         const newId = result?.ID || result;
 
         try {
@@ -89,7 +105,7 @@ export default class usuariosService {
                 accion: 'CREATE',
                 tipoEntidad: 'Usuario',
                 IDEntidad: newId,
-                diferencia: JSON.stringify({ nombre: entity.nombre, mail: entity.mail }),
+                diferencia: JSON.stringify({ nombre: normalizedEntity.nombre, mail: normalizedEntity.mail }),
             });
         } catch (error) {
             console.error('[user-create-log]', error?.message || 'log error');
@@ -146,7 +162,7 @@ export default class usuariosService {
     async getIdiomaPreferidoAsync(usuarioId) {
         const id = Number(usuarioId);
         if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Solicitud no válida');
-        return normalizeLanguageCode(await this.usuariosRepository.getPreferredLanguageCodeAsync(id), 'es');
+        return getLanguageCode(await this.usuariosRepository.getPreferredLanguageCodeAsync(id)) || 'es';
     }
 
     async getPreferredLanguageCodeAsync(usuarioId) {
@@ -155,7 +171,7 @@ export default class usuariosService {
 
         const record = await this.usuariosRepository.getPreferredLanguageRecordAsync(id);
         if (!record) throw new BadRequestError('Solicitud no válida');
-        return normalizeLanguageCode(record.codigoIdioma, 'es');
+        return getLanguageCode(record.codigoIdioma) || 'es';
     }
 
     // Compatibilidad con clientes antiguos. La ruta nueva devuelve solo
@@ -167,31 +183,34 @@ export default class usuariosService {
         const record = await this.usuariosRepository.getPreferredLanguageRecordAsync(id);
         if (!record) throw new Error('Usuario no encontrado');
 
-        const code = record.codigoIdioma
-            ? normalizeLanguageCode(record.codigoIdioma, 'es')
-            : normalizeLanguageCode(detectedLanguage, 'es');
+        const storedLanguage = record.codigoIdioma ? resolveLanguage(record.codigoIdioma) : null;
+        const detected = resolveLanguage(detectedLanguage);
+        const language = storedLanguage || detected || resolveLanguage('es');
         return {
             usuarioId: id,
-            codigoIdioma: code,
-            nombreIdioma: this.translator.getSupportedLanguages()[code]?.name || code,
-            origen: record.codigoIdioma ? 'guardado' : 'detectado',
+            idiomaId: language.id,
+            codigoIdioma: language.codigoIdioma,
+            nombreIdioma: language.nombre,
+            nombreNativo: language.nombreNativo,
+            origen: storedLanguage ? 'guardado' : detected ? 'detectado' : 'predeterminado',
         };
     }
 
-    async cambiarIdiomaAsync(usuarioId, codigoIdioma) {
+    async cambiarIdiomaAsync(usuarioId, codigoIdioma, idiomaId = null) {
         const id = Number(usuarioId);
-        const code = String(codigoIdioma || '').trim().toLowerCase();
+        const language = resolveLanguageForWrite(idiomaId ?? codigoIdioma);
 
-        if (!Number.isInteger(id) || id <= 0 || !isSupportedLanguageCode(code)) {
+        if (!Number.isInteger(id) || id <= 0 || !language) {
             throw new BadRequestError('Solicitud no válida');
         }
 
-        const rowsAffected = await this.usuariosRepository.updateIdiomaPreferidoAsync(id, code);
+        const rowsAffected = await this.usuariosRepository.updateIdiomaPreferidoAsync(id, language.id);
         if (rowsAffected < 1) throw new BadRequestError('Solicitud no válida');
 
         return {
             success: true,
-            codigoIdioma: code,
+            idiomaId: language.id,
+            codigoIdioma: language.codigoIdioma,
         };
     }
 
@@ -260,7 +279,7 @@ export default class usuariosService {
     }
 
     getIdiomasSoportados() {
-        return this.translator.getSupportedLanguages();
+        return getSupportedLanguages();
     }
 
     async updatePaisActualAsync(usuarioId, paisactual) {
