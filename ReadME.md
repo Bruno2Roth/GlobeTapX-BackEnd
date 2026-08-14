@@ -294,3 +294,9 @@ CREATE TABLE IF NOT EXISTS "RegistroEstadisticas" (
 CREATE INDEX IF NOT EXISTS idx_registro_estadisticas_usuario
 ON "RegistroEstadisticas" ("IDUsuario");
 ```
+
+## Perfil y rendimiento
+
+El contrato actualizado de autenticación, fotos, idioma, caché de países,
+timeouts, índices y pruebas está documentado en
+[`docs/PERFIL_API.md`](docs/PERFIL_API.md).

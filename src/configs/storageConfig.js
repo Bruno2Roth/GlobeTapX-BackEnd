@@ -1,13 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
 import https from 'node:https';
 
-/**
- * Configuración centralizada de Supabase Storage.
- *
- * Las variables sensibles nunca se exponen en respuestas HTTP. La clave
- * service_role se utiliza exclusivamente en el backend para acceder al
- * bucket privado configurado en SUPABASE_STORAGE_BUCKET.
- */
+const positiveInteger = (value, fallback) => {
+    const parsed = Number(value);
+    return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
+};
 
 function deriveSupabaseUrlFromS3Endpoint(endpoint) {
     if (!endpoint) return null;
@@ -34,19 +31,17 @@ function isEnabled(value, defaultValue = true) {
 }
 
 /**
- * Fetch HTTPS compatible con Supabase JS.
- *
- * Algunas redes de desarrollo interceptan HTTPS con un certificado propio.
- * Solo se permite omitir esa validación cuando el entorno lo pide
- * explícitamente mediante SUPABASE_TLS_REJECT_UNAUTHORIZED=false.
+ * Fetch compatible with Supabase JS and with a hard timeout. This path is
+ * used only when development explicitly disables TLS verification.
  */
-function createSupabaseFetch(rejectUnauthorized) {
+function createSupabaseFetch(rejectUnauthorized, timeoutMs) {
     const agent = new https.Agent({ rejectUnauthorized });
 
     return async (input, init = {}) => {
         const request = new Request(input, init);
         const url = new URL(request.url);
         const headers = {};
+        let timer;
 
         request.headers.forEach((value, key) => {
             headers[key] = value;
@@ -56,9 +51,6 @@ function createSupabaseFetch(rejectUnauthorized) {
             ? null
             : Buffer.from(await request.arrayBuffer());
 
-        // Algunos proxies TLS cierran los DELETE con body chunked. Enviar
-        // explícitamente Content-Length mantiene compatible la API de
-        // Supabase Storage con esas redes.
         if (body) {
             headers['content-length'] = String(body.byteLength);
             delete headers['transfer-encoding'];
@@ -74,6 +66,7 @@ function createSupabaseFetch(rejectUnauthorized) {
 
                 response.on('data', chunk => chunks.push(chunk));
                 response.on('end', () => {
+                    clearTimeout(timer);
                     resolve(new Response(Buffer.concat(chunks), {
                         status: response.statusCode,
                         statusText: response.statusMessage,
@@ -82,22 +75,49 @@ function createSupabaseFetch(rejectUnauthorized) {
                 });
             });
 
-            clientRequest.on('error', reject);
+            clientRequest.on('error', (error) => {
+                clearTimeout(timer);
+                reject(error);
+            });
 
+            const abortRequest = () => clientRequest.destroy(new Error('Storage request aborted'));
             if (request.signal) {
                 if (request.signal.aborted) {
-                    clientRequest.destroy(new Error('La solicitud fue cancelada'));
+                    abortRequest();
                     return;
                 }
 
-                request.signal.addEventListener('abort', () => {
-                    clientRequest.destroy(new Error('La solicitud fue cancelada'));
-                }, { once: true });
+                request.signal.addEventListener('abort', abortRequest, { once: true });
             }
+
+            timer = setTimeout(() => {
+                clientRequest.destroy(Object.assign(new Error('Storage request timed out'), { code: 'ETIMEDOUT' }));
+            }, timeoutMs);
 
             if (body) clientRequest.write(body);
             clientRequest.end();
         });
+    };
+}
+
+function createTimedFetch(baseFetch, timeoutMs) {
+    return async (input, init = {}) => {
+        const timeoutController = new AbortController();
+        const timeout = setTimeout(() => timeoutController.abort(), timeoutMs);
+        const externalSignal = init.signal;
+        let signal = timeoutController.signal;
+
+        if (externalSignal) {
+            signal = AbortSignal.any
+                ? AbortSignal.any([externalSignal, timeoutController.signal])
+                : externalSignal;
+        }
+
+        try {
+            return await baseFetch(input, { ...init, signal });
+        } finally {
+            clearTimeout(timeout);
+        }
     };
 }
 
@@ -110,9 +130,11 @@ const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY?.trim()
 const bucket = process.env.SUPABASE_STORAGE_BUCKET?.trim();
 const isPublic = isEnabled(process.env.SUPABASE_STORAGE_PUBLIC, false);
 const rejectUnauthorized = isEnabled(process.env.SUPABASE_TLS_REJECT_UNAUTHORIZED, true);
+const timeoutMs = positiveInteger(process.env.STORAGE_TIMEOUT_MS, 8000);
+const signedUrlTtlSeconds = positiveInteger(process.env.SIGNED_URL_TTL_SECONDS, 900);
 
 const missing = [];
-if (!supabaseUrl) missing.push('SUPABASE_URL o una URL derivable');
+if (!supabaseUrl) missing.push('SUPABASE_URL');
 if (!serviceRoleKey) missing.push('SUPABASE_SERVICE_ROLE_KEY');
 if (!bucket) missing.push('SUPABASE_STORAGE_BUCKET');
 
@@ -121,11 +143,12 @@ const clientOptions = {
         autoRefreshToken: false,
         persistSession: false,
     },
+    global: {
+        fetch: rejectUnauthorized
+            ? createTimedFetch(globalThis.fetch.bind(globalThis), timeoutMs)
+            : createSupabaseFetch(false, timeoutMs),
+    },
 };
-
-if (!rejectUnauthorized) {
-    clientOptions.global = { fetch: createSupabaseFetch(false) };
-}
 
 const client = supabaseUrl && serviceRoleKey
     ? createClient(supabaseUrl, serviceRoleKey, clientOptions)
@@ -137,6 +160,8 @@ export default {
     bucket,
     isPublic,
     rejectUnauthorized,
+    timeoutMs,
+    signedUrlTtlSeconds,
     missing,
-    configured: Boolean(client && bucket && missing.length === 0),
+    configured: Boolean(client && bucket),
 };

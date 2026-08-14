@@ -1,51 +1,75 @@
 import storageConfig from '../../configs/storageConfig.js';
+import { ServiceUnavailableError } from '../../api/errors.js';
 
-/**
- * Repositorio de infraestructura para Supabase Storage.
- *
- * A diferencia de un repositorio PostgreSQL, aquí no se construye SQL: se
- * encapsulan las operaciones del proveedor externo y sus errores técnicos.
- */
+/** Infraestructura de Supabase Storage. Nunca devuelve errores del proveedor. */
 export default class storageRepository {
     constructor(config = storageConfig) {
-        console.log('storageRepository.constructor()');
         this.client = config.client;
         this.bucket = config.bucket;
         this.config = config;
+        this.timeoutMs = config.timeoutMs || 8000;
+        this.signedUrlCache = new Map();
     }
 
     getStatus() {
         return {
-            configured: this.config.configured,
+            configured: Boolean(this.config.configured && this.client && this.bucket),
             bucket: this.bucket || null,
-            supabaseUrl: this.config.supabaseUrl || null,
-            public: this.config.isPublic,
-            tlsVerification: this.config.rejectUnauthorized,
-            missing: this.config.missing,
+            public: Boolean(this.config.isPublic),
+            tlsVerification: Boolean(this.config.rejectUnauthorized),
+            timeoutMs: this.timeoutMs,
+            signedUrlTtlSeconds: this.config.signedUrlTtlSeconds || 900,
         };
     }
 
     ensureConfigured() {
-        if (!this.config.configured || !this.client) {
-            const missing = this.config.missing.length
-                ? this.config.missing.join(', ')
-                : 'cliente de Storage';
-            throw new Error(`Supabase Storage no configurado. Faltan: ${missing}`);
+        if (!this.config.configured || !this.client || !this.bucket) {
+            throw new ServiceUnavailableError('Servicio temporalmente no disponible', {
+                code: 'STORAGE_UNAVAILABLE',
+                internalMessage: 'Supabase Storage no está configurado',
+            });
+        }
+    }
+
+    async runWithTimeout(operation, operationName) {
+        this.ensureConfigured();
+
+        let timer;
+        const timeout = new Promise((_, reject) => {
+            timer = setTimeout(() => reject(Object.assign(
+                new Error(`${operationName} timed out`),
+                { code: 'ETIMEDOUT' },
+            )), this.timeoutMs);
+        });
+
+        try {
+            return await Promise.race([operation(), timeout]);
+        } catch (error) {
+            if (error instanceof ServiceUnavailableError) throw error;
+
+            throw new ServiceUnavailableError('Servicio temporalmente no disponible', {
+                code: 'STORAGE_UNAVAILABLE',
+                internalMessage: `${operationName}: ${error?.message || 'storage error'}`,
+                cause: error,
+            });
+        } finally {
+            clearTimeout(timer);
         }
     }
 
     async uploadAsync(objectPath, buffer, options = {}) {
-        this.ensureConfigured();
+        return this.runWithTimeout(async () => {
+            const { error } = await this.client.storage
+                .from(this.bucket)
+                .upload(objectPath, buffer, options);
 
-        const { error } = await this.client.storage
-            .from(this.bucket)
-            .upload(objectPath, buffer, options);
+            if (error) {
+                throw new Error(error.message || 'upload failed');
+            }
 
-        if (error) {
-            throw new Error(`No se pudo subir el archivo a Supabase Storage: ${error.message}`);
-        }
-
-        return objectPath;
+            this.signedUrlCache.delete(objectPath);
+            return objectPath;
+        }, 'storage upload');
     }
 
     async getUrlAsync(objectPath) {
@@ -55,56 +79,60 @@ export default class storageRepository {
             const { data } = this.client.storage
                 .from(this.bucket)
                 .getPublicUrl(objectPath);
-            return data.publicUrl;
+            return data?.publicUrl || null;
         }
 
-        const { data, error } = await this.client.storage
-            .from(this.bucket)
-            .createSignedUrl(objectPath, 60 * 60);
+        const cached = this.signedUrlCache.get(objectPath);
+        if (cached && cached.expiresAt > Date.now()) return cached.url;
 
-        if (error) {
-            throw new Error(`No se pudo generar la URL del archivo: ${error.message}`);
-        }
+        const signedUrl = await this.runWithTimeout(async () => {
+            const { data, error } = await this.client.storage
+                .from(this.bucket)
+                .createSignedUrl(objectPath, this.config.signedUrlTtlSeconds || 900);
 
-        return data.signedUrl;
+            if (error || !data?.signedUrl) {
+                throw new Error(error?.message || 'signed URL could not be generated');
+            }
+
+            return data.signedUrl;
+        }, 'storage signed URL');
+
+        const ttlMs = (this.config.signedUrlTtlSeconds || 900) * 1000;
+        this.signedUrlCache.set(objectPath, {
+            url: signedUrl,
+            expiresAt: Date.now() + Math.max(1000, ttlMs - 30_000),
+        });
+        return signedUrl;
     }
 
     async deleteAsync(objectPath) {
-        this.ensureConfigured();
+        return this.runWithTimeout(async () => {
+            const { error } = await this.client.storage
+                .from(this.bucket)
+                .remove([objectPath]);
 
-        const { error } = await this.client.storage
-            .from(this.bucket)
-            .remove([objectPath]);
-
-        if (error) {
-            throw new Error(`No se pudo eliminar el archivo de Storage: ${error.message}`);
-        }
-
-        return true;
+            if (error) throw new Error(error.message || 'delete failed');
+            this.signedUrlCache.delete(objectPath);
+            return true;
+        }, 'storage delete');
     }
 
     async listAsync(prefix = '') {
-        this.ensureConfigured();
+        return this.runWithTimeout(async () => {
+            const { data, error } = await this.client.storage
+                .from(this.bucket)
+                .list(prefix, { limit: 100, sortBy: { column: 'name', order: 'asc' } });
 
-        const { data, error } = await this.client.storage
-            .from(this.bucket)
-            .list(prefix, { limit: 100, sortBy: { column: 'name', order: 'asc' } });
-
-        if (error) {
-            throw new Error(`No se pudo listar Storage: ${error.message}`);
-        }
-
-        return data || [];
+            if (error) throw new Error(error.message || 'list failed');
+            return data || [];
+        }, 'storage list');
     }
 
     async getBucketAsync() {
-        this.ensureConfigured();
-
-        const { data, error } = await this.client.storage.getBucket(this.bucket);
-        if (error) {
-            throw new Error(`No se pudo consultar el bucket: ${error.message}`);
-        }
-
-        return data;
+        return this.runWithTimeout(async () => {
+            const { data, error } = await this.client.storage.getBucket(this.bucket);
+            if (error) throw new Error(error.message || 'bucket lookup failed');
+            return data;
+        }, 'storage bucket lookup');
     }
 }

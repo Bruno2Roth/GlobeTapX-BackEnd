@@ -2,21 +2,40 @@ import express from 'express';
 import usuariosService from '../../application/services/usuariosService.js';
 import idiomaService from '../../application/services/idiomaService.js';
 import traduccionService from '../../application/services/traduccionService.js';
+import authMiddleware from '../middlewares/auth.js';
+import { sendPublicError } from '../errors.js';
 
 const router = express.Router();
 const usuarioService = new usuariosService();
 const idiomaServiceInstance = new idiomaService();
 const traduccionServiceInstance = new traduccionService();
 
-// Controlador de idioma. Expone rutas para idiomas soportados, traducciones, idioma por país y preferencias de usuario.
+const isAdmin = req => Boolean(
+    req.user?.role === 'admin'
+    || req.user?.isAdmin === true
+    || req.user?.isAdmin === 'true'
+    || req.user?.isAdmin === 'TRUE',
+);
+
+const authorizeUser = (req, res, rawId) => {
+    const id = Number(rawId);
+    if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ success: false, message: 'Solicitud no válida' });
+        return null;
+    }
+    if (!isAdmin(req) && Number(req.user?.id) !== id) {
+        res.status(403).json({ success: false, message: 'No tiene permisos para esta operación' });
+        return null;
+    }
+    return id;
+};
+
 router.get('/supported', async (req, res) => {
     try {
         const data = await idiomaServiceInstance.getIdiomasSoportadosAsync();
-        res.status(200).json({ success: true, data });
+        return res.status(200).json({ success: true, data });
     } catch (error) {
-        console.log('Error en GET /idioma/supported');
-        console.log(error);
-        res.status(500).json({ error: error.message || 'Error al obtener idiomas soportados' });
+        return sendPublicError(res, error, 'No se pudieron obtener los idiomas');
     }
 });
 
@@ -24,88 +43,73 @@ router.get('/translations', async (req, res) => {
     try {
         const lang = req.query.lang || req.query.codigoIdioma || 'es';
         const data = await traduccionServiceInstance.getTraduccionesPorIdiomaAsync(lang);
-        res.status(200).json({ success: true, data });
+        return res.status(200).json({ success: true, data });
     } catch (error) {
-        console.log('Error en GET /idioma/translations');
-        console.log(error);
-        res.status(500).json({ error: error.message || 'Error al obtener traducciones' });
+        return sendPublicError(res, error, 'No se pudieron obtener las traducciones');
     }
 });
 
 router.get('/byCountry', async (req, res) => {
+    const paisId = req.query.paisId || req.query.countryId || req.query.id;
+    const nombre = req.query.nombre || req.query.country || req.query.search;
+    if (!paisId && !nombre) {
+        return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+    }
+
+    const countryId = paisId ? Number(paisId) : null;
+    if (paisId && (!Number.isInteger(countryId) || countryId <= 0)) {
+        return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+    }
+
     try {
-        const paisId = req.query.paisId || req.query.countryId || req.query.id;
-        const nombre = req.query.nombre || req.query.country || req.query.search;
-
-        if (!paisId && !nombre) {
-            return res.status(400).json({ error: 'paisId o nombre de país son requeridos' });
-        }
-
-        const countryId = paisId ? Number(paisId) : null;
-        if (paisId && (Number.isNaN(countryId) || countryId <= 0)) {
-            return res.status(400).json({ error: 'paisId inválido' });
-        }
-
         const data = await idiomaServiceInstance.getIdiomaByCountryAsync({ paisId: countryId, nombre });
-        res.status(200).json({ success: true, data });
+        return res.status(200).json({ success: true, data });
     } catch (error) {
-        console.log('Error en GET /idioma/byCountry');
-        console.log(error);
-        res.status(500).json({ error: error.message || 'Error al obtener idioma por país' });
+        return sendPublicError(res, error, 'No se pudo obtener el idioma del país');
     }
 });
 
 router.get('/byCountry/:id', async (req, res) => {
-    try {
-        const id = Number(req.params.id);
-        if (Number.isNaN(id) || id <= 0) {
-            return res.status(400).json({ error: 'ID inválido' });
-        }
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+    }
 
+    try {
         const data = await idiomaServiceInstance.getIdiomaByCountryAsync({ paisId: id });
-        res.status(200).json({ success: true, data });
+        return res.status(200).json({ success: true, data });
     } catch (error) {
-        console.log('Error en GET /idioma/byCountry/:id');
-        console.log(error);
-        res.status(500).json({ error: error.message || 'Error al obtener idioma por país' });
+        return sendPublicError(res, error, 'No se pudo obtener el idioma del país');
     }
 });
 
-router.get('/preferred', async (req, res) => {
+router.get('/preferred', authMiddleware.required, async (req, res) => {
+    const id = authorizeUser(req, res, req.query.usuarioId || req.query.id);
+    if (!id) return null;
+
     try {
-        const usuarioId = req.query.usuarioId || req.query.id;
-        const detectedLanguage = req.query.detectedLanguage || req.headers['accept-language'];
-
-        if (!usuarioId) {
-            return res.status(400).json({ error: 'usuarioId es requerido' });
-        }
-
-        const data = await usuarioService.getIdiomaPreferidoConFallbackAsync(parseInt(usuarioId, 10), detectedLanguage);
-        res.status(200).json({ success: true, data });
+        const data = await usuarioService.getIdiomaPreferidoConFallbackAsync(
+            id,
+            req.query.detectedLanguage || req.headers['accept-language'],
+        );
+        return res.status(200).json({ success: true, data });
     } catch (error) {
-        console.log('Error en GET /idioma/preferred');
-        console.log(error);
-        res.status(500).json({ error: error.message || 'Error al obtener idioma preferido' });
+        return sendPublicError(res, error, 'No se pudo obtener el idioma preferido');
     }
 });
 
-router.put('/preferred', async (req, res) => {
+router.put('/preferred', authMiddleware.required, async (req, res) => {
+    const id = authorizeUser(req, res, req.body?.usuarioId);
+    if (!id || typeof req.body?.codigoIdioma !== 'string') {
+        if (id) res.status(400).json({ success: false, message: 'Solicitud no válida' });
+        return null;
+    }
+
     try {
-        const usuarioId = req.body.usuarioId ?? req.body.id ?? req.body.userId;
-        const codigoIdioma = req.body.codigoIdioma
-            ?? req.body.idiomaPreferido
-            ?? req.body.language;
-
-        if (!usuarioId || !codigoIdioma) {
-            return res.status(400).json({ error: 'usuarioId y codigoIdioma son requeridos' });
-        }
-
-        const data = await usuarioService.cambiarIdiomaAsync(parseInt(usuarioId, 10), codigoIdioma);
-        res.status(200).json({ success: true, data });
+        const data = await usuarioService.cambiarIdiomaAsync(id, req.body.codigoIdioma);
+        return res.status(200).json({ success: true, data });
     } catch (error) {
-        console.log('Error en PUT /idioma/preferred');
-        console.log(error);
-        res.status(500).json({ error: error.message || 'Error al actualizar idioma preferido' });
+        return sendPublicError(res, error, 'No se pudo actualizar el idioma preferido');
     }
 });
 

@@ -1,51 +1,52 @@
 import jwt from 'jsonwebtoken';
 
-export const optional = (req, res, next) => {
-  const authHeader = req.headers.authorization;
+const getBearerToken = (req) => {
+  const header = req.headers.authorization;
+  if (typeof header !== 'string') return null;
 
-  if (!authHeader) {
-    req.user = null;
-    return next();
-  }
+  const match = header.match(/^Bearer\s+([^\s]+)$/i);
+  return match ? match[1] : null;
+};
 
-  const token = authHeader.split(' ')[1];
-
-  if (!token) {
-    req.user = null;
-    return next();
-  }
+const verifyToken = (token) => {
+  if (!token || !process.env.JWT_SECRET) return null;
 
   try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, process.env.JWT_SECRET, {
+      algorithms: ['HS256'],
+    });
+    const id = Number(payload?.id ?? payload?.ID ?? payload?.userId);
+    if (!Number.isInteger(id) || id <= 0) return null;
+    return { ...payload, id };
   } catch {
-    req.user = null;
+    return null;
   }
+};
 
+export const optional = (req, res, next) => {
+  req.user = verifyToken(getBearerToken(req));
   return next();
 };
 
 export const required = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader) {
-    return res.status(401).json({ success: false, message: 'No se proporcionó token' });
+  const user = verifyToken(getBearerToken(req));
+  if (!user) {
+    return res.status(401).json({
+      success: false,
+      message: 'No autorizado',
+    });
   }
 
-  const token = authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ success: false, message: 'No se proporcionó token' });
-  }
-
-  try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
-    return next();
-  } catch {
-    return res.status(401).json({ success: false, message: 'Token inválido' });
-  }
+  req.user = user;
+  return next();
 };
+
+export const extractBearerToken = getBearerToken;
+export const verifyBearerToken = verifyToken;
 
 export default {
   optional,
   required,
+  extractBearerToken,
+  verifyBearerToken,
 };

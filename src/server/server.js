@@ -1,107 +1,16 @@
-import 'dotenv/config'
-import express 	from "express";    // hacer npm i express
-import http 	from "http";
-import cors 	from "cors";          // hacer npm i cors
+import 'dotenv/config';
+import http from 'node:http';
+import app from '../app/app.js';
 
-// Controllers
-import AuthController                   from './../api/controllers/auth.js'
-import authMiddleware                   from './../api/middlewares/auth.js'
-import AgendaUsuarioController          from "./../api/controllers/agendausuarioController.js"
-import CategoriaController              from "./../api/controllers/categoriaController.js"
-import CategoriaEmergenciaController    from "./../api/controllers/categoriaEmergenciaController.js"
-import ContenidoPorCategoriaController  from "./../api/controllers/contenidoCategoriaController.js"
-import EstadisticasController           from "./../api/controllers/estadisticasController.js"
-import EventoController                 from "./../api/controllers/eventoController.js"
-import EventoFavoritoController         from "./../api/controllers/eventoFavoritoController.js"
-import PaisController                   from "./../api/controllers/paisController.js"
-import PreferenciaUsuarioController     from "./../api/controllers/preferenciaUsuarioController.js"
-import UbicacionController              from "./../api/controllers/ubicacionController.js"
-import UsuarioController                from "./../api/controllers/usuarioController.js"
-import TraduccionController             from "./../api/controllers/traduccionController.js"
-import LogCambiosController             from "./../api/controllers/zLogCambiosController.js"
-import CurrencyController               from "./../api/controllers/currencyController.js"
-import ClimaController                  from "./../api/controllers/climaController.js"
-import IdiomaController                 from "./../api/controllers/idiomaController.js"
-import PaisInfoController               from "./../api/controllers/paisInfoController.js"
-import NumerosEmergenciaController     from "./../api/controllers/numerosEmergenciaController.js"
-import StorageController               from "./../api/controllers/storageController.js"
-
-
-const app  = express();
-const port = process.env.PORT || 3000;  // si no esta definido en el archivo .env uso el 3000.
-
-
-// Agrego los Middlewares
-app.use(cors());
-app.use(express.json());
-
-// Debug middleware - para el auth
-app.use((req, res, next) => {
-    console.log(`${req.method} ${req.path} | Auth: ${req.headers.authorization ? 'SÍ' : 'NO'}`);
-    next();
-});
-
-
-// Registra el tiempo total de respuesta de cada request.
-app.use((req, res, next) => {
-    const inicio = process.hrtime.bigint();
-
-    res.on('finish', () => {
-        const tiempoMs = Number(process.hrtime.bigint() - inicio) / 1_000_000;
-        console.log(
-            `${req.method} ${req.originalUrl} | ` +
-            `Status: ${res.statusCode} | ` +
-            `Tiempo de respuesta: ${tiempoMs.toFixed(2)} ms`
-        );
-    });
-
-    next();
-});
-
-// Auth middleware: verifica login en TODAS las rutas excepto /auth
-app.use('/api', (req, res, next) => {
-    const publicPaths = ['/auth', '/pais', '/country', '/data', '/idioma', '/traduccion'];
-    if (publicPaths.some(p => req.path.startsWith(p))) {
-        return next();
-    }
-    return authMiddleware.required(req, res, next);
-});
-
-app.use("/api/auth", AuthController);
-app.use("/api/agendaUsuario", AgendaUsuarioController);
-app.use("/api/categoria", CategoriaController);
-app.use("/api/categoriaEmergencia", CategoriaEmergenciaController);
-app.use("/api/contenidoPorCategoria", ContenidoPorCategoriaController);
-app.use("/api/estadisticas", EstadisticasController);
-app.use("/api/evento", EventoController);
-app.use("/api/eventoFavorito", EventoFavoritoController);
-app.use("/api/pais", PaisController);
-app.use("/api/preferenciaUsuario", PreferenciaUsuarioController);
-app.use("/api/ubicacion", UbicacionController);
-app.use("/api/usuario", UsuarioController);
-app.use("/api/storage", StorageController);
-app.use("/api/traduccion", TraduccionController);
-app.use("/api/currency", CurrencyController);
-app.use("/api/clima", ClimaController);
-app.use("/api/idioma", IdiomaController);
-app.use("/api/paisInfo", PaisInfoController);
-app.use("/api", NumerosEmergenciaController);
-app.use("/api/logCambios", LogCambiosController);
-
-// Middleware global de errores
-app.use((err, req, res, next) => {
-    console.error('Error no manejado:', err);
-    res.status(err.status || 500).json({
-        success: false,
-        error: err.message || 'Error interno del servidor',
-    });
-});
-
-//
-// Inicio el Server y lo pongo a escuchar.
-//
+const port = Number(process.env.PORT) || 3000;
 const server = http.createServer({ maxHeadersSize: 32768 }, app);
-server.listen(port, () => {	// Inicio el servidor WEB (escuchar)
-    console.log("server.js");
-    console.log(`Listening on http://localhost:${port}`)
-})
+
+server.requestTimeout = Number(process.env.HTTP_REQUEST_TIMEOUT_MS) || 30000;
+server.headersTimeout = Number(process.env.HTTP_HEADERS_TIMEOUT_MS) || 10000;
+server.keepAliveTimeout = Number(process.env.HTTP_KEEP_ALIVE_TIMEOUT_MS) || 5000;
+
+server.listen(port, () => {
+    console.log(`GlobeTapX API escuchando en http://localhost:${port}`);
+});
+
+export { app, server };

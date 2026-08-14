@@ -2,132 +2,111 @@ import express from 'express';
 import usuariosService from '../../application/services/usuariosService.js';
 import storageService from '../../application/services/storageService.js';
 import { getUploadedPhoto, parseProfilePhoto } from '../middlewares/profilePhotoUpload.js';
+import { sendPublicError, logInternalError } from '../errors.js';
 
-/**
- * Controller operativo de Storage.
- *
- * Las rutas de perfil también se mantienen en Usuario para compatibilidad
- * con el frontend actual. Este controller ofrece una API explícita para
- * diagnosticar, consultar, subir, listar y eliminar fotos de perfil.
- */
 const router = express.Router();
 const usuarioService = new usuariosService();
 const service = new storageService();
 
-const getRequesterId = (req) => Number(req.user?.id || req.user?.ID) || null;
-
-const isAdmin = (req) => req.user && (
-    req.user.role === 'admin'
-    || req.user.isAdmin === true
-    || req.user.isAdmin === 'TRUE'
-    || req.user.isAdmin === 'true'
+const getRequesterId = req => Number(req.user?.id || req.user?.ID) || null;
+const isAdmin = req => Boolean(
+    req.user?.role === 'admin'
+    || req.user?.isAdmin === true
+    || req.user?.isAdmin === 'true'
+    || req.user?.isAdmin === 'TRUE',
 );
 
-const checkOwnUser = (req, res, targetId) => {
-    const requesterId = getRequesterId(req);
-    if (!requesterId) return res.status(401).json({ error: 'No autorizado' });
-    if (!isAdmin(req) && Number(requesterId) !== Number(targetId)) {
-        return res.status(403).json({ error: 'No tiene permiso para acceder a este recurso' });
+const authorizeTarget = (req, res, rawId) => {
+    const id = Number(rawId);
+    if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ success: false, message: 'Solicitud no válida' });
+        return null;
     }
-    return null;
+
+    if (!getRequesterId(req)) {
+        res.status(401).json({ success: false, message: 'No autorizado' });
+        return null;
+    }
+    if (!isAdmin(req) && getRequesterId(req) !== id) {
+        res.status(403).json({ success: false, message: 'No tiene permisos para esta operación' });
+        return null;
+    }
+    return id;
 };
 
-/** Comprueba configuración y permisos contra el bucket real. */
 router.get('/health', async (req, res) => {
     try {
         const status = service.getStatus();
-        if (!status.configured) {
-            return res.status(503).json({ success: false, data: status });
-        }
-
+        if (!status.configured) return res.status(503).json({ success: false, message: 'Servicio temporalmente no disponible' });
         const bucket = await service.getBucketInfo();
         return res.status(200).json({
             success: true,
             data: {
-                ...status,
+                configured: true,
                 bucket: bucket?.name || status.bucket,
-                bucketPublic: bucket?.public ?? status.public,
+                public: status.public,
+                timeoutMs: status.timeoutMs,
+                signedUrlTtlSeconds: status.signedUrlTtlSeconds,
             },
         });
     } catch (error) {
-        console.error('Error en GET /api/storage/health:', error.message);
-        return res.status(503).json({ success: false, error: error.message });
+        logInternalError('GET /api/storage/health', error);
+        return sendPublicError(res, error, 'Servicio temporalmente no disponible');
     }
 });
 
-/** Obtiene la URL vigente de la foto de un usuario. */
 router.get('/profile/:id', async (req, res) => {
-    const id = Number(req.params.id);
-    const blocked = checkOwnUser(req, res, id);
-    if (blocked) return blocked;
+    const id = authorizeTarget(req, res, req.params.id);
+    if (!id) return null;
 
     try {
-        const usuario = await usuarioService.getByIdAsync(id);
-        if (!usuario || !usuario.fotoPerfil) {
-            return res.status(404).json({ error: 'Foto no encontrada' });
-        }
-
-        const fotoPerfil = await usuarioService.getFotoPerfilUrlAsync(usuario.fotoPerfil);
-        return res.status(200).json({ success: true, data: { fotoPerfil } });
+        const usuario = await usuarioService.getProfilePhotoByIdAsync(id);
+        const fotoPath = usuario?.fotoPath && !/^data:/i.test(String(usuario.fotoPath))
+            ? usuario.fotoPath
+            : null;
+        const fotoPerfil = fotoPath ? await usuarioService.getFotoPerfilUrlAsync(fotoPath) : null;
+        return res.status(200).json({ success: true, data: { fotoPerfil, fotoPath } });
     } catch (error) {
-        console.error('Error en GET /api/storage/profile/:id:', error.message);
-        return res.status(500).json({ error: error.message || 'Error al obtener foto' });
+        logInternalError('GET /api/storage/profile/:id', error);
+        return sendPublicError(res, error, 'No se pudo obtener la foto');
     }
 });
 
-/** Sube una nueva foto y actualiza Usuario.fotoPerfil con el path resultante. */
-router.put('/profile/:id', parseProfilePhoto, async (req, res) => {
-    const id = Number(req.params.id);
-    const blocked = checkOwnUser(req, res, id);
-    if (blocked) return blocked;
-
+router.put('/profile/:id', (req, res, next) => {
+    const id = authorizeTarget(req, res, req.params.id);
+    if (!id) return null;
+    req.targetUserId = id;
+    return next();
+}, parseProfilePhoto, async (req, res) => {
     try {
         const file = getUploadedPhoto(req);
-        if (!file) {
-            return res.status(400).json({ error: 'Debe enviarse una imagen en FormData' });
-        }
-
-        const result = await usuarioService.updateFotoPerfilAsync(id, file);
-        return res.status(200).json(result);
+        if (!file) return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+        return res.status(200).json(await usuarioService.updateFotoPerfilAsync(req.targetUserId, file));
     } catch (error) {
-        console.error('Error en PUT /api/storage/profile/:id:', error.message);
-        if (error.message === 'Usuario no encontrado') {
-            return res.status(404).json({ error: error.message });
-        }
-        return res.status(500).json({ error: error.message || 'Error al subir foto' });
+        logInternalError('PUT /api/storage/profile/:id', error);
+        return sendPublicError(res, error, 'No se pudo subir la foto');
     }
 });
 
-/** Lista los objetos del prefijo del usuario para mantenimiento. */
 router.get('/profile/:id/files', async (req, res) => {
-    const id = Number(req.params.id);
-    const blocked = checkOwnUser(req, res, id);
-    if (blocked) return blocked;
-
+    const id = authorizeTarget(req, res, req.params.id);
+    if (!id) return null;
     try {
-        const files = await usuarioService.listFotosPerfilAsync(id);
-        return res.status(200).json({ success: true, data: files });
+        return res.status(200).json({ success: true, data: await usuarioService.listFotosPerfilAsync(id) });
     } catch (error) {
-        console.error('Error en GET /api/storage/profile/:id/files:', error.message);
-        return res.status(500).json({ error: error.message || 'Error al listar fotos' });
+        logInternalError('GET /api/storage/profile/:id/files', error);
+        return sendPublicError(res, error, 'No se pudieron listar las fotos');
     }
 });
 
-/** Elimina la referencia de Usuario y trata de limpiar el objeto remoto. */
 router.delete('/profile/:id', async (req, res) => {
-    const id = Number(req.params.id);
-    const blocked = checkOwnUser(req, res, id);
-    if (blocked) return blocked;
-
+    const id = authorizeTarget(req, res, req.params.id);
+    if (!id) return null;
     try {
-        const result = await usuarioService.deleteFotoPerfilAsync(id);
-        return res.status(200).json(result);
+        return res.status(200).json(await usuarioService.deleteFotoPerfilAsync(id));
     } catch (error) {
-        console.error('Error en DELETE /api/storage/profile/:id:', error.message);
-        if (error.message === 'Usuario no encontrado') {
-            return res.status(404).json({ error: error.message });
-        }
-        return res.status(500).json({ error: error.message || 'Error al eliminar foto' });
+        logInternalError('DELETE /api/storage/profile/:id', error);
+        return sendPublicError(res, error, 'No se pudo eliminar la foto');
     }
 });
 

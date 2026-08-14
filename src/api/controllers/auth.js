@@ -4,278 +4,214 @@ import bcrypt from 'bcrypt';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import usuariosService from '../../application/services/usuariosService.js';
 import authMiddleware from '../../api/middlewares/auth.js';
+import {
+    isSupportedLanguageCode,
+    toPublicUser,
+} from '../../application/dtos/userProfile.js';
+import {
+    BadRequestError,
+    ServiceUnavailableError,
+    sendPublicError,
+    logInternalError,
+} from '../errors.js';
 
 const router = express.Router();
 const service = new usuariosService();
 
-// ──────────────────────────────────────────────
-// VALIDACIONES DE ENTRADA
-// ──────────────────────────────────────────────
-
-const isNonEmptyString = (v) => typeof v === 'string' && v.trim().length > 0;
-
-const validatemail = (mail) => {
-    if (!mail || typeof mail !== 'string') return null;
-    const trimmed = mail.trim();
-    const mailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return mailRegex.test(trimmed) ? trimmed : null;
+const isNonEmptyString = value => typeof value === 'string' && value.trim().length > 0;
+const validateMail = (mail) => {
+    if (!isNonEmptyString(mail)) return null;
+    const normalized = mail.trim();
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : null;
 };
 
-// ──────────────────────────────────────────────
-// RATE LIMITER — Limita intentos de login
-// ──────────────────────────────────────────────
-// Clave única por IP + mail: si un atacante prueba
-// combinaciones, cada mail diferente tiene su propio
-// contador de 10 intentos cada 15 minutos.
 const loginLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000,   // ventana de 15 min
-    max: 10,                    // máx 10 intentos por ventana
-    message: { error: 'Demasiados intentos de inicio de sesión. Intente de nuevo en 15 minutos.' },
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    message: { success: false, message: 'Demasiados intentos de inicio de sesión' },
     standardHeaders: true,
     legacyHeaders: false,
-    keyGenerator: (req) => {
-        return ipKeyGenerator(req) + '_' + (req.body?.mail || req.body?.email || 'unknown');
-    },
+    keyGenerator: req => `${ipKeyGenerator(req.ip)}_${req.body?.mail || req.body?.email || 'unknown'}`,
 });
-
-// ──────────────────────────────────────────────
-// MIDDLEWARES DE VALIDACIÓN
-// ──────────────────────────────────────────────
-// Aceptan tanto nombres en inglés como en español
-// (mail/mail, contrasena, nombre/nombreCompleto)
-// para ser tolerantes con distintos clientes.
 
 const validateLoginBody = (req, res, next) => {
     const body = req.body || {};
-    const mail = validatemail(body.mail || body.email);
-    const contrasena = body.contrasena ?? body.password;
+    const mail = validateMail(body.mail || body.email);
+    const password = body.contrasena ?? body.password;
 
-    if (!mail) {
-        return res.status(400).json({ error: 'mail válido es requerido' });
-    }
-    if (!isNonEmptyString(contrasena)) {
-        return res.status(400).json({ error: 'Contraseña es requerida' });
+    if (!mail || !isNonEmptyString(password)) {
+        return res.status(400).json({ success: false, message: 'Solicitud no válida' });
     }
 
-    req.validatedBody = { mail, contrasena: String(contrasena).trim() };
+    req.validatedBody = { mail, contrasena: String(password).trim() };
     return next();
 };
 
 const validateRegisterBody = (req, res, next) => {
     const body = req.body || {};
     const nombre = body.nombre || body.nombreCompleto;
-    const mail = validatemail(body.mail || body.email);
-    const contrasena = body.contrasena ?? body.password;
-    const idiomaPreferido = body.idiomaPreferido ?? body.codigoIdioma ?? body.language ?? null;
-    const fotoPerfil = body.fotoPerfil ?? body.foto ?? body.photo ?? body.image ?? body.profileImage ?? null;
+    const mail = validateMail(body.mail || body.email);
+    const password = body.contrasena ?? body.password;
+    const language = body.idiomaPreferido ?? body.codigoIdioma ?? body.language ?? 'es';
+    const photo = body.fotoPerfil ?? body.foto ?? body.photo ?? body.image ?? body.profileImage;
 
-    if (!isNonEmptyString(nombre)) {
-        return res.status(400).json({ error: 'El nombre es requerido' });
+    if (!isNonEmptyString(nombre) || !mail || !isNonEmptyString(password)) {
+        return res.status(400).json({ success: false, message: 'Solicitud no válida' });
     }
-    if (!mail) {
-        return res.status(400).json({ error: 'mail válido es requerido' });
+    if (!isSupportedLanguageCode(language)) {
+        return res.status(400).json({ success: false, message: 'Solicitud no válida' });
     }
-    if (!isNonEmptyString(contrasena)) {
-        return res.status(400).json({ error: 'Contraseña es requerida' });
+    // Las fotos se reciben únicamente por PUT multipart/form-data.
+    if (photo !== undefined && photo !== null && String(photo).trim() !== '') {
+        return res.status(400).json({ success: false, message: 'La foto debe enviarse como multipart/form-data' });
     }
-
-    const optionalFields = {
-        nombreCompleto: body.nombreCompleto ? String(body.nombreCompleto).trim() : null,
-        numeroContacto: body.numeroContacto ? String(body.numeroContacto).trim() : null,
-        idiomaPreferido,
-        paisActual: body.paisActual || null,
-        fotoPerfil,
-        isAdmin: false,
-        esPremium: false,
-    };
 
     req.validatedBody = {
         nombre: String(nombre).trim(),
+        nombreCompleto: String(body.nombreCompleto || nombre).trim(),
         mail,
-        contrasena: String(contrasena).trim(),
-        ...optionalFields,
+        contrasena: String(password).trim(),
+        numeroContacto: body.numeroContacto ? String(body.numeroContacto).trim() : null,
+        idiomaPreferido: String(language).trim().toLowerCase(),
+        paisActual: body.paisActual ?? null,
+        fotoPerfil: null,
+        isAdmin: false,
+        esPremium: false,
     };
     return next();
 };
 
-// ──────────────────────────────────────────────
-// CONSTRUCCIÓN DEL PAYLOAD JWT
-// ──────────────────────────────────────────────
-// Extrae del usuario de BD los campos que se
-// incluirán en el token. Soporta naming tanto
-// de BD (mail, contrasena) como de cliente
-// (mail, contrasena) mediante fallbacks.
-
-const buildUserPayload = (user) => {
-    const storedPhoto = user.fotoPerfil ?? null;
-    const fotoPerfil = storedPhoto && !/^data:/i.test(String(storedPhoto))
-        ? (/^https?:\/\//i.test(String(storedPhoto))
-            ? storedPhoto
-            : `/api/auth/foto/${user.ID}`)
-        : null;
+const tokenClaims = (user) => {
+    const id = Number(user?.ID ?? user?.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        throw new BadRequestError('Solicitud no válida');
+    }
 
     return {
-        id: user.ID ?? user.id,
-        mail: user.mail,
-        nombre: user.nombre,
-        isAdmin: user.isAdmin ?? false,
-        esPremium: user.esPremium ?? false,
-        paisActual: user.paisActual ?? null,
-        idiomaPreferido: user.idiomaPreferido ?? user.idioma ?? null,
-        fotoPerfil,
+        id,
+        isAdmin: user?.isAdmin === true || user?.isAdmin === 'true' || user?.isAdmin === 'TRUE',
+        esPremium: user?.esPremium === true || user?.esPremium === 'true' || user?.esPremium === 'TRUE',
     };
 };
 
+const signToken = (user) => {
+    if (!process.env.JWT_SECRET) {
+        throw new ServiceUnavailableError('Servicio temporalmente no disponible', {
+            code: 'AUTH_CONFIG_UNAVAILABLE',
+            internalMessage: 'JWT_SECRET no está configurado',
+        });
+    }
 
-// ──────────────────────────────────────────────
-// GET /api/auth/foto/:id — Foto de perfil pública
-// ──────────────────────────────────────────────
+    return jwt.sign(tokenClaims(user), process.env.JWT_SECRET, {
+        expiresIn: '7d',
+        algorithm: 'HS256',
+    });
+};
+
+const publicUserOrError = (user, req) => {
+    const result = toPublicUser(user, req);
+    if (!result?.id) throw new BadRequestError('Solicitud no válida');
+    return result;
+};
+
 router.get('/foto/:id', async (req, res) => {
+    const id = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+    }
+
     try {
-        const user = await service.getByIdAsync(req.params.id);
-        if (!user || !user.fotoPerfil) {
-            return res.status(404).json({ error: 'Foto no encontrada' });
-        }
-        const fotoPerfil = await service.getFotoPerfilUrlAsync(user.fotoPerfil);
-        res.json({ fotoPerfil, fotoPath: user.fotoPerfil });
+        const record = await service.getProfilePhotoByIdAsync(id);
+        const storedPath = record?.fotoPath && !/^data:/i.test(String(record.fotoPath))
+            ? record.fotoPath
+            : null;
+        const fotoPerfil = storedPath ? await service.getFotoPerfilUrlAsync(storedPath) : null;
+        return res.status(200).json({
+            success: true,
+            fotoPerfil,
+            fotoPath: storedPath,
+        });
     } catch (error) {
-        if (error.message?.includes('Storage no configurado')) {
-            return res.status(503).json({ error: error.message });
-        }
-        res.status(500).json({ error: 'Error al obtener la foto' });
+        logInternalError('GET /api/auth/foto/:id', error);
+        return sendPublicError(res, error, 'No se pudo obtener la foto');
     }
 });
 
-// ──────────────────────────────────────────────
-// GET /api/auth/status — Verifica estado del token
-// ──────────────────────────────────────────────
-// Útil para que el frontend compruebe si la sesión
-// sigue activa al recargar la página. Acepta el
-// token por query string o por header Authorization.
 router.get('/status', (req, res) => {
-    const token = req.query.token || (req.headers['authorization'] && req.headers['authorization'].split(' ')[1]);
-    if (!token) return res.json({ authenticated: false });
-    try {
-        const payload = jwt.verify(token, process.env.JWT_SECRET);
-        return res.json({ authenticated: true, user: payload });
-    } catch (err) {
-        return res.json({ authenticated: false });
-    }
+    const headerToken = authMiddleware.extractBearerToken(req);
+    const queryToken = typeof req.query.token === 'string' ? req.query.token : null;
+    const payload = authMiddleware.verifyBearerToken(headerToken || queryToken);
+
+    if (!payload) return res.status(200).json({ authenticated: false });
+    return res.status(200).json({
+        authenticated: true,
+        user: { id: payload.id },
+    });
 });
 
-// ──────────────────────────────────────────────
-// GET /api/auth/me — Devuelve el usuario autenticado
-// ──────────────────────────────────────────────
-// Requiere token JWT válido en header Authorization.
-// authMiddleware.required se encarga de verificar
-// el token y poblar req.user antes de llegar aquí.
 router.get('/me', authMiddleware.required, async (req, res) => {
     try {
-        const currentUser = await service.getByIdAsync(req.user.id || req.user.ID);
-        const user = currentUser ? buildUserPayload(currentUser) : req.user;
-        return res.status(200).json({ authenticated: true, user });
+        const user = await service.getProfileByIdAsync(req.user.id);
+        if (!user) {
+            return res.status(401).json({ success: false, message: 'No autorizado' });
+        }
+
+        return res.status(200).json({
+            success: true,
+            user: publicUserOrError(user, req),
+        });
     } catch (error) {
-        console.log('Error en GET /api/auth/me:', error);
-        return res.status(500).json({ error: 'Error al obtener el usuario autenticado' });
+        logInternalError('GET /api/auth/me', error);
+        return sendPublicError(res, error, 'No se pudo obtener el perfil');
     }
 });
 
-// ──────────────────────────────────────────────
-// POST /api/auth/login — Inicio de sesión
-// ──────────────────────────────────────────────
-// 1. Pasa por rate limiter (10 intentos/15 min por IP+mail)
-// 2. Valida mail y contraseña con validateLoginBody
-// 3. Busca el usuario por mail en BD
-// 4. Compara contraseña: soporta bcrypt (hash) y texto plano
-// 5. Genera JWT con expiración de 7 días
-// 6. Devuelve { token, user }
 router.post('/login', loginLimiter, validateLoginBody, async (req, res) => {
-    console.log('POST /api/auth/login');
     try {
         const { mail, contrasena } = req.validatedBody;
-
         const user = await service.getBymailAsync(mail);
-        if (!user) {
-            return res.status(401).json({ error: 'Credenciales incorrectas' });
-        }
+        if (!user) return res.status(401).json({ success: false, message: 'Credenciales incorrectas' });
 
-        // Comparar contraseña (soporta bcrypt y texto plano)
         const stored = user.contrasena ?? user.password;
         const isBcryptHash = typeof stored === 'string' && /^\$2[aby]\$\d{2}\$/.test(stored);
-        const coincide = isBcryptHash
+        const matches = isBcryptHash
             ? await bcrypt.compare(contrasena, stored)
             : typeof stored === 'string' && stored.trim() === contrasena;
 
-        if (!coincide) {
-            return res.status(401).json({ error: 'Credenciales incorrectas' });
-        }
+        if (!matches) return res.status(401).json({ success: false, message: 'Credenciales incorrectas' });
 
-        const exp = Math.floor(Date.now() / 1000) + 7 * 24 * 3600;
-        const payload = buildUserPayload(user);
-        const token = jwt.sign({ ...payload, exp }, process.env.JWT_SECRET, { noTimestamp: true });
-        if (token.length > 5000) {
-            return res.status(500).json({ error: "Token generado demasiado grande" });
-        }
-
-        return res.status(200).json({ token, user: payload });
+        const token = signToken(user);
+        return res.status(200).json({
+            success: true,
+            token,
+            user: publicUserOrError(user, req),
+        });
     } catch (error) {
-        console.log('Error en login:', error);
-        res.status(500).json({ error: error.message || 'Error en el inicio de sesión' });
+        logInternalError('POST /api/auth/login', error);
+        return sendPublicError(res, error, 'No se pudo iniciar sesión');
     }
 });
 
-// ──────────────────────────────────────────────
-// POST /api/auth/register — Registro de nuevo usuario
-// ──────────────────────────────────────────────
-// 1. Valida nombre, mail y contraseña con validateRegisterBody
-// 2. Hashea la contraseña con bcrypt (10 rondas)
-// 3. Crea el usuario en BD a través de usuariosService.createAsync
-// 4. Vuelve a buscar el usuario para obtener el ID generado
-// 5. Genera JWT con expiración de 7 días
-// 6. Devuelve { token, user, message } con status 201
-// Maneja errores de validación (400) y usuario duplicado (409)
 router.post('/register', validateRegisterBody, async (req, res) => {
-    console.log('POST /api/auth/register');
-
     try {
-        console.log('Campos recibidos en registro:', Object.keys(req.body || {}));
-
         const entity = req.validatedBody;
         entity.contrasena = await bcrypt.hash(entity.contrasena, 10);
-
         await service.createAsync(entity);
 
         const user = await service.getBymailAsync(entity.mail);
-
-        const exp = Math.floor(Date.now() / 1000) + 7 * 24 * 3600;
-        const payload = buildUserPayload(user);
-        const token = jwt.sign({ ...payload, exp }, process.env.JWT_SECRET, { noTimestamp: true });
-        if (token.length > 5000) {
-            return res.status(500).json({ error: "Token generado demasiado grande" });
-        }
+        const token = signToken(user);
 
         return res.status(201).json({
+            success: true,
             token,
-            user: payload,
-            message: "Usuario registrado"
+            user: publicUserOrError(user, req),
         });
-
     } catch (error) {
-        console.log("ERROR REGISTER:");
-        console.log(error);
-
-        if (error.name === "ValidationError")
-            return res.status(400).json({ error: error.message });
-
-        if (error.code === "UsuarioDuplicado")
-            return res.status(409).json({ error: error.message });
-
-        console.error(error);
-
-        res.status(500).json({
-            error: error.message,
-            stack: error.stack
-        });
+        logInternalError('POST /api/auth/register', error);
+        if (error?.name === 'DuplicateError' || error?.code === 'UsuarioDuplicado') {
+            return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+        }
+        return sendPublicError(res, error, 'No se pudo registrar el usuario');
     }
 });
 

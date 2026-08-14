@@ -1,265 +1,244 @@
 import express from 'express';
 import usuariosService from '../../application/services/usuariosService.js';
 import { getUploadedPhoto, parseProfilePhoto } from '../middlewares/profilePhotoUpload.js';
+import { sendPublicError } from '../errors.js';
+import { toSafeUserForInternalRead } from '../../application/dtos/userProfile.js';
 
 const router = express.Router();
 const service = new usuariosService();
 
+const requesterId = (req) => Number(req.user?.id || req.user?.ID) || null;
+const admin = (req) => Boolean(
+    req.user?.role === 'admin'
+    || req.user?.isAdmin === true
+    || req.user?.isAdmin === 'true'
+    || req.user?.isAdmin === 'TRUE',
+);
 
-const getRequesterId = (req) => {
-  return req.user ? Number(req.user.id || req.user.ID) : null;
+const authorizeTarget = (req, res, targetId) => {
+    const id = Number(targetId);
+    if (!Number.isInteger(id) || id <= 0) {
+        res.status(400).json({ success: false, message: 'Solicitud no válida' });
+        return null;
+    }
+
+    const currentId = requesterId(req);
+    if (!currentId) {
+        res.status(401).json({ success: false, message: 'No autorizado' });
+        return null;
+    }
+
+    if (!admin(req) && currentId !== id) {
+        res.status(403).json({
+            success: false,
+            message: 'No tiene permisos para esta operación',
+        });
+        return null;
+    }
+
+    return id;
 };
 
-const isAdmin = (req) => {
-  return req.user && (req.user.role === 'admin' || req.user.isAdmin === true || req.user.isAdmin === true || req.user.isAdmin === 'TRUE' || req.user.isAdmin === 'true');
-};
+const containsLanguageField = (body = {}) => [
+    'idiomaPreferido',
+    'codigoIdioma',
+    'language',
+    'idioma',
+].some(field => Object.prototype.hasOwnProperty.call(body, field));
 
-const checkOwnUser = (req, res, targetId) => {
-  const requesterId = getRequesterId(req);
-  if (!requesterId) {
-    return res.status(401).json({ error: 'No autorizado' });
-  }
-  if (!isAdmin(req) && Number(requesterId) !== Number(targetId)) {
-    return res.status(403).json({ error: 'No tiene permiso para acceder a este recurso' });
-  }
-  return null;
+const containsPhotoField = (body = {}) => [
+    'fotoPerfil',
+    'foto',
+    'photo',
+    'image',
+    'profileImage',
+].some(field => Object.prototype.hasOwnProperty.call(body, field));
+
+const handleKnownUserError = (res, error, fallback) => {
+    if (error?.message === 'Usuario no encontrado') {
+        return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+    }
+    return sendPublicError(res, error, fallback);
 };
 
 router.get('/', async (req, res) => {
-    // TEMPORALMENTE DESHABILITADO PARA TESTING
-    // REACTIVAR ANTES DE PRODUCCIÓN
-    // if (!isAdmin(req)) {
-    //   return res.status(403).json({ error: 'Solo administradores pueden listar todos los usuarios' });
-    // }
+    if (!admin(req)) {
+        return res.status(403).json({
+            success: false,
+            message: 'No tiene permisos para esta operación',
+        });
+    }
 
     try {
-        const data = await service.getAllAsync();
-        res.status(200).json(data);
+        const users = await service.getAllAsync();
+        return res.status(200).json(users.map(user => toSafeUserForInternalRead(user, req)));
     } catch (error) {
-        console.log('Error en GET /usuarios', error);
-        res.status(500).json({ error: 'Error al obtener usuarios' });
+        return sendPublicError(res, error, 'No se pudieron obtener los usuarios');
     }
 });
 
+// Perfil de idioma optimizado: una lectura de una sola columna por ID.
 router.get('/idioma', async (req, res) => {
+    const usuarioId = Number(req.query.usuarioId);
+    const id = authorizeTarget(req, res, usuarioId);
+    if (!id) return null;
+
     try {
-        const usuarioId = req.query.usuarioId || req.query.id;
-        const blocked = checkOwnUser(req, res, usuarioId);
-        if (blocked) return blocked;
-
-        // TEMPORALMENTE DESHABILITADO PARA TESTING
-        // REACTIVAR ANTES DE PRODUCCIÓN
-        // const blocked = checkOwnUser(req, res, usuarioId);
-        // if (blocked) return blocked;
-
-        const detectedLanguage = req.query.detectedLanguage || req.headers['x-user-language'];
-        const idioma = await service.getIdiomaPreferidoConFallbackAsync(parseInt(usuarioId, 10), detectedLanguage);
-        res.status(200).json({ success: true, data: idioma });
+        const codigoIdioma = await service.getPreferredLanguageCodeAsync(id);
+        return res.status(200).json({ success: true, codigoIdioma });
     } catch (error) {
-        console.log('Error en GET /usuarios/idioma', error);
-        if (error.message === 'Usuario no encontrado') {
-            return res.status(404).json({ error: 'Usuario no encontrado' });
-        }
-        if (error.message === 'ID de usuario es requerido' || error.message === 'usuarioId es requerido') {
-            return res.status(400).json({ error: error.message });
-        }
-        res.status(500).json({ error: error.message || 'Error al obtener idioma del usuario' });
+        return handleKnownUserError(res, error, 'No se pudo obtener el idioma');
     }
 });
 
 router.put('/idioma', async (req, res) => {
+    const body = req.body || {};
+    const usuarioId = Number(body.usuarioId);
+    const codigoIdioma = body.codigoIdioma;
+
+    if (!Number.isInteger(usuarioId) || usuarioId <= 0 || typeof codigoIdioma !== 'string') {
+        return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+    }
+
+    const id = authorizeTarget(req, res, usuarioId);
+    if (!id) return null;
+
     try {
-        const usuarioId = req.body.usuarioId ?? req.body.id ?? req.body.userId;
-        const codigoIdioma = req.body.codigoIdioma
-          ?? req.body.idiomaPreferido
-          ?? req.body.language;
-        const blocked = checkOwnUser(req, res, usuarioId);
-        if (blocked) return blocked;
-
-        // TEMPORALMENTE DESHABILITADO PARA TESTING
-        // REACTIVAR ANTES DE PRODUCCIÓN
-        // const blocked = checkOwnUser(req, res, usuarioId);
-        // if (blocked) return blocked;
-
-        if (!usuarioId || !codigoIdioma) {
-            return res.status(400).json({ error: 'usuarioId y codigoIdioma son requeridos' });
-        }
-
-        const result = await service.cambiarIdiomaAsync(parseInt(usuarioId, 10), codigoIdioma);
-        res.status(200).json(result);
+        const result = await service.cambiarIdiomaAsync(id, codigoIdioma);
+        return res.status(200).json({
+            success: true,
+            codigoIdioma: result.codigoIdioma,
+        });
     } catch (error) {
-        console.log('Error en PUT /usuarios/idioma', error);
-        if (error.message === 'Usuario no encontrado') {
-            return res.status(404).json({ error: 'Usuario no encontrado' });
-        }
-        if (error.name === 'ValidationError' || error.message === 'Usuario ID e idioma son requeridos') {
-            return res.status(400).json({ error: error.message });
-        }
-        res.status(500).json({ error: error.message || 'Error al actualizar idioma del usuario' });
+        return handleKnownUserError(res, error, 'No se pudo actualizar el idioma');
     }
 });
 
 router.get('/:id', async (req, res) => {
+    const id = authorizeTarget(req, res, req.params.id);
+    if (!id) return null;
+
     try {
-        const id = req.params.id;
-
-        // TEMPORALMENTE DESHABILITADO PARA TESTING
-        // REACTIVAR ANTES DE PRODUCCIÓN
-        // const blocked = checkOwnUser(req, res, id);
-        // if (blocked) return blocked;
-
-        const data = await service.getByIdAsync(id);
-        res.status(200).json(data);
+        const user = await service.getByIdAsync(id);
+        if (!user) return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+        return res.status(200).json(toSafeUserForInternalRead(user, req));
     } catch (error) {
-        console.log('Error en GET /usuarios/:id', error);
-        res.status(500).json({ error: 'Error al obtener usuario' });
+        return sendPublicError(res, error, 'No se pudo obtener el usuario');
     }
 });
 
-router.put('/:id/foto', parseProfilePhoto, async (req, res) => {
-    const id = req.params.id;
+// La autorización se ejecuta antes de parsear el multipart y antes de copiar
+// hasta 5 MB a memoria.
+router.put('/:id/foto', (req, res, next) => {
+    const id = authorizeTarget(req, res, req.params.id);
+    if (!id) return null;
+    req.targetUserId = id;
+    return next();
+}, parseProfilePhoto, async (req, res) => {
     try {
-        const blocked = checkOwnUser(req, res, id);
-        if (blocked) return blocked;
-
         const file = getUploadedPhoto(req);
         if (!file) {
-            return res.status(400).json({
-                error: 'Debe enviarse una imagen en FormData con el campo fotoPerfil',
-            });
+            return res.status(400).json({ success: false, message: 'Solicitud no válida' });
         }
 
-        const result = await service.updateFotoPerfilAsync(id, file);
-        return res.status(200).json(result);
+        const result = await service.updateFotoPerfilAsync(req.targetUserId, file);
+        return res.status(200).json({
+            success: true,
+            fotoPerfil: result.fotoPerfil,
+            fotoPath: result.fotoPath,
+        });
     } catch (error) {
-        console.log('Error en PUT /usuarios/:id/foto', error);
-        if (error.message === 'Usuario no encontrado') {
-            return res.status(404).json({ error: error.message });
-        }
-        if (error.message?.includes('Storage no configurado')) {
-            return res.status(503).json({ error: error.message });
-        }
-        return res.status(500).json({ error: error.message || 'Error al actualizar foto de perfil' });
+        return handleKnownUserError(res, error, 'No se pudo actualizar la foto');
     }
 });
 
-// Ruta compatible para eliminar la foto desde el recurso de usuario.
 router.delete('/:id/foto', async (req, res) => {
-    const id = req.params.id;
-    try {
-        const blocked = checkOwnUser(req, res, id);
-        if (blocked) return blocked;
+    const id = authorizeTarget(req, res, req.params.id);
+    if (!id) return null;
 
+    try {
         const result = await service.deleteFotoPerfilAsync(id);
         return res.status(200).json(result);
     } catch (error) {
-        console.log('Error en DELETE /usuarios/:id/foto', error);
-        if (error.message === 'Usuario no encontrado') {
-            return res.status(404).json({ error: error.message });
-        }
-        return res.status(500).json({ error: error.message || 'Error al eliminar foto de perfil' });
+        return handleKnownUserError(res, error, 'No se pudo eliminar la foto');
     }
 });
 
 router.post('/', async (req, res) => {
+    if (containsPhotoField(req.body)) {
+        return res.status(400).json({ success: false, message: 'La foto debe enviarse como multipart/form-data' });
+    }
+
     try {
-        const entity = req.body;
-        const result = await service.createAsync(entity);
-        res.status(201).json({ success: true, message: 'Usuario creado', id: result });
+        const result = await service.createAsync(req.body || {});
+        return res.status(201).json({ success: true, id: result });
     } catch (error) {
-        console.log('Error en POST /usuarios', error);
-        if (error.name === 'ValidationError') {
-            return res.status(400).json({ error: error.message });
-        }
-        if (error.code === 'UsuarioDuplicado') {
-            return res.status(409).json({ error: error.message });
-        }
-        res.status(500).json({ error: 'Error al crear usuario' });
+        return sendPublicError(res, error, 'No se pudo crear el usuario');
     }
 });
 
 router.put('/', async (req, res) => {
+    const body = req.body || {};
+    if (containsLanguageField(body)) {
+        return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/idioma' });
+    }
+    if (containsPhotoField(body)) {
+        return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/:id/foto' });
+    }
+
+    const id = authorizeTarget(req, res, body.ID ?? body.id);
+    if (!id) return null;
+
     try {
-        const entity = req.body;
-        const targetId = entity.ID || entity.id;
-
-        // TEMPORALMENTE DESHABILITADO PARA TESTING
-        // REACTIVAR ANTES DE PRODUCCIÓN
-        // const blocked = checkOwnUser(req, res, targetId);
-        // if (blocked) return blocked;
-
-        const result = await service.updateAsync(entity);
-        res.status(200).json({ success: true, message: 'Usuario actualizado', updated: result });
+        const result = await service.updateAsync({ ...body, ID: id });
+        return res.status(200).json({ success: true, updated: result });
     } catch (error) {
-        console.log('Error en PUT /usuarios', error);
-        if (error.name === 'ValidationError') {
-            return res.status(400).json({ error: error.message });
-        }
-        if (error.code === 'UsuarioDuplicado') {
-            return res.status(409).json({ error: error.message });
-        }
-        res.status(500).json({ error: 'Error al actualizar usuario' });
+        return handleKnownUserError(res, error, 'No se pudo actualizar el usuario');
+    }
+});
+
+// Debe quedar después de /idioma, /paisactual y /:id/foto.
+router.put('/paisactual', async (req, res) => {
+    const id = authorizeTarget(req, res, req.body?.usuarioId);
+    if (!id) return null;
+
+    try {
+        const result = await service.updatePaisActualAsync(id, req.body?.paisactual);
+        return res.status(200).json(result);
+    } catch (error) {
+        return handleKnownUserError(res, error, 'No se pudo actualizar el país');
     }
 });
 
 router.put('/:id', async (req, res) => {
-    try {
-        const entity = { ...req.body, ID: req.params.id };
-        const targetId = entity.ID;
-
-        const result = await service.updateAsync(entity);
-        res.status(200).json({ success: true, message: 'Usuario actualizado', updated: result });
-    } catch (error) {
-        console.log('Error en PUT /usuarios/:id', error);
-        if (error.name === 'ValidationError') {
-            return res.status(400).json({ error: error.message });
-        }
-        if (error.code === 'UsuarioDuplicado') {
-            return res.status(409).json({ error: error.message });
-        }
-        res.status(500).json({ error: 'Error al actualizar usuario' });
+    if (containsLanguageField(req.body)) {
+        return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/idioma' });
     }
-});
+    if (containsPhotoField(req.body)) {
+        return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/:id/foto' });
+    }
 
-router.put('/paisactual', async (req, res) => {
+    const id = authorizeTarget(req, res, req.params.id);
+    if (!id) return null;
+
     try {
-        const { usuarioId, paisactual } = req.body;
-
-        if (!usuarioId || !paisactual) {
-            return res.status(400).json({ error: 'usuarioId y paisactual son requeridos' });
-        }
-
-        const result = await service.updatePaisActualAsync(usuarioId, paisactual);
-        res.status(200).json(result);
+        const result = await service.updateAsync({ ...(req.body || {}), ID: id });
+        return res.status(200).json({ success: true, updated: result });
     } catch (error) {
-        console.log('Error en PUT /usuarios/paisactual', error);
-        if (error.message === 'Usuario no encontrado') {
-            return res.status(404).json({ error: error.message });
-        }
-        res.status(400).json({ error: error.message || 'Error al actualizar país actual' });
+        return handleKnownUserError(res, error, 'No se pudo actualizar el usuario');
     }
 });
 
 router.delete('/:id', async (req, res) => {
+    const id = authorizeTarget(req, res, req.params.id);
+    if (!id) return null;
+
     try {
-        const id = Number(req.params.id);
-        if (!Number.isInteger(id) || id <= 0) {
-            return res.status(400).json({ error: 'ID de usuario inválido' });
-        }
-
-        // TEMPORALMENTE DESHABILITADO PARA TESTING
-        // REACTIVAR ANTES DE PRODUCCIÓN
-        // const blocked = checkOwnUser(req, res, id);
-        // if (blocked) return blocked;
-
-        const result = await service.deleteByIdAsync(id);
-        if (result === 0) {
-            return res.status(404).json({ error: 'Usuario no encontrado' });
-        }
-        res.status(200).json({ success: true, message: 'Usuario eliminado', deleted: result });
+        const deleted = await service.deleteByIdAsync(id);
+        if (!deleted) return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+        return res.status(200).json({ success: true, deleted });
     } catch (error) {
-        console.log('Error en DELETE /usuarios/:id', error);
-        res.status(500).json({ error: error.message || 'Error al eliminar usuario' });
+        return sendPublicError(res, error, 'No se pudo eliminar el usuario');
     }
 });
 

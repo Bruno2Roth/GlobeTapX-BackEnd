@@ -1,4 +1,4 @@
-import pool from '../../configs/SPConfig.js'
+import pool from '../../configs/SPConfig.js';
 
 const COLUMN_MAP = {
     nombre: ['nombre', 'name'],
@@ -13,12 +13,12 @@ const COLUMN_MAP = {
     esPremium: ['esPremium'],
 };
 
-function _hasEntityValue(entity, fieldKeys) {
+const hasEntityValue = (entity, fieldKeys) => {
     const keys = typeof fieldKeys === 'string' ? [fieldKeys] : fieldKeys;
     return keys.some(key => Object.prototype.hasOwnProperty.call(entity, key));
-}
+};
 
-function _entityValue(entity, fieldKeys) {
+const entityValue = (entity, fieldKeys) => {
     const keys = typeof fieldKeys === 'string' ? [fieldKeys] : fieldKeys;
     for (const key of keys) {
         if (Object.prototype.hasOwnProperty.call(entity, key) && entity[key] !== undefined) {
@@ -26,199 +26,190 @@ function _entityValue(entity, fieldKeys) {
         }
     }
     return null;
-}
+};
 
 export default class usuariosRepository {
     constructor() {
-        console.log('Estoy en: usuariosRepository.constructor()');
         this.pool = pool;
         this._columns = null;
     }
 
     async _getTableColumns() {
         if (this._columns) return this._columns;
+
         const sql = `
-            SELECT column_name 
-            FROM information_schema.columns 
+            SELECT column_name
+            FROM information_schema.columns
             WHERE table_name = 'Usuario'
         `;
         const res = await this.pool.query(sql);
-        this._columns = res.rows.map(r => r.column_name);
+        this._columns = res.rows.map(row => row.column_name);
         return this._columns;
     }
 
     _buildInsert(entity, dbColumns) {
-        const cols = [];
-        const vals = [];
-        for (const [colName, entityKeys] of Object.entries(COLUMN_MAP)) {
-            if (!dbColumns.includes(colName)) continue;
-            cols.push(`"${colName}"`);
-            vals.push(_entityValue(entity, entityKeys));
+        const columns = [];
+        const values = [];
+
+        for (const [columnName, entityKeys] of Object.entries(COLUMN_MAP)) {
+            if (!dbColumns.includes(columnName)) continue;
+            columns.push(`"${columnName}"`);
+            values.push(entityValue(entity, entityKeys));
         }
-        if (!cols.length) throw new Error('No hay columnas válidas para insert');
-        const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
+
+        if (!columns.length) throw new Error('No valid user columns for insert');
+
         return {
-            sql: `INSERT INTO "Usuario" (${cols.join(', ')}) VALUES (${placeholders}) RETURNING "ID"`,
-            values: vals,
+            sql: `INSERT INTO "Usuario" (${columns.join(', ')}) VALUES (${columns.map((_, index) => `$${index + 1}`).join(', ')}) RETURNING "ID"`,
+            values,
         };
     }
 
     _buildUpdate(entity, dbColumns) {
         const userId = entity.ID || entity.id;
-        if (!userId) throw new Error('ID es requerido para update');
+        if (!userId) throw new Error('User ID is required for update');
+
         const sets = [];
-        const vals = [userId];
-        for (const [colName, entityKeys] of Object.entries(COLUMN_MAP)) {
-            if (!dbColumns.includes(colName)) continue;
-            // PUT es parcial: solo se actualizan los campos que llegaron.
-            // Un campo omitido nunca debe transformarse en NULL.
-            if (!_hasEntityValue(entity, entityKeys)) continue;
-            sets.push(`"${colName}" = $${sets.length + 2}`);
-            vals.push(_entityValue(entity, entityKeys));
+        const values = [userId];
+        for (const [columnName, entityKeys] of Object.entries(COLUMN_MAP)) {
+            if (!dbColumns.includes(columnName) || !hasEntityValue(entity, entityKeys)) continue;
+            sets.push(`"${columnName}" = $${sets.length + 2}`);
+            values.push(entityValue(entity, entityKeys));
         }
-        if (!sets.length) throw new Error('No hay columnas válidas para update');
+
+        if (!sets.length) throw new Error('No valid user columns for update');
         return {
             sql: `UPDATE "Usuario" SET ${sets.join(', ')} WHERE "ID" = $1`,
-            values: vals,
+            values,
         };
     }
 
     getAllAsync = async () => {
-        console.log(`usuariosRepository.getAllAsync()`);
-
-        const sql = `SELECT * FROM "Usuario"`;
-
-        const res = await this.pool.query(sql);
+        const res = await this.pool.query('SELECT * FROM "Usuario"');
         return res.rows;
-    }
+    };
 
     getByIdAsync = async (id) => {
-        console.log(`usuariosRepository.getByIdAsync(${id})`);
+        const res = await this.pool.query('SELECT * FROM "Usuario" WHERE "ID" = $1', [id]);
+        return res.rows?.[0] || null;
+    };
 
-        const sql = `SELECT * FROM "Usuario" WHERE "ID" = $1`;
+    /** Una sola consulta y solo las columnas necesarias para /auth/me. */
+    getProfileByIdAsync = async (id) => {
+        const sql = `
+            SELECT
+                "ID" AS "id",
+                COALESCE(NULLIF("nombreCompleto", ''), NULLIF("nombre", ''), '') AS "nombreCompleto",
+                "mail",
+                "paisActual" AS "paisActual",
+                "idiomaPreferido" AS "idiomaPreferido",
+                "fotoPerfil" AS "fotoPath"
+            FROM "Usuario"
+            WHERE "ID" = $1
+            LIMIT 1
+        `;
         const res = await this.pool.query(sql, [id]);
-        return res.rows && res.rows[0] ? res.rows[0] : null;
-    }
+        return res.rows?.[0] || null;
+    };
+
+    getProfilePhotoByIdAsync = async (id) => {
+        const sql = `
+            SELECT "ID" AS "id", "fotoPerfil" AS "fotoPath"
+            FROM "Usuario"
+            WHERE "ID" = $1
+            LIMIT 1
+        `;
+        const res = await this.pool.query(sql, [id]);
+        return res.rows?.[0] || null;
+    };
 
     getBymailAsync = async (mail) => {
-        console.log(`usuariosRepository.getBymailAsync(${mail})`);
-
-        const sql = `SELECT * FROM "Usuario" WHERE LOWER(TRIM("mail")) = LOWER(TRIM($1))`;
+        const sql = 'SELECT * FROM "Usuario" WHERE LOWER(TRIM("mail")) = LOWER(TRIM($1))';
         const res = await this.pool.query(sql, [mail]);
-        return res.rows && res.rows[0] ? res.rows[0] : null;
-    }
+        return res.rows?.[0] || null;
+    };
 
     getByNombreAsync = async (nombre) => {
-        console.log(`usuariosRepository.getByNombreAsync(${nombre})`);
-
-        const sql = `
-            SELECT * 
-            FROM "Usuario" 
-            WHERE "nombre" ILIKE '%' || $1 || '%'
-        `;
-
-        const res = await this.pool.query(sql, [nombre]);
-        return res.rows;
-    }
-
-    createAsync = async (entity) => {
-        console.log(`usuariosRepository.createAsync(${JSON.stringify(entity)})`);
-
-        const dbColumns = await this._getTableColumns();
-
-        console.log("=== ENTITY ===");
-        console.log(entity);
-
-        console.log("=== DB COLUMNS ===");
-        console.log(dbColumns);
-
-        const { sql, values } = this._buildInsert(entity, dbColumns);
-
-        console.log("=== SQL ===");
-        console.log(sql);
-
-        console.log("=== VALUES ===");
-        console.log(values);
-
-        const res = await this.pool.query(sql, values);
-
-        return res.rows && res.rows[0]
-            ? (res.rows[0].ID || res.rows[0].id)
-            : null;
-    }
-
-    updateAsync = async (entity) => {
-        console.log(`usuariosRepository.updateAsync(${JSON.stringify(entity)})`);
-
-        const dbColumns = await this._getTableColumns();
-        const { sql, values } = this._buildUpdate(entity, dbColumns);
-
-        const res = await this.pool.query(sql, values);
-        return res.rowCount;
-    }
-
-    deleteByIdAsync = async (id) => {
-        console.log(`usuariosRepository.deleteByIdAsync(${id})`);
-
-        const sql = `DELETE FROM "Usuario" WHERE "ID" = $1`;
-        const res = await this.pool.query(sql, [id]);
-        return res.rowCount;
-    }
-
-    getIdiomaPreferidoAsync = async (usuarioId) => {
-        console.log(`usuariosRepository.getIdiomaPreferidoAsync(${usuarioId})`);
-
         const sql = `
             SELECT *
             FROM "Usuario"
-            WHERE "ID" = $1
+            WHERE "nombre" ILIKE '%' || $1 || '%'
         `;
+        const res = await this.pool.query(sql, [nombre]);
+        return res.rows;
+    };
 
+    createAsync = async (entity) => {
+        const dbColumns = await this._getTableColumns();
+        const { sql, values } = this._buildInsert(entity, dbColumns);
+        const res = await this.pool.query(sql, values);
+        return res.rows?.[0] ? (res.rows[0].ID || res.rows[0].id) : null;
+    };
+
+    updateAsync = async (entity) => {
+        const dbColumns = await this._getTableColumns();
+        const { sql, values } = this._buildUpdate(entity, dbColumns);
+        const res = await this.pool.query(sql, values);
+        return res.rowCount;
+    };
+
+    deleteByIdAsync = async (id) => {
+        const res = await this.pool.query('DELETE FROM "Usuario" WHERE "ID" = $1', [id]);
+        return res.rowCount;
+    };
+
+    getIdiomaPreferidoAsync = async (usuarioId) => this.getPreferredLanguageCodeAsync(usuarioId);
+
+    getPreferredLanguageCodeAsync = async (usuarioId) => {
+        const sql = `
+            SELECT "ID" AS "id", "idiomaPreferido" AS "codigoIdioma"
+            FROM "Usuario"
+            WHERE "ID" = $1
+            LIMIT 1
+        `;
         const res = await this.pool.query(sql, [usuarioId]);
-        if (!res.rows || !res.rows[0]) {
-            return null;
-        }
+        return res.rows?.[0]?.codigoIdioma || null;
+    };
 
-        const user = res.rows[0];
-        return user.idiomaPreferido || user.idioma || null;
-    }
+    getPreferredLanguageRecordAsync = async (usuarioId) => {
+        const sql = `
+            SELECT "ID" AS "id", "idiomaPreferido" AS "codigoIdioma"
+            FROM "Usuario"
+            WHERE "ID" = $1
+            LIMIT 1
+        `;
+        const res = await this.pool.query(sql, [usuarioId]);
+        return res.rows?.[0] || null;
+    };
 
     updateIdiomaPreferidoAsync = async (usuarioId, codigoIdioma) => {
-        console.log(`usuariosRepository.updateIdiomaPreferidoAsync(${usuarioId}, ${codigoIdioma})`);
-
         const sql = `
             UPDATE "Usuario"
             SET "idiomaPreferido" = $2
             WHERE "ID" = $1
+            RETURNING "ID"
         `;
-
         const res = await this.pool.query(sql, [usuarioId, codigoIdioma]);
         return res.rowCount;
-    }
+    };
 
     updateFotoPerfilAsync = async (usuarioId, fotoPerfil) => {
-        console.log(`usuariosRepository.updateFotoPerfilAsync(${usuarioId})`);
-
         const sql = `
             UPDATE "Usuario"
             SET "fotoPerfil" = $2
             WHERE "ID" = $1
         `;
-
         const res = await this.pool.query(sql, [usuarioId, fotoPerfil]);
         return res.rowCount;
-    }
+    };
 
     updatePaisActualAsync = async (usuarioId, paisactual) => {
-        console.log(`usuariosRepository.updatePaisActualAsync(${usuarioId}, ${paisactual})`);
-
         const sql = `
             UPDATE "Usuario"
             SET "paisActual" = $2
             WHERE "ID" = $1
         `;
-
         const res = await this.pool.query(sql, [usuarioId, paisactual]);
         return res.rowCount;
-    }
+    };
 }

@@ -1,39 +1,64 @@
 import multer from 'multer';
+import { sendPublicError } from '../errors.js';
+import { MIME_EXTENSIONS, MAX_PROFILE_PHOTO_BYTES } from '../../application/services/storageService.js';
 
-/**
- * Parser común para fotos de perfil.
- *
- * Se usa memoryStorage porque el archivo se envía directamente a Supabase;
- * no se dejan archivos temporales en el disco del backend.
- */
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 5 * 1024 * 1024, files: 1 },
+    limits: {
+        fileSize: MAX_PROFILE_PHOTO_BYTES,
+        files: 1,
+        fields: 0,
+        parts: 1,
+    },
     fileFilter: (req, file, callback) => {
-        if (!file.mimetype || !file.mimetype.startsWith('image/')) {
-            return callback(new Error('Solo se permiten archivos de imagen'));
+        if (file.fieldname !== 'fotoPerfil') {
+            return callback(new Error('INVALID_PHOTO_FIELD'));
         }
+
+        if (!Object.prototype.hasOwnProperty.call(MIME_EXTENSIONS, file.mimetype)) {
+            return callback(new Error('INVALID_PHOTO_TYPE'));
+        }
+
         return callback(null, true);
     },
 });
 
-/** Acepta los nombres usados por clientes antiguos y nuevos. */
 export const parseProfilePhoto = (req, res, next) => {
-    upload.fields([
-        { name: 'fotoPerfil', maxCount: 1 },
-        { name: 'foto', maxCount: 1 },
-        { name: 'photo', maxCount: 1 },
-        { name: 'image', maxCount: 1 },
-    ])(req, res, (error) => {
+    if (!req.is('multipart/form-data')) {
+        return res.status(400).json({
+            success: false,
+            message: 'La foto debe enviarse como multipart/form-data',
+        });
+    }
+
+    return upload.single('fotoPerfil')(req, res, (error) => {
         if (error) {
-            return res.status(400).json({ error: error.message || 'Foto inválida' });
+            if (error.code === 'LIMIT_FILE_SIZE') {
+                return res.status(400).json({
+                    success: false,
+                    message: 'La foto no puede superar los 5 MB',
+                });
+            }
+
+            if (
+                error.code === 'LIMIT_UNEXPECTED_FILE'
+                || error.code === 'LIMIT_FIELD_COUNT'
+                || error.message === 'INVALID_PHOTO_FIELD'
+                || error.message === 'INVALID_PHOTO_TYPE'
+            ) {
+                return res.status(400).json({
+                    success: false,
+                    message: error.message === 'INVALID_PHOTO_TYPE'
+                        ? 'Formato de foto no válido'
+                        : 'La foto debe enviarse en el campo fotoPerfil',
+                });
+            }
+
+            return sendPublicError(res, error, 'Formato de foto no válido');
         }
+
         return next();
     });
 };
 
-/** Extrae el primer archivo recibido del campo que haya usado el frontend. */
-export const getUploadedPhoto = (req) => {
-    const files = Object.values(req.files || {}).flat();
-    return files[0] || null;
-};
+export const getUploadedPhoto = (req) => req.file || null;

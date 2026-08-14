@@ -1,4 +1,4 @@
-import usuariosRepository from './../../data/repositories/usuariosRepository.js';
+import usuariosRepository from '../../data/repositories/usuariosRepository.js';
 import agendaUsuarioRepository from '../../data/repositories/agendaUsuarioRepository.js';
 import estadisticasRepository from '../../data/repositories/estadisticasRepository.js';
 import registroEstadisticasRepository from '../../data/repositories/registroEstadisticasRepository.js';
@@ -7,10 +7,11 @@ import paisRepository from '../../data/repositories/paisRepository.js';
 import zLogCambiosService from './zLogCambiosService.js';
 import mymemoryTranslationHelper from '../../helpers/mymemoryTranslationHelper.js';
 import storageService from './storageService.js';
+import { BadRequestError } from '../../api/errors.js';
+import { isSupportedLanguageCode, normalizeLanguageCode } from '../dtos/userProfile.js';
 
 export default class usuariosService {
     constructor() {
-        console.log('Estoy en: usuariosService.constructor()');
         this.usuariosRepository = new usuariosRepository();
         this.agendaUsuarioRepository = new agendaUsuarioRepository();
         this.estadisticasRepository = new estadisticasRepository();
@@ -44,294 +45,187 @@ export default class usuariosService {
             throw this.createValidationError('El ID del usuario es obligatorio');
         }
 
-        if (!entity.nombre && entity.nombreCompleto) {
-            entity.nombre = entity.nombreCompleto;
-        }
-
-        if (!entity.nombre || !entity.nombre.toString().trim()) {
+        if (!entity.nombre && entity.nombreCompleto) entity.nombre = entity.nombreCompleto;
+        if (!entity.nombre || !String(entity.nombre).trim()) {
             throw this.createValidationError('El nombre del usuario es obligatorio');
         }
-
-        if (!entity.mail && entity.mail) {
-            entity.mail = entity.mail;
-        }
-
-        if (!entity.contrasena && entity.contrasena) {
-            entity.contrasena = entity.contrasena;
-        }
-
-        const nombre = entity.nombre.toString().trim();
-        const apellido = entity.apellido && entity.apellido.toString().trim() ? entity.apellido.toString().trim() : '';
-
-        if (!entity.mail || !entity.mail.toString().trim()) {
+        if (!entity.mail || !String(entity.mail).trim()) {
             throw this.createValidationError('El mail del usuario es obligatorio');
         }
 
-        if (!entity.nombreCompleto || !entity.nombreCompleto.toString().trim()) {
-            entity.nombreCompleto = apellido ? `${nombre} ${apellido}` : nombre;
-        }
-
-        const mail = entity.mail.toString().trim();
-        const mailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/; 
-        if (!mailRegex.test(mail)) {
+        const mailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+        if (!mailRegex.test(String(entity.mail).trim())) {
             throw this.createValidationError('El mail del usuario no es válido');
         }
 
-        if (!requireId && (!entity.contrasena || !entity.contrasena.toString().trim())) {
+        if (!entity.nombreCompleto || !String(entity.nombreCompleto).trim()) {
+            entity.nombreCompleto = String(entity.nombre).trim();
+        }
+
+        if (!requireId && (!entity.contrasena || !String(entity.contrasena).trim())) {
             throw this.createValidationError('La contraseña del usuario es obligatoria');
         }
     }
 
-    getAllAsync = async () => {
-        console.log(`usuariosService.getAllAsync()`);
-        const returnArray = await this.usuariosRepository.getAllAsync();
-        return returnArray;
-    }
-
-    getByIdAsync = async (id) => {
-        console.log(`usuariosService.getByIdAsync(${id})`);
-        const returnEntity = await this.usuariosRepository.getByIdAsync(id);
-        return returnEntity;
-    }
-
-    getBymailAsync = async (mail) => {
-        console.log(`usuariosService.getBymailAsync(${mail})`);
-        const returnEntity = await this.usuariosRepository.getBymailAsync(mail);
-        return returnEntity;
-    }
-
-    getByNombreAsync = async (nombre) => {
-        console.log(`usuariosService.getByNombreAsync(${nombre})`);
-        const returnArray = await this.usuariosRepository.getByNombreAsync(nombre);
-        return returnArray;
-    }
+    getAllAsync = async () => this.usuariosRepository.getAllAsync();
+    getByIdAsync = async (id) => this.usuariosRepository.getByIdAsync(id);
+    getProfileByIdAsync = async (id) => this.usuariosRepository.getProfileByIdAsync(id);
+    getProfilePhotoByIdAsync = async (id) => this.usuariosRepository.getProfilePhotoByIdAsync(id);
+    getBymailAsync = async (mail) => this.usuariosRepository.getBymailAsync(mail);
+    getByNombreAsync = async (nombre) => this.usuariosRepository.getByNombreAsync(nombre);
 
     createAsync = async (entity) => {
-        console.log(`usuariosService.createAsync(${JSON.stringify(entity)})`);
         this.validateUsuarioEntity(entity);
 
         const existingUser = await this.usuariosRepository.getBymailAsync(entity.mail);
-        if (existingUser) {
-            throw this.createDuplicateError(`Ya existe un usuario con mail ${entity.mail}`);
-        }
+        if (existingUser) throw this.createDuplicateError('Ya existe un usuario con ese mail');
 
-        const rowsAffected = await this.usuariosRepository.createAsync(entity);
-        
-        const nuevoId = rowsAffected?.ID || rowsAffected;
-        
-        // Registrar estadística de creación
-        await this._registrarEstadistica('usuario_creado', entity.mail, { nombre: entity.nombre });
-        
-        // Log automático
+        const result = await this.usuariosRepository.createAsync(entity);
+        const newId = result?.ID || result;
+
         try {
-            const { contrasena, ...safeEntity } = entity;
             await this.logService.createAsync({
-                IDUsuario: nuevoId,
+                IDUsuario: newId,
                 accion: 'CREATE',
                 tipoEntidad: 'Usuario',
-                IDEntidad: nuevoId,
-                diferencia: JSON.stringify(safeEntity)
+                IDEntidad: newId,
+                diferencia: JSON.stringify({ nombre: entity.nombre, mail: entity.mail }),
             });
-        } catch (logErr) {
-            console.error('Error al guardar log de creación:', logErr);
+        } catch (error) {
+            console.error('[user-create-log]', error?.message || 'log error');
         }
-        
-        return rowsAffected;
-    }
+
+        return result;
+    };
 
     updateAsync = async (entity) => {
-        console.log(`usuariosService.updateAsync(${JSON.stringify(entity)})`);
-
-        const userId = entity.ID || entity.id;
-        if (!userId) {
-            throw this.createValidationError('El ID del usuario es obligatorio');
-        }
+        const userId = entity?.ID || entity?.id;
+        if (!userId) throw this.createValidationError('El ID del usuario es obligatorio');
 
         const currentUser = await this.usuariosRepository.getByIdAsync(userId);
-        if (!currentUser) {
-            throw new Error('Usuario no encontrado');
-        }
+        if (!currentUser) throw new Error('Usuario no encontrado');
 
-        // Normaliza el identificador para que el log y las estadísticas
-        // funcionen igual con { ID } y con { id }.
         entity.ID = userId;
-
-        if (!entity.mail) {
-            entity.mail = currentUser?.mail || currentUser?.mail;
-        }
-
-        if (!entity.nombre) {
-            entity.nombre = currentUser?.nombre;
-        }
-
-        if (!entity.contrasena) {
-            entity.contrasena = currentUser?.contrasena || currentUser?.contrasena;
-        }
-
+        entity.mail ||= currentUser.mail || currentUser.email;
+        entity.nombre ||= currentUser.nombre || currentUser.name;
         this.validateUsuarioEntity(entity, true);
 
         const existingUser = await this.usuariosRepository.getBymailAsync(entity.mail);
         if (existingUser && Number(existingUser.ID) !== Number(userId)) {
-            throw this.createDuplicateError(`Ya existe otro usuario con mail ${entity.mail}`);
+            throw this.createDuplicateError('Ya existe otro usuario con ese mail');
         }
 
         const rowsAffected = await this.usuariosRepository.updateAsync(entity);
-        
-        // Registrar estadística de actualización
-        await this._registrarEstadistica('usuario_actualizado', entity.ID, { nombre: entity.nombre, mail: entity.mail });
-        
-        // Log automático
+
         try {
-            const { contrasena, ...safeEntity } = entity;
             await this.logService.createAsync({
                 IDUsuario: entity.ID,
                 accion: 'UPDATE',
                 tipoEntidad: 'Usuario',
                 IDEntidad: entity.ID,
-                diferencia: JSON.stringify(safeEntity)
+                diferencia: JSON.stringify({
+                    nombre: entity.nombre,
+                    mail: entity.mail,
+                }),
             });
-        } catch (logErr) {
-            console.error('Error al guardar log de actualización:', logErr);
+        } catch (error) {
+            console.error('[user-update-log]', error?.message || 'log error');
         }
-        
+
         return rowsAffected;
-    }
+    };
 
     deleteByIdAsync = async (id) => {
-        console.log(`usuariosService.deleteByIdAsync(${id})`);
-
-        // Eliminar todas las referencias para evitar violaciones de clave foránea.
         await this.agendaUsuarioRepository.deleteByUsuarioAsync(id);
         await this.estadisticasRepository.deleteByUsuarioAsync(id);
         await this.registroEstadisticasRepository.deleteByUsuarioAsync(id);
         await this.contenidoCategoriaRepository.deleteByUsuarioAsync(id);
-
-        const rowsAffected = await this.usuariosRepository.deleteByIdAsync(id);
-        
-        // Registrar estadística de eliminación
-        await this._registrarEstadistica('usuario_eliminado', id, null);
-        
-        return rowsAffected;
-    }
-
-    async _registrarEstadistica(tipo, usuarioId, datos) {
-        console.log(`usuariosService._registrarEstadistica(${tipo}, ${usuarioId})`);
-        try {
-            // Log en consola (puedes agregar DB más tarde)
-            const timestamp = new Date().toISOString();
-            console.log(`[ESTADISTICA] ${timestamp} | Tipo: ${tipo} | Usuario: ${usuarioId} | Datos: ${JSON.stringify(datos)}`);
-        } catch (error) {
-            console.error('Error registrando estadística:', error);
-        }
-    }
+        return this.usuariosRepository.deleteByIdAsync(id);
+    };
 
     async getIdiomaPreferidoAsync(usuarioId) {
-        console.log(`usuariosService.getIdiomaPreferidoAsync(${usuarioId})`);
-
-        if (!usuarioId) {
-            throw new Error('ID de usuario es requerido');
-        }
-
-        const idioma = await this.usuariosRepository.getIdiomaPreferidoAsync(usuarioId);
-        return idioma || null;
+        const id = Number(usuarioId);
+        if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Solicitud no válida');
+        return normalizeLanguageCode(await this.usuariosRepository.getPreferredLanguageCodeAsync(id), 'es');
     }
 
+    async getPreferredLanguageCodeAsync(usuarioId) {
+        const id = Number(usuarioId);
+        if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Solicitud no válida');
+
+        const record = await this.usuariosRepository.getPreferredLanguageRecordAsync(id);
+        if (!record) throw new BadRequestError('Solicitud no válida');
+        return normalizeLanguageCode(record.codigoIdioma, 'es');
+    }
+
+    // Compatibilidad con clientes antiguos. La ruta nueva devuelve solo
+    // codigoIdioma y no realiza traducciones ni llamadas externas.
     async getIdiomaPreferidoConFallbackAsync(usuarioId, detectedLanguage = null) {
-        console.log(`usuariosService.getIdiomaPreferidoConFallbackAsync(${usuarioId}, ${detectedLanguage})`);
-        if (!usuarioId) {
-            throw new Error('ID de usuario es requerido');
-        }
+        const id = Number(usuarioId);
+        if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Solicitud no válida');
 
-        // Verificar existencia del usuario en la BD
-        const usuario = await this.usuariosRepository.getByIdAsync(usuarioId);
-        if (!usuario) {
-            // No inventamos nada: si el usuario no existe devolvemos un error
-            throw new Error('Usuario no encontrado');
-        }
+        const record = await this.usuariosRepository.getPreferredLanguageRecordAsync(id);
+        if (!record) throw new Error('Usuario no encontrado');
 
-        const idiomaGuardado = usuario.idiomaPreferido || usuario.idioma || null;
-        const preferido = idiomaGuardado
-            ? this.translator.normalizeLanguageCode(idiomaGuardado)
-            : null;
-
-        if (preferido) {
-            return {
-                usuarioId,
-                codigoIdioma: preferido,
-                nombreIdioma: this.translator.getSupportedLanguages()[preferido]?.name || 'Español',
-                origen: 'guardado'
-            };
-        }
-
-        // El usuario existe pero no tiene idioma preferido guardado.
-        if (!detectedLanguage) {
-            return {
-                usuarioId,
-                codigoIdioma: null,
-                nombreIdioma: null,
-                origen: 'no-detectado',
-                message: 'No hay idioma preferido ni lenguaje detectado para este usuario'
-            };
-        }
-
-        const normalizedLanguage = this.translator.normalizeLanguageCode(detectedLanguage);
-
+        const code = record.codigoIdioma
+            ? normalizeLanguageCode(record.codigoIdioma, 'es')
+            : normalizeLanguageCode(detectedLanguage, 'es');
         return {
-            usuarioId,
-            codigoIdioma: normalizedLanguage,
-            nombreIdioma: this.translator.getSupportedLanguages()[normalizedLanguage]?.name || 'Español',
-            origen: 'detectado'
+            usuarioId: id,
+            codigoIdioma: code,
+            nombreIdioma: this.translator.getSupportedLanguages()[code]?.name || code,
+            origen: record.codigoIdioma ? 'guardado' : 'detectado',
         };
     }
 
     async cambiarIdiomaAsync(usuarioId, codigoIdioma) {
-        console.log(`usuariosService.cambiarIdiomaAsync(${usuarioId}, ${codigoIdioma})`);
+        const id = Number(usuarioId);
+        const code = String(codigoIdioma || '').trim().toLowerCase();
 
-        if (!usuarioId || !codigoIdioma) {
-            throw new Error('Usuario ID e idioma son requeridos');
+        if (!Number.isInteger(id) || id <= 0 || !isSupportedLanguageCode(code)) {
+            throw new BadRequestError('Solicitud no válida');
         }
 
-        const normalizedLanguage = this.translator.normalizeLanguageCode(codigoIdioma);
-        if (!this.translator.isValidLanguageCode(normalizedLanguage)) {
-            throw new Error('Código de idioma no válido. Idiomas soportados: es, en, fr, it, pt, ko, zh, he');
-        }
+        const rowsAffected = await this.usuariosRepository.updateIdiomaPreferidoAsync(id, code);
+        if (rowsAffected < 1) throw new BadRequestError('Solicitud no válida');
 
-        const usuario = await this.usuariosRepository.getByIdAsync(usuarioId);
-        if (!usuario) {
-            throw new Error('Usuario no encontrado');
-        }
-
-        const rowsAffected = await this.usuariosRepository.updateIdiomaPreferidoAsync(usuarioId, normalizedLanguage);
         return {
             success: true,
-            message: 'Idioma actualizado exitosamente',
-            updated: rowsAffected > 0,
-            usuarioId,
-            codigoIdioma: normalizedLanguage,
-            nombreIdioma: this.translator.getSupportedLanguages()[normalizedLanguage]?.name || 'Desconocido'
+            codigoIdioma: code,
         };
     }
 
     async updateFotoPerfilAsync(usuarioId, file) {
-        console.log(`usuariosService.updateFotoPerfilAsync(${usuarioId})`);
+        const id = Number(usuarioId);
+        if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Solicitud no válida');
 
-        if (!usuarioId || !Number.isInteger(Number(usuarioId))) {
-            throw new Error('ID de usuario es requerido');
+        const usuario = await this.usuariosRepository.getByIdAsync(id);
+        if (!usuario) throw new Error('Usuario no encontrado');
+
+        const uploaded = await this.storageService.uploadProfilePhoto(id, file);
+        let rowsAffected;
+        try {
+            rowsAffected = await this.usuariosRepository.updateFotoPerfilAsync(id, uploaded.path);
+        } catch (error) {
+            await this.storageService.deletePhoto(uploaded.path).catch(() => {});
+            throw error;
         }
 
-        const usuario = await this.usuariosRepository.getByIdAsync(usuarioId);
-        if (!usuario) {
+        if (rowsAffected < 1) {
+            await this.storageService.deletePhoto(uploaded.path).catch(() => {});
             throw new Error('Usuario no encontrado');
         }
 
-        const uploaded = await this.storageService.uploadProfilePhoto(usuarioId, file);
-        const rowsAffected = await this.usuariosRepository.updateFotoPerfilAsync(usuarioId, uploaded.path);
+        const previousPhoto = usuario.fotoPerfil;
+        if (previousPhoto && previousPhoto !== uploaded.path) {
+            void this.storageService.deletePhoto(previousPhoto).catch(error => {
+                console.warn('[profile-photo-old-file-cleanup]', error?.message || 'cleanup error');
+            });
+        }
 
         return {
-            success: rowsAffected > 0,
-            message: 'Foto de perfil actualizada exitosamente',
-            usuarioId: Number(usuarioId),
-            fotoPerfil: uploaded.url,
+            success: true,
+            fotoPerfil: await this.storageService.getPhotoUrl(uploaded.path),
             fotoPath: uploaded.path,
         };
     }
@@ -340,40 +234,25 @@ export default class usuariosService {
         return this.storageService.getPhotoUrl(storedPhoto);
     }
 
-    /**
-     * Quita la referencia de la foto del usuario y elimina el objeto remoto.
-     * Si era una foto antigua guardada como URL/data URL, solo se limpia la BD.
-     */
     async deleteFotoPerfilAsync(usuarioId) {
-        console.log(`usuariosService.deleteFotoPerfilAsync(${usuarioId})`);
+        const id = Number(usuarioId);
+        if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Solicitud no válida');
 
-        if (!usuarioId || !Number.isInteger(Number(usuarioId))) {
-            throw new Error('ID de usuario es requerido');
-        }
-
-        const usuario = await this.usuariosRepository.getByIdAsync(usuarioId);
-        if (!usuario) {
-            throw new Error('Usuario no encontrado');
-        }
+        const usuario = await this.usuariosRepository.getByIdAsync(id);
+        if (!usuario) throw new Error('Usuario no encontrado');
 
         const previousPhoto = usuario.fotoPerfil || null;
-        const rowsAffected = await this.usuariosRepository.updateFotoPerfilAsync(usuarioId, null);
+        const rowsAffected = await this.usuariosRepository.updateFotoPerfilAsync(id, null);
 
         if (previousPhoto) {
             try {
                 await this.storageService.deletePhoto(previousPhoto);
-            } catch (cleanupError) {
-                // La referencia ya fue quitada; el error queda visible para
-                // limpieza posterior sin hacer fallar la respuesta al usuario.
-                console.error('No se pudo limpiar el archivo anterior:', cleanupError.message);
+            } catch (error) {
+                console.error('[profile-photo-cleanup]', error?.message || 'cleanup error');
             }
         }
 
-        return {
-            success: rowsAffected > 0,
-            message: 'Foto de perfil eliminada exitosamente',
-            usuarioId: Number(usuarioId),
-        };
+        return { success: rowsAffected > 0, usuarioId: id };
     }
 
     async listFotosPerfilAsync(usuarioId) {
@@ -385,47 +264,23 @@ export default class usuariosService {
     }
 
     async updatePaisActualAsync(usuarioId, paisactual) {
-        console.log(`usuariosService.updatePaisActualAsync(${usuarioId}, ${paisactual})`);
-
-        if (!usuarioId) {
-            throw new Error('ID de usuario es requerido');
-        }
-
-        const usuario = await this.usuariosRepository.getByIdAsync(usuarioId);
-        if (!usuario) {
-            throw new Error('Usuario no encontrado');
-        }
-
+        const id = Number(usuarioId);
         const paisId = Number(paisactual);
-        if (!Number.isInteger(paisId) || paisId < 1) {
-            throw new Error('ID de país inválido');
+        if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(paisId) || paisId < 1) {
+            throw new BadRequestError('Solicitud no válida');
         }
+
+        const usuario = await this.usuariosRepository.getByIdAsync(id);
+        if (!usuario) throw new Error('Usuario no encontrado');
+
         const paisValido = await this.paisRepository.getByIdAsync(paisId);
-        if (!paisValido) {
-            throw new Error(`País con ID ${paisId} no encontrado`);
-        }
+        if (!paisValido) throw new BadRequestError('Solicitud no válida');
 
-        const rowsAffected = await this.usuariosRepository.updatePaisActualAsync(usuarioId, paisId);
-
-        // Log automático
-        try {
-            await this.logService.createAsync({
-                IDUsuario: usuarioId,
-                accion: 'UPDATE',
-                tipoEntidad: 'Usuario',
-                IDEntidad: usuarioId,
-                diferencia: JSON.stringify({ paisactual: paisId })
-            });
-        } catch (logErr) {
-            console.error('Error al guardar log de paisactual:', logErr);
-        }
-
+        const rowsAffected = await this.usuariosRepository.updatePaisActualAsync(id, paisId);
         return {
-            success: true,
-            message: 'País actual actualizado exitosamente',
-            updated: rowsAffected > 0,
-            usuarioId,
-            paisactual: paisId
+            success: rowsAffected > 0,
+            usuarioId: id,
+            paisactual: paisId,
         };
     }
 }
