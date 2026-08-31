@@ -1,6 +1,5 @@
 import paisRepository from '../../data/repositories/paisRepository.js';
 import { getUtcOffset } from '../../helpers/timezoneMap.js';
-import PAISES_BACKUP from '../../data/static/paisesBackup.js';
 import { withTimeout } from '../../shared/withTimeout.js';
 
 const positiveInteger = (value, fallback) => {
@@ -13,9 +12,9 @@ export default class paisService {
         this.paisRepository = repository;
         this.cacheTtlMs = positiveInteger(process.env.COUNTRIES_CACHE_TTL_MS, 10 * 60 * 1000);
         this.databaseTimeoutMs = positiveInteger(process.env.COUNTRIES_DB_TIMEOUT_MS, 750);
-        this.cachedCountries = PAISES_BACKUP.map(country => ({ ...country }));
+        this.cachedCountries = [];
         this.cacheExpiresAt = 0;
-        this.cacheSource = 'backup';
+        this.cacheSource = 'empty';
         this.refreshInFlight = null;
     }
 
@@ -50,8 +49,6 @@ export default class paisService {
                 }
             })
             .catch(error => {
-                // El request ya tiene una respuesta de memoria/backup; solo se
-                // registra la causa internamente para observabilidad.
                 console.warn('[countries-cache-refresh]', {
                     code: error?.code || null,
                     message: error?.message || 'database unavailable',
@@ -68,6 +65,12 @@ export default class paisService {
         void this._refreshCache();
     }
 
+    async _ensureFreshCache() {
+        if (this.cachedCountries.length === 0 || this.cacheExpiresAt <= Date.now()) {
+            await this._refreshCache();
+        }
+    }
+
     getCacheStatus() {
         return {
             source: this.cacheSource,
@@ -77,19 +80,19 @@ export default class paisService {
     }
 
     getAllAsync = async () => {
-        if (this.cacheExpiresAt <= Date.now()) this._refreshInBackground();
+        await this._ensureFreshCache();
         return this._cloneCountries();
     };
 
     getByIdAsync = async (id) => {
-        if (this.cacheExpiresAt <= Date.now()) this._refreshInBackground();
+        await this._ensureFreshCache();
         const numericId = Number(id);
         const country = this.cachedCountries.find(item => Number(item.ID ?? item.id) === numericId);
         return this._attachLocalTime(country || null);
     };
 
     getByNameAsync = async (name) => {
-        if (this.cacheExpiresAt <= Date.now()) this._refreshInBackground();
+        await this._ensureFreshCache();
         const query = String(name || '').trim().toLocaleLowerCase();
         const country = this.cachedCountries.find(item => String(item.nombre || '').toLocaleLowerCase().includes(query));
         return this._attachLocalTime(country || null);
