@@ -1,0 +1,1 @@
+supabase_backup.sql revisalo, intenta recortarlo igual, quiero que este el esquema de la base de datos para poder pegarlo y tener la base de datos pero quiero que saques los usuarios creados y si hay inserts que no son del esquema sino tipo los paises o eventos de prueba ponelos en otro archivo completar.sql
