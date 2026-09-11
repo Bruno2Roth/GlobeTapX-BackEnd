@@ -1,6 +1,7 @@
 import express from 'express';
 import eventosService from '../../application/services/eventoService.js';
 import estadisticasService from '../../application/services/estadisticasService.js';
+import { requireAdmin } from '../middlewares/authorization.js';
 
 const router = express.Router();
 const service = new eventosService();
@@ -110,19 +111,20 @@ router.get('/:id', async (req, res) => {
 });
 
 router.post('/', async (req, res) => {
+    const actorId = requireAdmin(req, res);
+    if (!actorId) return null;
+
     try {
         const errores = validarEvento(req.body);
         if (errores.length) {
             return res.status(400).json({ error: 'Datos inválidos', detalles: errores });
         }
-        const id = await service.createAsync(req.body);
-        const usuarioId = req.body.IDUsuario || req.body.idUsuario;
-        if (usuarioId) {
-            await statsService.logEventoAsync(usuarioId, 'creacion_expedicion', {
+        const entity = { ...(req.body || {}), IDUsuario: actorId };
+        const id = await service.createAsync(entity);
+        await statsService.logEventoAsync(actorId, 'creacion_expedicion', {
                 idEvento: id?.ID || id,
                 nombre: req.body.nombre,
-            });
-        }
+        });
         res.status(201).json({ success: true, message: 'Evento creado', id });
     } catch (err) {
         console.log('Error creando evento', err);
@@ -131,6 +133,9 @@ router.post('/', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
+    const actorId = requireAdmin(req, res);
+    if (!actorId) return null;
+
     try {
         const id = Number(req.params.id);
         if (!Number.isInteger(id) || id <= 0) {
@@ -140,7 +145,7 @@ router.put('/:id', async (req, res) => {
         if (errores.length) {
             return res.status(400).json({ error: 'Datos inválidos', detalles: errores });
         }
-        const entity = { ID: id, ...req.body };
+        const entity = { ...(req.body || {}), ID: id, IDUsuario: actorId };
         const updated = await service.updateAsync(entity);
         if (!updated) {
             return res.status(404).json({ error: 'Evento no encontrado' });
@@ -153,6 +158,8 @@ router.put('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
+    if (!requireAdmin(req, res)) return null;
+
     try {
         const id = Number(req.params.id);
         if (!Number.isInteger(id) || id <= 0) {

@@ -112,7 +112,7 @@ test('foto valida multipart, path estable y MIME permitido', async () => {
     );
 });
 
-test('países responden desde backup sin esperar una BD caída', async () => {
+test('países no inventa datos cuando la BD no responde', async () => {
     const repository = {
         async getAllAsync() {
             throw Object.assign(new Error('database down'), { code: 'ECONNREFUSED' });
@@ -123,9 +123,7 @@ test('países responden desde backup sin esperar una BD caída', async () => {
     const countries = await service.getAllAsync();
     const elapsed = performance.now() - started;
 
-    assert.ok(elapsed < 100, `backup tardó ${elapsed}ms`);
-    assert.ok(countries.length > 0);
-    assert.equal(service.getCacheStatus().source, 'backup');
-    assert.equal(countries.find(country => country.codigo === 'AR').ID, 1);
-    assert.equal(countries.find(country => country.codigo === 'AU').ID, 2);
+    assert.ok(elapsed < 100, `la consulta tardó ${elapsed}ms`);
+    assert.deepEqual(countries, []);
+    assert.equal(service.getCacheStatus().source, 'empty');
 });

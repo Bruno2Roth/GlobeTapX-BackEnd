@@ -4,6 +4,7 @@ import bcrypt from 'bcrypt';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import usuariosService from '../../application/services/usuariosService.js';
 import authMiddleware from '../../api/middlewares/auth.js';
+import { authorizeSelfOrAdmin } from '../middlewares/authorization.js';
 import {
     toPublicUser,
 } from '../../application/dtos/userProfile.js';
@@ -121,7 +122,8 @@ const publicUserOrError = (user, req) => {
 };
 
 router.get('/foto/:id', async (req, res) => {
-    const id = Number(req.params.id);
+    const id = authorizeSelfOrAdmin(req, res, req.params.id);
+    if (!id) return null;
     if (!Number.isInteger(id) || id <= 0) {
         return res.status(400).json({ success: false, message: 'Solicitud no válida' });
     }

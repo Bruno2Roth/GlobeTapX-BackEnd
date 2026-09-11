@@ -3,41 +3,15 @@ import usuariosService from '../../application/services/usuariosService.js';
 import { getUploadedPhoto, parseProfilePhoto } from '../middlewares/profilePhotoUpload.js';
 import { sendPublicError } from '../errors.js';
 import { toSafeUserForInternalRead } from '../../application/dtos/userProfile.js';
+import {
+    authorizeSelfOrAdmin,
+    hasAdminRole,
+    requireAdmin,
+    resolveUserIdFromToken,
+} from '../middlewares/authorization.js';
 
 const router = express.Router();
 const service = new usuariosService();
-
-const requesterId = (req) => Number(req.user?.id || req.user?.ID) || null;
-const admin = (req) => Boolean(
-    req.user?.role === 'admin'
-    || req.user?.isAdmin === true
-    || req.user?.isAdmin === 'true'
-    || req.user?.isAdmin === 'TRUE',
-);
-
-const authorizeTarget = (req, res, targetId) => {
-    const id = Number(targetId);
-    if (!Number.isInteger(id) || id <= 0) {
-        res.status(400).json({ success: false, message: 'Solicitud no válida' });
-        return null;
-    }
-
-    const currentId = requesterId(req);
-    if (!currentId) {
-        res.status(401).json({ success: false, message: 'No autorizado' });
-        return null;
-    }
-
-    if (!admin(req) && currentId !== id) {
-        res.status(403).json({
-            success: false,
-            message: 'No tiene permisos para esta operación',
-        });
-        return null;
-    }
-
-    return id;
-};
 
 const containsLanguageField = (body = {}) => [
     'idiomaPreferido',
@@ -55,20 +29,85 @@ const containsPhotoField = (body = {}) => [
     'profileImage',
 ].some(field => Object.prototype.hasOwnProperty.call(body, field));
 
+// Estos son los únicos campos que puede actualizar el endpoint de perfil.
+// Los IDs de relación y las capacidades de la cuenta nunca salen del body.
+const userUpdateFields = [
+    'nombre',
+    'name',
+    'mail',
+    'email',
+    'contrasena',
+    'password',
+    'nombreCompleto',
+    'fullName',
+    'numeroContacto',
+    'phone',
+    'paisActual',
+    'paisactual',
+    'countryId',
+];
+
+const userPermissionFields = ['isAdmin', 'esPremium'];
+
+const parseBooleanField = (value) => {
+    if (value === true || value === 'true' || value === 'TRUE') return true;
+    if (value === false || value === 'false' || value === 'FALSE') return false;
+    return null;
+};
+
+const buildUserUpdate = (body = {}, allowPermissions = false) => {
+    const hasPermissionField = userPermissionFields.some(field => (
+        Object.prototype.hasOwnProperty.call(body, field)
+    ));
+
+    if (hasPermissionField && !allowPermissions) {
+        return { error: 'forbidden' };
+    }
+
+    const entity = {};
+    for (const field of userUpdateFields) {
+        if (Object.prototype.hasOwnProperty.call(body, field)) {
+            entity[field] = body[field];
+        }
+    }
+
+    if (allowPermissions) {
+        for (const field of userPermissionFields) {
+            if (!Object.prototype.hasOwnProperty.call(body, field)) continue;
+            const value = parseBooleanField(body[field]);
+            if (value === null) return { error: 'invalid-permission' };
+            entity[field] = value;
+        }
+    }
+
+    return { entity };
+};
+
 const handleKnownUserError = (res, error, fallback) => {
     if (error?.message === 'Usuario no encontrado') {
-        return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+        return res.status(400).json({ success: false, message: 'Solicitud no valida' });
     }
     return sendPublicError(res, error, fallback);
 };
 
-router.get('/', async (req, res) => {
-    if (!admin(req)) {
+const sendUpdateValidationError = (res, update) => {
+    if (update.error === 'forbidden') {
         return res.status(403).json({
             success: false,
-            message: 'No tiene permisos para esta operación',
+            message: 'No puede modificar permisos de una cuenta',
         });
     }
+    if (update.error === 'invalid-permission') {
+        return res.status(400).json({ success: false, message: 'Solicitud no valida' });
+    }
+    if (Object.keys(update.entity || {}).length === 0) {
+        return res.status(400).json({ success: false, message: 'Solicitud no valida' });
+    }
+    return null;
+};
+
+router.get('/', async (req, res) => {
+    if (!requireAdmin(req, res)) return null;
 
     try {
         const users = await service.getAllAsync();
@@ -80,8 +119,12 @@ router.get('/', async (req, res) => {
 
 // Perfil de idioma optimizado: una lectura de una sola columna por ID.
 router.get('/idioma', async (req, res) => {
-    const usuarioId = Number(req.query.usuarioId);
-    const id = authorizeTarget(req, res, usuarioId);
+    const id = resolveUserIdFromToken(
+        req,
+        res,
+        req.query.usuarioId,
+        { allowAdminTarget: true },
+    );
     if (!id) return null;
 
     try {
@@ -94,22 +137,25 @@ router.get('/idioma', async (req, res) => {
 
 router.put('/idioma', async (req, res) => {
     const body = req.body || {};
-    const usuarioId = Number(body.usuarioId);
     const codigoIdioma = body.codigoIdioma;
     const idiomaId = body.idiomaId;
     const languageReference = idiomaId ?? codigoIdioma;
-
     const validLanguageReference = (
         typeof languageReference === 'string' && languageReference.trim().length > 0
     ) || (
         Number.isInteger(languageReference) && languageReference > 0
     );
 
-    if (!Number.isInteger(usuarioId) || usuarioId <= 0 || !validLanguageReference) {
-        return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+    if (!validLanguageReference) {
+        return res.status(400).json({ success: false, message: 'Solicitud no valida' });
     }
 
-    const id = authorizeTarget(req, res, usuarioId);
+    const id = resolveUserIdFromToken(
+        req,
+        res,
+        body.usuarioId,
+        { allowAdminTarget: true },
+    );
     if (!id) return null;
 
     try {
@@ -124,13 +170,73 @@ router.put('/idioma', async (req, res) => {
     }
 });
 
+// El país actual siempre se modifica para el usuario del token. El campo
+// usuarioId solo se acepta por compatibilidad cuando coincide con ese token.
+router.put('/paisactual', async (req, res) => {
+    const id = resolveUserIdFromToken(req, res, req.body?.usuarioId);
+    if (!id) return null;
+
+    try {
+        const result = await service.updatePaisActualAsync(id, req.body?.paisactual);
+        return res.status(200).json(result);
+    } catch (error) {
+        return handleKnownUserError(res, error, 'No se pudo actualizar el pais');
+    }
+});
+
+// Crear usuarios fuera de /auth/register es una operación administrativa.
+// El token del administrador, y no un campo del body, habilita esta ruta.
+router.post('/', async (req, res) => {
+    if (!requireAdmin(req, res)) return null;
+
+    if (containsPhotoField(req.body)) {
+        return res.status(400).json({
+            success: false,
+            message: 'La foto debe enviarse como multipart/form-data',
+        });
+    }
+
+    try {
+        const result = await service.createAsync(req.body || {});
+        return res.status(201).json({ success: true, id: result });
+    } catch (error) {
+        return sendPublicError(res, error, 'No se pudo crear el usuario');
+    }
+});
+
+// Compatibilidad con clientes que actualizan enviando el ID en el body. La
+// identidad se autoriza contra el token y el body se reduce a campos seguros.
+router.put('/', async (req, res) => {
+    const body = req.body || {};
+    if (containsLanguageField(body)) {
+        return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/idioma' });
+    }
+    if (containsPhotoField(body)) {
+        return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/:id/foto' });
+    }
+
+    const id = authorizeSelfOrAdmin(req, res, body.ID ?? body.id);
+    if (!id) return null;
+
+    const update = buildUserUpdate(body, hasAdminRole(req));
+    const validationResponse = sendUpdateValidationError(res, update);
+    if (validationResponse) return validationResponse;
+
+    try {
+        const result = await service.updateAsync({ ...update.entity, ID: id });
+        return res.status(200).json({ success: true, updated: result });
+    } catch (error) {
+        return handleKnownUserError(res, error, 'No se pudo actualizar el usuario');
+    }
+});
+
 router.get('/:id', async (req, res) => {
-    const id = authorizeTarget(req, res, req.params.id);
+    const id = authorizeSelfOrAdmin(req, res, req.params.id);
     if (!id) return null;
 
     try {
         const user = await service.getByIdAsync(id);
-        if (!user) return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+        if (!user) return res.status(400).json({ success: false, message: 'Solicitud no valida' });
         return res.status(200).json(toSafeUserForInternalRead(user, req));
     } catch (error) {
         return sendPublicError(res, error, 'No se pudo obtener el usuario');
@@ -140,7 +246,7 @@ router.get('/:id', async (req, res) => {
 // La autorización se ejecuta antes de parsear el multipart y antes de copiar
 // hasta 5 MB a memoria.
 router.put('/:id/foto', (req, res, next) => {
-    const id = authorizeTarget(req, res, req.params.id);
+    const id = authorizeSelfOrAdmin(req, res, req.params.id);
     if (!id) return null;
     req.targetUserId = id;
     return next();
@@ -148,7 +254,7 @@ router.put('/:id/foto', (req, res, next) => {
     try {
         const file = getUploadedPhoto(req);
         if (!file) {
-            return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+            return res.status(400).json({ success: false, message: 'Solicitud no valida' });
         }
 
         const result = await service.updateFotoPerfilAsync(req.targetUserId, file);
@@ -163,7 +269,7 @@ router.put('/:id/foto', (req, res, next) => {
 });
 
 router.delete('/:id/foto', async (req, res) => {
-    const id = authorizeTarget(req, res, req.params.id);
+    const id = authorizeSelfOrAdmin(req, res, req.params.id);
     if (!id) return null;
 
     try {
@@ -174,20 +280,7 @@ router.delete('/:id/foto', async (req, res) => {
     }
 });
 
-router.post('/', async (req, res) => {
-    if (containsPhotoField(req.body)) {
-        return res.status(400).json({ success: false, message: 'La foto debe enviarse como multipart/form-data' });
-    }
-
-    try {
-        const result = await service.createAsync(req.body || {});
-        return res.status(201).json({ success: true, id: result });
-    } catch (error) {
-        return sendPublicError(res, error, 'No se pudo crear el usuario');
-    }
-});
-
-router.put('/', async (req, res) => {
+router.put('/:id', async (req, res) => {
     const body = req.body || {};
     if (containsLanguageField(body)) {
         return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/idioma' });
@@ -196,43 +289,15 @@ router.put('/', async (req, res) => {
         return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/:id/foto' });
     }
 
-    const id = authorizeTarget(req, res, body.ID ?? body.id);
+    const id = authorizeSelfOrAdmin(req, res, req.params.id);
     if (!id) return null;
 
-    try {
-        const result = await service.updateAsync({ ...body, ID: id });
-        return res.status(200).json({ success: true, updated: result });
-    } catch (error) {
-        return handleKnownUserError(res, error, 'No se pudo actualizar el usuario');
-    }
-});
-
-// Debe quedar después de /idioma, /paisactual y /:id/foto.
-router.put('/paisactual', async (req, res) => {
-    const id = authorizeTarget(req, res, req.body?.usuarioId);
-    if (!id) return null;
+    const update = buildUserUpdate(body, hasAdminRole(req));
+    const validationResponse = sendUpdateValidationError(res, update);
+    if (validationResponse) return validationResponse;
 
     try {
-        const result = await service.updatePaisActualAsync(id, req.body?.paisactual);
-        return res.status(200).json(result);
-    } catch (error) {
-        return handleKnownUserError(res, error, 'No se pudo actualizar el país');
-    }
-});
-
-router.put('/:id', async (req, res) => {
-    if (containsLanguageField(req.body)) {
-        return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/idioma' });
-    }
-    if (containsPhotoField(req.body)) {
-        return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/:id/foto' });
-    }
-
-    const id = authorizeTarget(req, res, req.params.id);
-    if (!id) return null;
-
-    try {
-        const result = await service.updateAsync({ ...(req.body || {}), ID: id });
+        const result = await service.updateAsync({ ...update.entity, ID: id });
         return res.status(200).json({ success: true, updated: result });
     } catch (error) {
         return handleKnownUserError(res, error, 'No se pudo actualizar el usuario');
@@ -240,12 +305,12 @@ router.put('/:id', async (req, res) => {
 });
 
 router.delete('/:id', async (req, res) => {
-    const id = authorizeTarget(req, res, req.params.id);
+    const id = authorizeSelfOrAdmin(req, res, req.params.id);
     if (!id) return null;
 
     try {
         const deleted = await service.deleteByIdAsync(id);
-        if (!deleted) return res.status(400).json({ success: false, message: 'Solicitud no válida' });
+        if (!deleted) return res.status(400).json({ success: false, message: 'Solicitud no valida' });
         return res.status(200).json({ success: true, deleted });
     } catch (error) {
         return sendPublicError(res, error, 'No se pudo eliminar el usuario');

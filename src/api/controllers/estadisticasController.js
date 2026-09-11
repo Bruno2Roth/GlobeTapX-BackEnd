@@ -1,5 +1,11 @@
 import express from 'express';
 import estadisticasService from '../../application/services/estadisticasService.js';
+import {
+    authorizeSelfOrAdmin,
+    parsePositiveId,
+    requireAdmin,
+    requireAuthenticatedUser,
+} from '../middlewares/authorization.js';
 
 const router = express.Router();
 const service = new estadisticasService();
@@ -12,157 +18,179 @@ const mapTipoEvento = {
     inicio_viaje: 'diasViajando',
 };
 
-// Obtener todas las estadísticas (admin)
+const statFields = [
+    'paisesVisitados',
+    'expediciones',
+    'eventosAsistidos',
+    'continentesVisitados',
+    'diasViajando',
+    'nivelViajero',
+    'ultimaUbicacion',
+    'fechaActualizacion',
+];
+
+const userIdFromBody = body => parsePositiveId(
+    body?.IDUsuario ?? body?.idUsuario ?? body?.usuarioId ?? body?.id_usuario,
+);
+
+const buildStatsUpdate = (body = {}, id) => {
+    const entity = { ID: id };
+    for (const field of statFields) {
+        if (Object.prototype.hasOwnProperty.call(body, field)) {
+            entity[field] = body[field];
+        }
+    }
+    return entity;
+};
+
+// El listado completo contiene información agregada por usuario y es solo
+// para administradores.
 router.get('/', async (req, res) => {
-    console.log('GET /estadisticas');
+    if (!requireAdmin(req, res)) return null;
+
     try {
         const data = await service.getAllAsync();
-        res.status(200).json({ success: true, data });
+        return res.status(200).json({ success: true, data });
     } catch (error) {
         console.error('Error en GET /estadisticas:', error);
-        res.status(500).json({ error: error.message || 'Error al obtener estadísticas' });
+        return res.status(500).json({ error: error.message || 'Error al obtener estadisticas' });
     }
 });
 
-// Obtener estadísticas de un usuario específico
 router.get('/usuario/:usuarioId', async (req, res) => {
-    console.log(`GET /estadisticas/usuario/${req.params.usuarioId}`);
+    const usuarioId = authorizeSelfOrAdmin(req, res, req.params.usuarioId);
+    if (!usuarioId) return null;
+
     try {
-        const usuarioId = Number(req.params.usuarioId);
-        if (!Number.isInteger(usuarioId) || usuarioId <= 0) {
-            return res.status(400).json({ error: 'ID de usuario inválido' });
-        }
-
-        const requester = req.user || null;
-        const requesterId = requester ? Number(requester.id || requester.ID) : null;
-        const isAdmin = requester && (requester.role === 'admin' || requester.isAdmin === true || requester.isAdmin === true || requester.isAdmin === 'TRUE' || requester.isAdmin === 'true');
-
-        // TEMPORALMENTE DESHABILITADO PARA TESTING
-        // REACTIVAR ANTES DE PRODUCCIÓN
-        // if (!requester && !isAdmin) {
-        //     return res.status(401).json({ error: 'No autorizado. Token requerido.' });
-        // }
-        // if (!isAdmin && requesterId !== usuarioId) {
-        //     return res.status(403).json({ error: 'No tiene permiso para acceder a las estadísticas de otro usuario.' });
-        // }
-
         const stats = await service.getByUsuarioAsync(usuarioId);
-        res.status(200).json({ success: true, data: stats });
+        return res.status(200).json({ success: true, data: stats });
     } catch (error) {
         console.error('Error en GET /estadisticas/usuario/:id:', error);
-        if (error.message.includes('no encontradas')) {
+        if (error.message?.includes('no encontradas')) {
             return res.status(404).json({ error: error.message });
         }
-        res.status(500).json({ error: error.message || 'Error al obtener estadísticas' });
+        return res.status(500).json({ error: error.message || 'Error al obtener estadisticas' });
     }
 });
 
-// Obtener estadísticas generales de la app (conteos globales)
+// Son conteos globales, no datos personales; siguen requiriendo un JWT válido
+// por la protección general de /api.
 router.get('/generales', async (req, res) => {
-    console.log('GET /estadisticas/generales');
+    if (!requireAuthenticatedUser(req, res)) return null;
+
     try {
         const data = await service.getGeneralesAsync();
-        res.status(200).json({ success: true, data });
+        return res.status(200).json({ success: true, data });
     } catch (error) {
         console.error('Error en GET /estadisticas/generales:', error);
-        res.status(500).json({ error: error.message || 'Error al obtener estadísticas generales' });
+        return res.status(500).json({ error: error.message || 'Error al obtener estadisticas generales' });
     }
 });
 
-// Obtener timeline de eventos de un usuario
 router.get('/eventos/:usuarioId', async (req, res) => {
-    console.log(`GET /estadisticas/eventos/${req.params.usuarioId}`);
+    const usuarioId = authorizeSelfOrAdmin(req, res, req.params.usuarioId);
+    if (!usuarioId) return null;
+
     try {
-        const usuarioId = Number(req.params.usuarioId);
-        if (!Number.isInteger(usuarioId) || usuarioId <= 0) {
-            return res.status(400).json({ error: 'ID de usuario inválido' });
-        }
         const eventos = await service.getEventosByUsuarioAsync(usuarioId);
-        res.status(200).json({ success: true, data: eventos });
+        return res.status(200).json({ success: true, data: eventos });
     } catch (error) {
         console.error('Error en GET /estadisticas/eventos/:id:', error);
-        res.status(500).json({ error: error.message || 'Error al obtener eventos' });
+        return res.status(500).json({ error: error.message || 'Error al obtener eventos' });
     }
 });
 
-// Obtener estadística por ID
 router.get('/:id', async (req, res) => {
-    console.log(`GET /estadisticas/${req.params.id}`);
-    try {
-        const id = Number(req.params.id);
-        if (!Number.isInteger(id) || id <= 0) {
-            return res.status(400).json({ error: 'ID de estadística inválido' });
-        }
+    const id = parsePositiveId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'ID de estadistica invalido' });
 
+    try {
         const stats = await service.getByIdAsync(id);
-        if (!stats) {
-            return res.status(404).json({ error: 'Estadística no encontrada' });
-        }
-        res.status(200).json({ success: true, data: stats });
+        if (!stats) return res.status(404).json({ error: 'Estadistica no encontrada' });
+
+        const ownerId = parsePositiveId(stats.IDUsuario ?? stats.idUsuario);
+        const authorizedOwnerId = authorizeSelfOrAdmin(req, res, ownerId);
+        if (!authorizedOwnerId) return null;
+
+        return res.status(200).json({ success: true, data: stats });
     } catch (error) {
         console.error('Error en GET /estadisticas/:id:', error);
-        res.status(500).json({ error: error.message || 'Error al obtener estadística' });
+        return res.status(500).json({ error: error.message || 'Error al obtener estadistica' });
     }
 });
 
-// Crear registro de estadísticas para un usuario
+// La creación directa de estadísticas es administrativa. Las estadísticas de
+// un usuario normal se generan mediante POST /evento, ligado al token.
 router.post('/', async (req, res) => {
-    console.log('POST /estadisticas');
+    if (!requireAdmin(req, res)) return null;
+
+    const body = req.body || {};
+    const targetUserId = userIdFromBody(body);
+    if (!targetUserId) return res.status(400).json({ error: 'IDUsuario invalido' });
+
+    const entity = { IDUsuario: targetUserId };
+    for (const field of statFields) {
+        if (Object.prototype.hasOwnProperty.call(body, field)) entity[field] = body[field];
+    }
+
     try {
-        const result = await service.createAsync(req.body);
-        res.status(201).json({ success: true, data: result });
+        const result = await service.createAsync(entity);
+        return res.status(201).json({ success: true, data: result });
     } catch (error) {
         console.error('Error en POST /estadisticas:', error);
-        res.status(500).json({ error: error.message || 'Error al crear estadísticas' });
+        return res.status(500).json({ error: error.message || 'Error al crear estadisticas' });
     }
 });
 
-// Registrar un evento + auto-actualizar stats agregadas
+// El propietario se toma exclusivamente del JWT. usuarioId en el body ya no
+// define a qué cuenta se imputa el evento.
 router.post('/evento', async (req, res) => {
-    console.log('POST /estadisticas/evento');
-    try {
-        const { usuarioId, tipoEvento, detalle } = req.body;
-        if (!usuarioId || !tipoEvento) {
-            return res.status(400).json({ error: 'usuarioId y tipoEvento son requeridos' });
-        }
+    const requesterId = requireAuthenticatedUser(req, res);
+    if (!requesterId) return null;
 
-        await service.logEventoAsync(usuarioId, tipoEvento, detalle);
+    const body = req.body || {};
+    const tipoEvento = typeof body.tipoEvento === 'string' ? body.tipoEvento.trim() : '';
+    if (!tipoEvento) {
+        return res.status(400).json({ error: 'tipoEvento es requerido' });
+    }
+
+    try {
+        await service.logEventoAsync(requesterId, tipoEvento, body.detalle);
 
         const campo = mapTipoEvento[tipoEvento];
-        if (campo) {
-            await service.incrementarStatAsync(usuarioId, campo);
-        }
+        if (campo) await service.incrementarStatAsync(requesterId, campo);
 
-        res.status(201).json({ success: true, message: 'Evento registrado y estadísticas actualizadas' });
+        return res.status(201).json({
+            success: true,
+            message: 'Evento registrado y estadisticas actualizadas',
+        });
     } catch (error) {
         console.error('Error en POST /estadisticas/evento:', error);
-        res.status(500).json({ error: error.message || 'Error al registrar evento' });
+        return res.status(500).json({ error: error.message || 'Error al registrar evento' });
     }
 });
 
-// Actualizar estadísticas (admin)
+// Los valores de IDUsuario enviados al actualizar se descartan: la relación
+// de la fila queda intacta y solo el token de administrador habilita el cambio.
 router.put('/:id', async (req, res) => {
-    console.log(`PUT /estadisticas/${req.params.id}`);
+    if (!requireAdmin(req, res)) return null;
+
+    const id = parsePositiveId(req.params.id);
+    if (!id) return res.status(400).json({ error: 'ID de estadistica invalido' });
+
+    const entity = buildStatsUpdate(req.body || {}, id);
+    if (Object.keys(entity).length === 1) {
+        return res.status(400).json({ error: 'No hay campos validos para actualizar' });
+    }
+
     try {
-        const id = Number(req.params.id);
-        if (!Number.isInteger(id) || id <= 0) {
-            return res.status(400).json({ error: 'ID de estadística inválido' });
-        }
-
-        const entity = { ...req.body, ID: id };
         const rowsAffected = await service.updateAsync(entity);
-        
-        if (rowsAffected === 0) {
-            return res.status(404).json({ error: 'Estadística no encontrada' });
-        }
+        if (rowsAffected === 0) return res.status(404).json({ error: 'Estadistica no encontrada' });
 
-        res.status(200).json({ success: true, message: 'Estadísticas actualizadas', rowsAffected });
+        return res.status(200).json({ success: true, message: 'Estadisticas actualizadas', rowsAffected });
     } catch (error) {
         console.error('Error en PUT /estadisticas/:id:', error);
-        if (error.message && error.message.startsWith('No se encontraron columnas válidas para actualizar')) {
-            return res.status(400).json({ error: error.message });
-        }
-        res.status(500).json({ error: error.message || 'Error al actualizar estadísticas' });
+        return res.status(500).json({ error: error.message || 'Error al actualizar estadisticas' });
     }
 });
 

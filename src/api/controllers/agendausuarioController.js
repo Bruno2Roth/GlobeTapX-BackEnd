@@ -1,142 +1,148 @@
 import express from 'express';
 import agendaUsuarioService from './../../application/services/agendaUsuarioService.js';
+import {
+    authorizeSelfOrAdmin,
+    hasAdminRole,
+    parsePositiveId,
+    requireAuthenticatedUser,
+} from '../middlewares/authorization.js';
 
 const router = express.Router();
 const service = new agendaUsuarioService();
 
-const getRequesterId = (req) => {
-  return req.user ? Number(req.user.id || req.user.ID) : null;
-};
+const bodyEventId = (body = {}) => parsePositiveId(
+    body.IDEvento ?? body.idEvento ?? body.id_evento,
+);
 
-const isAdmin = (req) => {
-  return req.user && (req.user.role === 'admin' || req.user.isAdmin === true || req.user.isAdmin === true || req.user.isAdmin === 'TRUE' || req.user.isAdmin === 'true');
-};
+const entryOwnerId = entry => parsePositiveId(
+    entry?.IDUsuario ?? entry?.idUsuario ?? entry?.id_usuario,
+);
 
+const sendInvalid = (res, message = 'Solicitud no valida') => (
+    res.status(400).json({ error: message })
+);
+
+// Un usuario solo ve sus entradas. El listado completo queda reservado al
+// administrador verificado en el JWT.
 router.get('/', async (req, res) => {
-    // TEMPORALMENTE DESHABILITADO PARA TESTING
-    // REACTIVAR ANTES DE PRODUCCIÓN
-    // if (!isAdmin(req)) {
-    //   return res.status(403).json({ error: ' administradores pueden listar todas las agendas' });
-    // }
+    const requesterId = requireAuthenticatedUser(req, res);
+    if (!requesterId) return null;
 
     try {
-        const data = await service.getAllAsync();
-        res.status(200).json(data);
+        const data = hasAdminRole(req)
+            ? await service.getAllAsync()
+            : await service.getByUsuarioAsync(requesterId);
+        return res.status(200).json(data);
     } catch (error) {
         console.log('Error en GET /api/agendausuario', error);
-        res.status(500).json({ error: 'Error al obtener agendas' });
+        return res.status(500).json({ error: 'Error al obtener agendas' });
+    }
+});
+
+// Datos de feriados: no contienen información de una cuenta.
+router.get('/feriados/paises', async (req, res) => {
+    try {
+        const paises = await service.getSupportedCountries();
+        return res.status(200).json(paises);
+    } catch (error) {
+        console.log('Error en GET /api/agendaUsuario/feriados/paises', error);
+        return res.status(400).json({ error: error.message || 'Error al obtener paises soportados' });
     }
 });
 
 router.get('/:id', async (req, res) => {
+    const id = authorizeSelfOrAdmin(req, res, req.params.id);
+    if (!id) return null;
+
     try {
-        const id = Number(req.params.id);
-        if (!Number.isInteger(id) || id <= 0) {
-            return res.status(400).json({ error: 'ID de usuario inválido' });
-        }
-
-        // TEMPORALMENTE DESHABILITADO PARA TESTING
-        // REACTIVAR ANTES DE PRODUCCIÓN
-        // const requesterId = getRequesterId(req);
-        // if (!requesterId) {
-        //     return res.status(401).json({ error: 'No autorizado' });
-        // }
-        // if (!isAdmin(req) && Number(requesterId) !== id) {
-        //     return res.status(403).json({ error: 'No tiene permiso para ver la agenda de otro usuario' });
-        // }
-
         const data = await service.getAgendaConFeriadosAsync(id);
-        res.status(200).json(data);
+        return res.status(200).json(data);
     } catch (error) {
         console.log('Error en GET /api/agendausuario/:id', error);
-        res.status(500).json({ error: error.message || 'Error al obtener agenda de usuario' });
+        return res.status(500).json({ error: error.message || 'Error al obtener agenda de usuario' });
     }
 });
 
 router.post('/', async (req, res) => {
+    const requesterId = requireAuthenticatedUser(req, res);
+    if (!requesterId) return null;
+
+    const body = req.body || {};
+    const eventId = bodyEventId(body);
+    if (!eventId) return sendInvalid(res, 'IDEvento invalido');
+
+    // IDUsuario se fija desde el token. Cualquier valor enviado por el
+    // cliente se ignora, incluso si el solicitante es administrador.
+    const entity = {
+        IDUsuario: requesterId,
+        IDEvento: eventId,
+        interes: body.interes,
+        recordatorio: body.recordatorio,
+    };
+
     try {
-        const entity = req.body;
-        const targetUserId = Number(entity.IDUsuario || entity.idUsuario || entity.id_usuario);
-
-        // TEMPORALMENTE DESHABILITADO PARA TESTING
-        // REACTIVAR ANTES DE PRODUCCIÓN
-        // const requesterId = getRequesterId(req);
-        // if (!requesterId) {
-        //     return res.status(401).json({ error: 'No autorizado' });
-        // }
-        // if (!isAdmin(req) && Number(requesterId) !== targetUserId) {
-        //     return res.status(403).json({ error: 'No puede crear agenda para otro usuario' });
-        // }
-
         const result = await service.createAsync(entity);
-        res.status(201).json({ success: true, message: 'AgendaUsuario creado', id: result });
+        return res.status(201).json({ success: true, message: 'AgendaUsuario creado', id: result });
     } catch (error) {
         console.log('Error en POST /api/agendausuario', error);
-        res.status(500).json({ error: 'Error al crear agenda' });
+        return res.status(500).json({ error: 'Error al crear agenda' });
     }
 });
 
 router.put('/', async (req, res) => {
-    try {
-        const entity = req.body;
-        const targetUserId = Number(entity.IDUsuario || entity.idUsuario || entity.id_usuario);
+    const body = req.body || {};
+    const id = parsePositiveId(body.ID ?? body.id);
+    if (!id) return sendInvalid(res, 'ID de agenda invalido');
 
-        // TEMPORALMENTE DESHABILITADO PARA TESTING
-        // REACTIVAR ANTES DE PRODUCCIÓN
-        // const requesterId = getRequesterId(req);
-        // if (!requesterId) {
-        //     return res.status(401).json({ error: 'No autorizado' });
-        // }
-        // if (!isAdmin(req) && Number(requesterId) !== targetUserId) {
-        //     return res.status(403).json({ error: 'No puede modificar la agenda de otro usuario' });
-        // }
+    try {
+        const existing = await service.getByIdAsync(id);
+        if (!existing) return res.status(404).json({ error: 'Entrada de agenda no encontrada' });
+
+        const ownerId = entryOwnerId(existing);
+        const authorizedOwnerId = authorizeSelfOrAdmin(req, res, ownerId);
+        if (!authorizedOwnerId) return null;
+
+        const eventId = bodyEventId(body) || parsePositiveId(existing.IDEvento);
+        if (!eventId) return sendInvalid(res, 'IDEvento invalido');
+
+        const entity = {
+            ID: id,
+            // Nunca se permite cambiar el dueño de una entrada desde el body.
+            IDUsuario: ownerId,
+            IDEvento: eventId,
+            interes: Object.prototype.hasOwnProperty.call(body, 'interes')
+                ? body.interes
+                : existing.interes,
+            recordatorio: Object.prototype.hasOwnProperty.call(body, 'recordatorio')
+                ? body.recordatorio
+                : existing.recordatorio,
+        };
 
         const result = await service.updateAsync(entity);
-        res.status(200).json({ success: true, message: 'AgendaUsuario actualizado', updated: result });
+        return res.status(200).json({ success: true, message: 'AgendaUsuario actualizado', updated: result });
     } catch (error) {
         console.log('Error en PUT /api/agendausuario', error);
-        res.status(500).json({ error: 'Error al actualizar agenda' });
+        return res.status(500).json({ error: 'Error al actualizar agenda' });
     }
 });
 
 router.delete('/:id', async (req, res) => {
+    const id = parsePositiveId(req.params.id);
+    if (!id) return sendInvalid(res, 'ID de agenda invalido');
+
     try {
-        const id = req.params.id;
-
         const entry = await service.getByIdAsync(id);
-        if (!entry) {
-            return res.status(404).json({ error: 'Entrada de agenda no encontrada' });
-        }
+        if (!entry) return res.status(404).json({ error: 'Entrada de agenda no encontrada' });
 
-        // TEMPORALMENTE DESHABILITADO PARA TESTING
-        // REACTIVAR ANTES DE PRODUCCIÓN
-        // const requesterId = getRequesterId(req);
-        // if (!requesterId) {
-        //     return res.status(401).json({ error: 'No autorizado' });
-        // }
-        // if (!isAdmin(req) && Number(requesterId) !== Number(entry.IDUsuario)) {
-        //     return res.status(403).json({ error: 'No puede eliminar la agenda de otro usuario' });
-        // }
+        const ownerId = entryOwnerId(entry);
+        const authorizedOwnerId = authorizeSelfOrAdmin(req, res, ownerId);
+        if (!authorizedOwnerId) return null;
 
         const result = await service.deleteByIdAsync(id);
-        res.status(200).json({ success: true, message: 'AgendaUsuario eliminado', deleted: result });
+        return res.status(200).json({ success: true, message: 'AgendaUsuario eliminado', deleted: result });
     } catch (error) {
         console.log('Error en DELETE /api/agendausuario/:id', error);
-        res.status(500).json({ error: 'Error al eliminar agenda' });
-    }
-});
-
-//
-// Rutas de Feriados Internacionales (integradas en AgendaUsuario)
-//
-
-router.get('/feriados/paises', async (req, res) => {
-    try {
-        const paises = await service.getSupportedCountries();
-        res.status(200).json(paises);
-    } catch (error) {
-        console.log('Error en GET /api/agendaUsuario/feriados/paises', error);
-        res.status(400).json({ error: error.message || 'Error al obtener países soportados' });
+        return res.status(500).json({ error: 'Error al eliminar agenda' });
     }
 });
 

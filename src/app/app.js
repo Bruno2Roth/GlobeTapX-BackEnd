@@ -57,7 +57,6 @@ const publicApiRequest = (req) => {
 
     const path = req.path;
     if (path === '/auth/login' || path === '/auth/register' || path === '/auth/status') return true;
-    if (req.method === 'GET' && path.startsWith('/auth/foto/')) return true;
     if (path === '/pais' || path.startsWith('/pais/')) return true;
     if (path === '/paisInfo' || path.startsWith('/paisInfo/')) return true;
     if (req.method === 'GET' && (
