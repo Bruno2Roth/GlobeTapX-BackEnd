@@ -1,5 +1,6 @@
 import express from 'express';
 import estadisticasService from '../../application/services/estadisticasService.js';
+import { logInternalError, sendPublicError } from '../errors.js';
 import {
     authorizeSelfOrAdmin,
     parsePositiveId,
@@ -52,8 +53,8 @@ router.get('/', async (req, res) => {
         const data = await service.getAllAsync();
         return res.status(200).json({ success: true, data });
     } catch (error) {
-        console.error('Error en GET /estadisticas:', error);
-        return res.status(500).json({ error: error.message || 'Error al obtener estadisticas' });
+        logInternalError('GET /estadisticas:', error);
+        return sendPublicError(res, error, 'Error al obtener estadisticas');
     }
 });
 
@@ -65,11 +66,11 @@ router.get('/usuario/:usuarioId', async (req, res) => {
         const stats = await service.getByUsuarioAsync(usuarioId);
         return res.status(200).json({ success: true, data: stats });
     } catch (error) {
-        console.error('Error en GET /estadisticas/usuario/:id:', error);
+        logInternalError('GET /estadisticas/usuario/:id:', error);
         if (error.message?.includes('no encontradas')) {
-            return res.status(404).json({ error: error.message });
+            return res.status(404).json({ error: 'Estadisticas no encontradas' });
         }
-        return res.status(500).json({ error: error.message || 'Error al obtener estadisticas' });
+        return sendPublicError(res, error, 'Error al obtener estadisticas');
     }
 });
 
@@ -82,8 +83,8 @@ router.get('/generales', async (req, res) => {
         const data = await service.getGeneralesAsync();
         return res.status(200).json({ success: true, data });
     } catch (error) {
-        console.error('Error en GET /estadisticas/generales:', error);
-        return res.status(500).json({ error: error.message || 'Error al obtener estadisticas generales' });
+        logInternalError('GET /estadisticas/generales:', error);
+        return sendPublicError(res, error, 'Error al obtener estadisticas generales');
     }
 });
 
@@ -95,8 +96,8 @@ router.get('/eventos/:usuarioId', async (req, res) => {
         const eventos = await service.getEventosByUsuarioAsync(usuarioId);
         return res.status(200).json({ success: true, data: eventos });
     } catch (error) {
-        console.error('Error en GET /estadisticas/eventos/:id:', error);
-        return res.status(500).json({ error: error.message || 'Error al obtener eventos' });
+        logInternalError('GET /estadisticas/eventos/:id:', error);
+        return sendPublicError(res, error, 'Error al obtener eventos');
     }
 });
 
@@ -114,8 +115,8 @@ router.get('/:id', async (req, res) => {
 
         return res.status(200).json({ success: true, data: stats });
     } catch (error) {
-        console.error('Error en GET /estadisticas/:id:', error);
-        return res.status(500).json({ error: error.message || 'Error al obtener estadistica' });
+        logInternalError('GET /estadisticas/:id:', error);
+        return sendPublicError(res, error, 'Error al obtener estadistica');
     }
 });
 
@@ -137,8 +138,8 @@ router.post('/', async (req, res) => {
         const result = await service.createAsync(entity);
         return res.status(201).json({ success: true, data: result });
     } catch (error) {
-        console.error('Error en POST /estadisticas:', error);
-        return res.status(500).json({ error: error.message || 'Error al crear estadisticas' });
+        logInternalError('POST /estadisticas:', error);
+        return sendPublicError(res, error, 'Error al crear estadisticas');
     }
 });
 
@@ -165,8 +166,8 @@ router.post('/evento', async (req, res) => {
             message: 'Evento registrado y estadisticas actualizadas',
         });
     } catch (error) {
-        console.error('Error en POST /estadisticas/evento:', error);
-        return res.status(500).json({ error: error.message || 'Error al registrar evento' });
+        logInternalError('POST /estadisticas/evento:', error);
+        return sendPublicError(res, error, 'Error al registrar evento');
     }
 });
 
@@ -189,8 +190,8 @@ router.put('/:id', async (req, res) => {
 
         return res.status(200).json({ success: true, message: 'Estadisticas actualizadas', rowsAffected });
     } catch (error) {
-        console.error('Error en PUT /estadisticas/:id:', error);
-        return res.status(500).json({ error: error.message || 'Error al actualizar estadisticas' });
+        logInternalError('PUT /estadisticas/:id:', error);
+        return sendPublicError(res, error, 'Error al actualizar estadisticas');
     }
 });
 
