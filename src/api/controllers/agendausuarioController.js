@@ -36,7 +36,7 @@ router.get('/', async (req, res) => {
         return res.status(200).json(data);
     } catch (error) {
         logInternalError('GET /api/agendausuario', error);
-        return res.status(500).json({ error: 'Error al obtener agendas' });
+        return sendPublicError(res, error, 'Error al obtener agendas');
     }
 });
 
@@ -86,7 +86,7 @@ router.post('/', async (req, res) => {
         return res.status(201).json({ success: true, message: 'AgendaUsuario creado', id: result });
     } catch (error) {
         logInternalError('POST /api/agendausuario', error);
-        return res.status(500).json({ error: 'Error al crear agenda' });
+        return sendPublicError(res, error, 'Error al crear agenda');
     }
 });
 
@@ -123,7 +123,7 @@ router.put('/', async (req, res) => {
         return res.status(200).json({ success: true, message: 'AgendaUsuario actualizado', updated: result });
     } catch (error) {
         logInternalError('PUT /api/agendausuario', error);
-        return res.status(500).json({ error: 'Error al actualizar agenda' });
+        return sendPublicError(res, error, 'Error al actualizar agenda');
     }
 });
 
@@ -143,7 +143,7 @@ router.delete('/:id', async (req, res) => {
         return res.status(200).json({ success: true, message: 'AgendaUsuario eliminado', deleted: result });
     } catch (error) {
         logInternalError('DELETE /api/agendausuario/:id', error);
-        return res.status(500).json({ error: 'Error al eliminar agenda' });
+        return sendPublicError(res, error, 'Error al eliminar agenda');
     }
 });
 
