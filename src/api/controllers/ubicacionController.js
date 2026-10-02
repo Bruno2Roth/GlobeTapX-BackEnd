@@ -1,5 +1,6 @@
 import express from 'express';
 import ubicacionService from '../../application/services/ubicacionService.js';
+import { logInternalError, sendPublicError } from '../errors.js';
 
 const router = express.Router();
 const service = new ubicacionService();
@@ -10,9 +11,8 @@ router.get('/', async (req, res) => {
         const location = await service.getByIpAsync(ip);
         res.status(200).json(location);
     } catch (error) {
-        console.log('Error en GET /api/ubicacion');
-        console.log(error);
-        res.status(500).json({ error: error.message || 'Error al obtener ubicación' });
+        logInternalError('GET /api/ubicacion', error);
+        return sendPublicError(res, error, 'Error al obtener ubicación');
     }
 });
 
