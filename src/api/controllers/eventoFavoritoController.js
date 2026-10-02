@@ -1,5 +1,6 @@
 import express from 'express';
 import eventoFavoritoService from '../../application/services/eventoFavoritoService.js';
+import { logInternalError, sendPublicError } from '../errors.js';
 import usuariosRepository from '../../data/repositories/usuariosRepository.js';
 import EventosRepository from '../../data/repositories/eventosRepository.js';
 import {
@@ -44,8 +45,8 @@ router.get('/', async (req, res) => {
             : await service.getByUsuarioAsync(requesterId);
         return res.status(200).json(data);
     } catch (error) {
-        console.error('Error en GET /api/eventoFavorito', error);
-        return res.status(500).json({ error: error.message || 'Error al obtener eventos favoritos' });
+        logInternalError('GET /api/eventoFavorito', error);
+        return sendPublicError(res, error, 'Error al obtener eventos favoritos');
     }
 });
 
@@ -74,11 +75,11 @@ router.post('/', async (req, res) => {
         const id = await service.createAsync(entity);
         return res.status(201).json({ message: 'Favorito creado', ID: id });
     } catch (error) {
-        console.error('Error en POST /api/eventoFavorito', error);
+        logInternalError('POST /api/eventoFavorito', error);
         if (error.code === '23505') {
             return res.status(409).json({ error: 'Ya existe este evento favorito' });
         }
-        return res.status(500).json({ error: error.message || 'Error al crear evento favorito' });
+        return sendPublicError(res, error, 'Error al crear evento favorito');
     }
 });
 
@@ -97,8 +98,8 @@ router.delete('/:id', async (req, res) => {
         const rows = await service.deleteByIdAsync(id);
         return res.status(200).json({ message: 'Favorito eliminado', rowsAffected: rows });
     } catch (error) {
-        console.error('Error en DELETE /api/eventoFavorito/:id', error);
-        return res.status(500).json({ error: error.message || 'Error al eliminar evento favorito' });
+        logInternalError('DELETE /api/eventoFavorito/:id', error);
+        return sendPublicError(res, error, 'Error al eliminar evento favorito');
     }
 });
 
