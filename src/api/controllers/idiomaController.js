@@ -5,20 +5,23 @@ import traduccionService from '../../application/services/traduccionService.js';
 import authMiddleware from '../middlewares/auth.js';
 import { sendPublicError } from '../errors.js';
 import { resolveUserIdFromToken } from '../middlewares/authorization.js';
+import { isValidLanguageReference } from '../../application/dtos/userProfile.js';
 
 const router = express.Router();
 const usuarioService = new usuariosService();
 const idiomaServiceInstance = new idiomaService();
 const traduccionServiceInstance = new traduccionService();
 
-router.get('/supported', async (req, res) => {
+const handleSupportedLanguages = async (req, res) => {
     try {
         const data = await idiomaServiceInstance.getIdiomasSoportadosAsync();
         return res.status(200).json({ success: true, data });
     } catch (error) {
         return sendPublicError(res, error, 'No se pudieron obtener los idiomas');
     }
-});
+};
+
+router.get('/supported', handleSupportedLanguages);
 
 router.get('/translations', async (req, res) => {
     try {
@@ -30,14 +33,7 @@ router.get('/translations', async (req, res) => {
     }
 });
 
-router.get('/catalogo', async (req, res) => {
-    try {
-        const data = await idiomaServiceInstance.getIdiomasSoportadosAsync();
-        return res.status(200).json({ success: true, data });
-    } catch (error) {
-        return sendPublicError(res, error, 'No se pudieron obtener los idiomas');
-    }
-});
+router.get('/catalogo', handleSupportedLanguages);
 
 router.get('/catalogo/:idiomaId/tag/:tagId', async (req, res) => {
     try {
@@ -128,13 +124,7 @@ router.put('/preferred', authMiddleware.required, async (req, res) => {
     const idiomaId = req.body?.idiomaId;
     const codigoIdioma = req.body?.codigoIdioma;
     const languageReference = idiomaId ?? codigoIdioma;
-    const validLanguageReference = (
-        typeof languageReference === 'string' && languageReference.trim().length > 0
-    ) || (
-        Number.isInteger(languageReference) && languageReference > 0
-    );
-
-    if (!validLanguageReference) {
+    if (!isValidLanguageReference(languageReference)) {
         return res.status(400).json({ success: false, message: 'Solicitud no valida' });
     }
 

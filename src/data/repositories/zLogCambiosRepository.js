@@ -39,22 +39,4 @@ export default class zlogCambiosRepository {
         return res.rows[0];
     }
 
-    updateAsync = async (entity) => {
-        console.log(`zlogCambiosRepository.updateAsync(${JSON.stringify(entity)})`);
-        const sql = `
-            UPDATE "zLogCambios"
-            SET "IDUsuario" = $2, "accion" = $3, "tipoEntidad" = $4, "IDEntidad" = $5, "diferencia" = $6, "fechaCreacion" = $7
-            WHERE "ID" = $1
-        `;
-        const values = [entity.ID, entity.IDUsuario, entity.accion, entity.tipoEntidad, entity.IDEntidad, entity.diferencia, entity.fechaCreacion];
-        const res = await this.pool.query(sql, values);
-        return res.rowCount;
-    }
-
-    deleteByIdAsync = async (id) => {
-        console.log(`zlogCambiosRepository.deleteByIdAsync(${id})`);
-        const sql = `DELETE FROM "zLogCambios" WHERE "ID" = $1`;
-        const res = await this.pool.query(sql, [id]);
-        return res.rowCount;
-    }
 }

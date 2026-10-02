@@ -12,7 +12,7 @@ import {
     TAG_KEY_BY_ID,
 } from './tags.js';
 
-export const IDIOMAS = Object.freeze([es, en, fr, it, pt, ko, zh, he]);
+const IDIOMAS = Object.freeze([es, en, fr, it, pt, ko, zh, he]);
 export const SUPPORTED_LANGUAGE_CODES = Object.freeze(
     IDIOMAS.map(idioma => idioma.codigoIdioma),
 );
@@ -31,7 +31,6 @@ const numericId = value => {
     const id = Number(value.trim());
     return Number.isInteger(id) ? id : null;
 };
-
 /** Resuelve un código legado, un ID numérico o un objeto de idioma. */
 export const resolveLanguage = (value, fallback = null) => {
     if (value && typeof value === 'object') {
@@ -52,11 +51,9 @@ export const resolveLanguage = (value, fallback = null) => {
     return resolveLanguage(fallback);
 };
 
-export const getLanguageById = id => resolveLanguage(id);
 export const getLanguageByCode = code => resolveLanguage(code);
 export const getLanguageId = value => resolveLanguage(value)?.id ?? null;
 export const getLanguageCode = value => resolveLanguage(value)?.codigoIdioma ?? null;
-export const isSupportedLanguage = value => Boolean(resolveLanguage(value));
 
 /**
  * Resuelve valores recibidos para guardar preferencia. Acepta solo un código
@@ -151,5 +148,3 @@ export const getTranslationMaps = (languageReference) => {
         byKey: Object.fromEntries(catalog.tags.map(tag => [tag.clave, tag.valor])),
     };
 };
-
-export const getTagDefinitions = () => TAG_DEFINITIONS.map(tag => ({ ...tag }));

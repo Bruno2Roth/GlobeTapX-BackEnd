@@ -5,7 +5,7 @@
   "description": "",
   "license": "ISC",
   "author": "",
-  "main": "index.js",
+  "main": "src/server/server.js",
   "scripts": {
     "test": "node --test",
     "start": "node src/server/server.js",

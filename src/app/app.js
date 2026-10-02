@@ -10,7 +10,6 @@ import EstadisticasController from '../api/controllers/estadisticasController.js
 import EventoController from '../api/controllers/eventoController.js';
 import EventoFavoritoController from '../api/controllers/eventoFavoritoController.js';
 import PaisController from '../api/controllers/paisController.js';
-import PreferenciaUsuarioController from '../api/controllers/preferenciaUsuarioController.js';
 import UbicacionController from '../api/controllers/ubicacionController.js';
 import UsuarioController from '../api/controllers/usuarioController.js';
 import TraduccionController from '../api/controllers/traduccionController.js';
@@ -87,7 +86,6 @@ app.use('/api/estadisticas', EstadisticasController);
 app.use('/api/evento', EventoController);
 app.use('/api/eventoFavorito', EventoFavoritoController);
 app.use('/api/pais', PaisController);
-app.use('/api/preferenciaUsuario', PreferenciaUsuarioController);
 app.use('/api/ubicacion', UbicacionController);
 app.use('/api/usuario', UsuarioController);
 app.use('/api/storage', StorageController);

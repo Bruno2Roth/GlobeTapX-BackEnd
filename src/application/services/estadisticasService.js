@@ -77,8 +77,4 @@ export default class estadisticasService {
         return await this.estadisticasRepository.contarRegistrosAsync();
     }
 
-    getAllEventosAsync = async () => {
-        console.log(`estadisticasService.getAllEventosAsync()`);
-        return await this.registroRepository.getAllAsync();
-    }
 }

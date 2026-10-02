@@ -14,18 +14,6 @@ export class BadRequestError extends HttpError {
     }
 }
 
-export class UnauthorizedError extends HttpError {
-    constructor(message = 'No autorizado', options = {}) {
-        super(401, message, { ...options, name: 'UnauthorizedError' });
-    }
-}
-
-export class ForbiddenError extends HttpError {
-    constructor(message = 'No tiene permisos para esta operación', options = {}) {
-        super(403, message, { ...options, name: 'ForbiddenError' });
-    }
-}
-
 export class ServiceUnavailableError extends HttpError {
     constructor(message = 'Servicio temporalmente no disponible', options = {}) {
         super(503, message, { ...options, name: 'ServiceUnavailableError' });

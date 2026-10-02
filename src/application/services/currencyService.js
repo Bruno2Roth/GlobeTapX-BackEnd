@@ -7,7 +7,6 @@ const agent = new https.Agent({ rejectUnauthorized: process.env.NODE_ENV === 'pr
 export default class currencyService {
     constructor() {
         this.apiKey = process.env.CURRENCY_API_KEY;
-        this.apiSecret = process.env.CURRENCY_API_SECRET;
     }
 
     async getCurrencyByCountryAsync(country) {

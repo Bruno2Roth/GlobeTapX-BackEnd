@@ -39,7 +39,7 @@ function isNoDataCountry(obj) {
     return !Object.values(obj).some(hasDataValue);
 }
 
-router.get('/country/:code', async (req, res) => {
+const handleCountryRequest = async (req, res) => {
     const code = req.params.code;
     try {
         console.log(`numerosEmergenciaController: request for code=${code}, remoteBase=${service.baseRemota}`);
@@ -54,7 +54,9 @@ router.get('/country/:code', async (req, res) => {
     } catch (err) {
         return res.status(502).json({ mensaje: MENSAJE, error: err.message || 'Error en servicio remoto', data: {}, pais: null });
     }
-});
+};
+
+router.get('/country/:code', handleCountryRequest);
 
 router.get('/data/all', async (req, res) => {
     try {
@@ -67,22 +69,6 @@ router.get('/data/all', async (req, res) => {
 });
 
 // Alias corto: /api/data/:code
-// Alias
-router.get('/data/:code', async (req, res) => {
-    const code = req.params.code;
-    try {
-        console.log(`numerosEmergenciaController: alias request for code=${code}, remoteBase=${service.baseRemota}`);
-        const remote = await service.getCountry(code);
-        console.log(`numerosEmergenciaController: service.getCountry(${code}) returned:`, !!remote);
-        res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
-        res.set('X-EM-Source', service.baseRemota);
-        if (!remote) return res.status(404).json({ mensaje: MENSAJE, error: 'No encontrado', data: {}, pais: null });
-        if (isNoDataCountry(remote)) return res.json({ mensaje: MENSAJE, error: 'Sin datos para este territorio', data: {}, pais: null });
-        const pais = await extractPaisInfo(code, remote);
-        return res.json({ mensaje: MENSAJE, error: null, data: remote, pais });
-    } catch (err) {
-        return res.status(502).json({ mensaje: MENSAJE, error: err.message || 'Error en servicio remoto', data: {}, pais: null });
-    }
-});
+router.get('/data/:code', handleCountryRequest);
 
 export default router;

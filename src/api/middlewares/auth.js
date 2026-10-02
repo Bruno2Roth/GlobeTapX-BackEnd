@@ -23,11 +23,6 @@ const verifyToken = (token) => {
   }
 };
 
-export const optional = (req, res, next) => {
-  req.user = verifyToken(getBearerToken(req));
-  return next();
-};
-
 export const required = (req, res, next) => {
   const user = verifyToken(getBearerToken(req));
   if (!user) {
@@ -45,7 +40,6 @@ export const extractBearerToken = getBearerToken;
 export const verifyBearerToken = verifyToken;
 
 export default {
-  optional,
   required,
   extractBearerToken,
   verifyBearerToken,

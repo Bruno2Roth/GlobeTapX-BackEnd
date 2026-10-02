@@ -9,10 +9,10 @@ import storageService from './storageService.js';
 import { BadRequestError } from '../../api/errors.js';
 import {
     getLanguageCode,
-    getSupportedLanguages,
     resolveLanguage,
     resolveLanguageForWrite,
 } from '../../idiomas/index.js';
+import { normalizeEmail } from '../dtos/userProfile.js';
 
 export default class usuariosService {
     constructor() {
@@ -56,10 +56,11 @@ export default class usuariosService {
             throw this.createValidationError('El mail del usuario es obligatorio');
         }
 
-        const mailRegex = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
-        if (!mailRegex.test(String(entity.mail).trim())) {
+        const normalizedMail = normalizeEmail(entity.mail);
+        if (!normalizedMail) {
             throw this.createValidationError('El mail del usuario no es válido');
         }
+        entity.mail = normalizedMail;
 
         if (!entity.nombreCompleto || !String(entity.nombreCompleto).trim()) {
             entity.nombreCompleto = String(entity.nombre).trim();
@@ -75,7 +76,6 @@ export default class usuariosService {
     getProfileByIdAsync = async (id) => this.usuariosRepository.getProfileByIdAsync(id);
     getProfilePhotoByIdAsync = async (id) => this.usuariosRepository.getProfilePhotoByIdAsync(id);
     getBymailAsync = async (mail) => this.usuariosRepository.getBymailAsync(mail);
-    getByNombreAsync = async (nombre) => this.usuariosRepository.getByNombreAsync(nombre);
 
     createAsync = async (entity) => {
         const normalizedEntity = { ...(entity || {}) };
@@ -158,12 +158,6 @@ export default class usuariosService {
         await this.contenidoCategoriaRepository.deleteByUsuarioAsync(id);
         return this.usuariosRepository.deleteByIdAsync(id);
     };
-
-    async getIdiomaPreferidoAsync(usuarioId) {
-        const id = Number(usuarioId);
-        if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Solicitud no válida');
-        return getLanguageCode(await this.usuariosRepository.getPreferredLanguageCodeAsync(id)) || 'es';
-    }
 
     async getPreferredLanguageCodeAsync(usuarioId) {
         const id = Number(usuarioId);
@@ -253,6 +247,18 @@ export default class usuariosService {
         return this.storageService.getPhotoUrl(storedPhoto);
     }
 
+    async getFotoPerfilAsync(usuarioId) {
+        const id = Number(usuarioId);
+        if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Solicitud no válida');
+
+        const record = await this.usuariosRepository.getProfilePhotoByIdAsync(id);
+        const fotoPath = record?.fotoPath && !/^data:/i.test(String(record.fotoPath))
+            ? record.fotoPath
+            : null;
+        const fotoPerfil = fotoPath ? await this.getFotoPerfilUrlAsync(fotoPath) : null;
+        return { fotoPerfil, fotoPath };
+    }
+
     async deleteFotoPerfilAsync(usuarioId) {
         const id = Number(usuarioId);
         if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Solicitud no válida');
@@ -276,10 +282,6 @@ export default class usuariosService {
 
     async listFotosPerfilAsync(usuarioId) {
         return this.storageService.listUserPhotos(usuarioId);
-    }
-
-    getIdiomasSoportados() {
-        return getSupportedLanguages();
     }
 
     async updatePaisActualAsync(usuarioId, paisactual) {

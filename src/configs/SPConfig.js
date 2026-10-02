@@ -9,7 +9,7 @@ const positiveInteger = (value, fallback) => {
   return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 };
 
-export const DB_QUERY_TIMEOUT_MS = positiveInteger(process.env.DB_QUERY_TIMEOUT_MS, 5000);
+const DB_QUERY_TIMEOUT_MS = positiveInteger(process.env.DB_QUERY_TIMEOUT_MS, 5000);
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,

@@ -17,14 +17,3 @@ export const recordRequestMetric = (method, path, durationMs, statusCode) => {
     previous.statusCounts[statusCode] = (previous.statusCounts[statusCode] || 0) + 1;
     endpointMetrics.set(key, previous);
 };
-
-export const getRequestMetrics = () => Object.fromEntries(
-    [...endpointMetrics.entries()].map(([endpoint, metric]) => [endpoint, {
-        ...metric,
-        averageMs: metric.count ? Number((metric.totalMs / metric.count).toFixed(2)) : 0,
-        minMs: Number(metric.minMs.toFixed(2)),
-        maxMs: Number(metric.maxMs.toFixed(2)),
-    }]),
-);
-
-export const resetRequestMetrics = () => endpointMetrics.clear();

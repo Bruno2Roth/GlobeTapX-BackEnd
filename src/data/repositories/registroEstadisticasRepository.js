@@ -5,12 +5,6 @@ export default class registroEstadisticasRepository {
         this.pool = pool;
     }
 
-    getAllAsync = async () => {
-        const sql = `SELECT * FROM "RegistroEstadisticas" ORDER BY "fecha" DESC`;
-        const res = await this.pool.query(sql);
-        return res.rows;
-    }
-
     getByUsuarioAsync = async (usuarioId) => {
         const sql = `
             SELECT * FROM "RegistroEstadisticas"

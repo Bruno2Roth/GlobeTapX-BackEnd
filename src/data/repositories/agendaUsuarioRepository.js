@@ -51,21 +51,6 @@ export default class AgendaUsuarioRepository {
         return result.rows;
     }
 
-    getByEventoAsync = async (IDEvento) => {
-
-        console.log(`AgendaUsuarioRepository.getByEventoAsync(${IDEvento})`);
-
-        const sql = `
-            SELECT *
-            FROM "AgendaUsuario"
-            WHERE "IDEvento" = $1
-        `;
-
-        const result = await this.pool.query(sql, [IDEvento]);
-
-        return result.rows;
-    }
-
     createAsync = async (entity) => {
 
         console.log(`AgendaUsuarioRepository.createAsync(${JSON.stringify(entity)})`);

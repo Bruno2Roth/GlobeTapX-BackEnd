@@ -5,8 +5,6 @@ import {
     resolveLanguage,
 } from '../../idiomas/index.js';
 
-export { SUPPORTED_LANGUAGE_CODES };
-
 export const normalizeLanguageCode = (value, fallback = 'es') => (
     getLanguageCode(value) || getLanguageCode(fallback) || 'es'
 );
@@ -20,11 +18,16 @@ export const isSupportedLanguageCode = (value) => {
     return SUPPORTED_LANGUAGE_CODES.includes(code);
 };
 
-export const isSupportedLanguageId = value => Number.isInteger(getLanguageId(value));
-
-export const resolveUserLanguage = (value, fallback = 'es') => (
-    resolveLanguage(value, fallback)
+export const isValidLanguageReference = (value) => (
+    (typeof value === 'string' && value.trim().length > 0)
+    || (Number.isInteger(value) && value > 0)
 );
+
+export const normalizeEmail = (value) => {
+    if (typeof value !== 'string') return null;
+    const normalized = value.trim();
+    return /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalized) ? normalized : null;
+};
 
 export const profilePhotoEndpoint = (request, userId) => {
     const configuredBaseUrl = String(process.env.PUBLIC_API_URL || '').trim().replace(/\/$/, '');

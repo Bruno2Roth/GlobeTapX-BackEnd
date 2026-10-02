@@ -21,14 +21,6 @@ export default class traduccionService {
         return result;
     };
 
-    getTodasLasTraduccionesAsync = async () => {
-        const languages = ['es', 'en', 'fr', 'it', 'pt', 'ko', 'zh', 'he'];
-        return Object.fromEntries(languages.map(codigo => [
-            codigo,
-            getTranslationMaps(codigo),
-        ]));
-    };
-
     async translateTextAsync(text, targetLanguage, sourceLanguage = 'auto') {
         const language = resolveLanguage(targetLanguage);
         if (!language) throw new BadRequestError('Solicitud no válida');

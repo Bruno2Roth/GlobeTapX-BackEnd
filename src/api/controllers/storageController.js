@@ -39,12 +39,8 @@ router.get('/profile/:id', async (req, res) => {
     if (!id) return null;
 
     try {
-        const usuario = await usuarioService.getProfilePhotoByIdAsync(id);
-        const fotoPath = usuario?.fotoPath && !/^data:/i.test(String(usuario.fotoPath))
-            ? usuario.fotoPath
-            : null;
-        const fotoPerfil = fotoPath ? await usuarioService.getFotoPerfilUrlAsync(fotoPath) : null;
-        return res.status(200).json({ success: true, data: { fotoPerfil, fotoPath } });
+        const photo = await usuarioService.getFotoPerfilAsync(id);
+        return res.status(200).json({ success: true, data: photo });
     } catch (error) {
         logInternalError('GET /api/storage/profile/:id', error);
         return sendPublicError(res, error, 'No se pudo obtener la foto');

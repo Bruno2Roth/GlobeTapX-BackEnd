@@ -44,25 +44,6 @@ export default class paisInfoService {
         return this.mapRowsToEntities(rows);
     }
 
-    // Devuelve solo los campos de reglas para todos los países.
-    getAllRulesAsync = async () => {
-        console.log('paisInfoService.getAllRulesAsync()');
-        const rows = await this.paisInfoRepository.getAllRulesAsync();
-        return this.mapRowsToEntities(rows);
-    }
-
-    getRulesByPaisIdAsync = async (IDPais) => {
-        console.log(`paisInfoService.getRulesByPaisIdAsync(${IDPais})`);
-        const rows = await this.paisInfoRepository.getRulesByPaisIdAsync(IDPais);
-        return this.mapRowsToEntities(rows);
-    }
-
-    getRulesByPaisNameAsync = async (name) => {
-        console.log(`paisInfoService.getRulesByPaisNameAsync(${name})`);
-        const rows = await this.paisInfoRepository.getRulesByPaisNameAsync(name);
-        return this.mapRowsToEntities(rows);
-    }
-
     mapDocumentationRow(row) {
         if (!row) {
             return null;

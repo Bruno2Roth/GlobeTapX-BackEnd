@@ -63,21 +63,6 @@ export default class EventosRepository {
         return result.rows;
     }
 
-    getCercanosAsync = async (ubicacion) => {
-
-        console.log(`EventosRepository.getCercanosAsync(${ubicacion})`);
-
-        const sql = `
-            SELECT *
-            FROM "Evento"
-            WHERE "ubicacion" ILIKE '%' || $1 || '%'
-        `;
-
-        const result = await this.pool.query(sql, [ubicacion]);
-
-        return result.rows;
-    }
-
     createAsync = async (entity) => {
 
         console.log(`EventosRepository.createAsync(${JSON.stringify(entity)})`);

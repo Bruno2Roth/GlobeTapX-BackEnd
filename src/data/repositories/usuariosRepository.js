@@ -129,16 +129,6 @@ export default class usuariosRepository {
         return res.rows?.[0] || null;
     };
 
-    getByNombreAsync = async (nombre) => {
-        const sql = `
-            SELECT *
-            FROM "Usuario"
-            WHERE "nombre" ILIKE '%' || $1 || '%'
-        `;
-        const res = await this.pool.query(sql, [nombre]);
-        return res.rows;
-    };
-
     createAsync = async (entity) => {
         const dbColumns = await this._getTableColumns();
         const { sql, values } = this._buildInsert(entity, dbColumns);
@@ -157,8 +147,6 @@ export default class usuariosRepository {
         const res = await this.pool.query('DELETE FROM "Usuario" WHERE "ID" = $1', [id]);
         return res.rowCount;
     };
-
-    getIdiomaPreferidoAsync = async (usuarioId) => this.getPreferredLanguageCodeAsync(usuarioId);
 
     getPreferredLanguageCodeAsync = async (usuarioId) => {
         const sql = `

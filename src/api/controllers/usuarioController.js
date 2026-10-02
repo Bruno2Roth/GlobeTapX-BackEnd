@@ -2,7 +2,10 @@ import express from 'express';
 import usuariosService from '../../application/services/usuariosService.js';
 import { getUploadedPhoto, parseProfilePhoto } from '../middlewares/profilePhotoUpload.js';
 import { sendPublicError } from '../errors.js';
-import { toSafeUserForInternalRead } from '../../application/dtos/userProfile.js';
+import {
+    isValidLanguageReference,
+    toSafeUserForInternalRead,
+} from '../../application/dtos/userProfile.js';
 import {
     authorizeSelfOrAdmin,
     hasAdminRole,
@@ -106,6 +109,30 @@ const sendUpdateValidationError = (res, update) => {
     return null;
 };
 
+const handleUserUpdate = async (req, res, requestedId) => {
+    const body = req.body || {};
+    if (containsLanguageField(body)) {
+        return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/idioma' });
+    }
+    if (containsPhotoField(body)) {
+        return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/:id/foto' });
+    }
+
+    const id = authorizeSelfOrAdmin(req, res, requestedId);
+    if (!id) return null;
+
+    const update = buildUserUpdate(body, hasAdminRole(req));
+    const validationResponse = sendUpdateValidationError(res, update);
+    if (validationResponse) return validationResponse;
+
+    try {
+        const result = await service.updateAsync({ ...update.entity, ID: id });
+        return res.status(200).json({ success: true, updated: result });
+    } catch (error) {
+        return handleKnownUserError(res, error, 'No se pudo actualizar el usuario');
+    }
+};
+
 router.get('/', async (req, res) => {
     if (!requireAdmin(req, res)) return null;
 
@@ -140,13 +167,7 @@ router.put('/idioma', async (req, res) => {
     const codigoIdioma = body.codigoIdioma;
     const idiomaId = body.idiomaId;
     const languageReference = idiomaId ?? codigoIdioma;
-    const validLanguageReference = (
-        typeof languageReference === 'string' && languageReference.trim().length > 0
-    ) || (
-        Number.isInteger(languageReference) && languageReference > 0
-    );
-
-    if (!validLanguageReference) {
+    if (!isValidLanguageReference(languageReference)) {
         return res.status(400).json({ success: false, message: 'Solicitud no valida' });
     }
 
@@ -207,27 +228,7 @@ router.post('/', async (req, res) => {
 // Compatibilidad con clientes que actualizan enviando el ID en el body. La
 // identidad se autoriza contra el token y el body se reduce a campos seguros.
 router.put('/', async (req, res) => {
-    const body = req.body || {};
-    if (containsLanguageField(body)) {
-        return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/idioma' });
-    }
-    if (containsPhotoField(body)) {
-        return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/:id/foto' });
-    }
-
-    const id = authorizeSelfOrAdmin(req, res, body.ID ?? body.id);
-    if (!id) return null;
-
-    const update = buildUserUpdate(body, hasAdminRole(req));
-    const validationResponse = sendUpdateValidationError(res, update);
-    if (validationResponse) return validationResponse;
-
-    try {
-        const result = await service.updateAsync({ ...update.entity, ID: id });
-        return res.status(200).json({ success: true, updated: result });
-    } catch (error) {
-        return handleKnownUserError(res, error, 'No se pudo actualizar el usuario');
-    }
+    return handleUserUpdate(req, res, (req.body || {}).ID ?? (req.body || {}).id);
 });
 
 router.get('/:id', async (req, res) => {
@@ -281,27 +282,7 @@ router.delete('/:id/foto', async (req, res) => {
 });
 
 router.put('/:id', async (req, res) => {
-    const body = req.body || {};
-    if (containsLanguageField(body)) {
-        return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/idioma' });
-    }
-    if (containsPhotoField(body)) {
-        return res.status(400).json({ success: false, message: 'Use PUT /api/usuario/:id/foto' });
-    }
-
-    const id = authorizeSelfOrAdmin(req, res, req.params.id);
-    if (!id) return null;
-
-    const update = buildUserUpdate(body, hasAdminRole(req));
-    const validationResponse = sendUpdateValidationError(res, update);
-    if (validationResponse) return validationResponse;
-
-    try {
-        const result = await service.updateAsync({ ...update.entity, ID: id });
-        return res.status(200).json({ success: true, updated: result });
-    } catch (error) {
-        return handleKnownUserError(res, error, 'No se pudo actualizar el usuario');
-    }
+    return handleUserUpdate(req, res, req.params.id);
 });
 
 router.delete('/:id', async (req, res) => {

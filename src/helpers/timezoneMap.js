@@ -34,5 +34,3 @@ export function getUtcOffset(countryCode) {
     if (!countryCode) return 0;
     return countryUtcOffset[countryCode.toUpperCase()] ?? 0;
 }
-
-export default countryUtcOffset;

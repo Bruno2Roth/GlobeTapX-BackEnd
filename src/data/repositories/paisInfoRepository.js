@@ -65,50 +65,6 @@ export default class paisInfoRepository {
         return res.rows;
     }
 
-    // Devuelve solo el campo de reglas para todos los países.
-    getAllRulesAsync = async () => {
-        console.log('paisInfoRepository.getAllRulesAsync()');
-
-        const sql = `
-            SELECT pi."ID", pi."IDPais", pi."reglas", p."nombre" AS "paisNombre"
-            FROM "PaisInfo" pi
-            LEFT JOIN "Pais" p ON p."ID" = pi."IDPais"
-        `;
-
-        const res = await this.pool.query(sql);
-        return res.rows;
-    }
-
-    // Devuelve solo el campo de reglas para un país en particular.
-    getRulesByPaisIdAsync = async (IDPais) => {
-        console.log(`paisInfoRepository.getRulesByPaisIdAsync(${IDPais})`);
-
-        const sql = `
-            SELECT pi."ID", pi."IDPais", pi."reglas", p."nombre" AS "paisNombre"
-            FROM "PaisInfo" pi
-            LEFT JOIN "Pais" p ON p."ID" = pi."IDPais"
-            WHERE pi."IDPais" = $1
-        `;
-
-        const res = await this.pool.query(sql, [IDPais]);
-        return res.rows;
-    }
-
-    // Devuelve solo el campo de reglas a partir del nombre del país.
-    getRulesByPaisNameAsync = async (name) => {
-        console.log(`paisInfoRepository.getRulesByPaisNameAsync(${name})`);
-
-        const sql = `
-            SELECT pi."ID", pi."IDPais", pi."reglas", p."nombre" AS "paisNombre"
-            FROM "PaisInfo" pi
-            LEFT JOIN "Pais" p ON p."ID" = pi."IDPais"
-            WHERE p."nombre" ILIKE '%' || $1 || '%'
-        `;
-
-        const res = await this.pool.query(sql, [name]);
-        return res.rows;
-    }
-
     getDocumentationByPaisIdAsync = async (paisId) => {
         console.log(`paisInfoRepository.getDocumentationByPaisIdAsync(${paisId})`);
 

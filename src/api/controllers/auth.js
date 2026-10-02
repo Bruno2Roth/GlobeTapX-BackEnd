@@ -6,6 +6,7 @@ import usuariosService from '../../application/services/usuariosService.js';
 import authMiddleware from '../../api/middlewares/auth.js';
 import { authorizeSelfOrAdmin } from '../middlewares/authorization.js';
 import {
+    normalizeEmail,
     toPublicUser,
 } from '../../application/dtos/userProfile.js';
 import { resolveLanguageForWrite } from '../../idiomas/index.js';
@@ -20,11 +21,6 @@ const router = express.Router();
 const service = new usuariosService();
 
 const isNonEmptyString = value => typeof value === 'string' && value.trim().length > 0;
-const validateMail = (mail) => {
-    if (!isNonEmptyString(mail)) return null;
-    const normalized = mail.trim();
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : null;
-};
 
 const loginLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
@@ -37,7 +33,7 @@ const loginLimiter = rateLimit({
 
 const validateLoginBody = (req, res, next) => {
     const body = req.body || {};
-    const mail = validateMail(body.mail || body.email);
+    const mail = normalizeEmail(body.mail || body.email);
     const password = body.contrasena ?? body.password;
 
     if (!mail || !isNonEmptyString(password)) {
@@ -51,7 +47,7 @@ const validateLoginBody = (req, res, next) => {
 const validateRegisterBody = (req, res, next) => {
     const body = req.body || {};
     const nombre = body.nombre || body.nombreCompleto;
-    const mail = validateMail(body.mail || body.email);
+    const mail = normalizeEmail(body.mail || body.email);
     const password = body.contrasena ?? body.password;
     const language = body.idiomaId
         ?? body.idiomaPreferido
@@ -129,15 +125,10 @@ router.get('/foto/:id', async (req, res) => {
     }
 
     try {
-        const record = await service.getProfilePhotoByIdAsync(id);
-        const storedPath = record?.fotoPath && !/^data:/i.test(String(record.fotoPath))
-            ? record.fotoPath
-            : null;
-        const fotoPerfil = storedPath ? await service.getFotoPerfilUrlAsync(storedPath) : null;
+        const photo = await service.getFotoPerfilAsync(id);
         return res.status(200).json({
             success: true,
-            fotoPerfil,
-            fotoPath: storedPath,
+            ...photo,
         });
     } catch (error) {
         logInternalError('GET /api/auth/foto/:id', error);
