@@ -1,5 +1,6 @@
 import express from 'express';
 import agendaUsuarioService from './../../application/services/agendaUsuarioService.js';
+import { logInternalError, sendPublicError } from '../errors.js';
 import {
     authorizeSelfOrAdmin,
     hasAdminRole,
@@ -34,7 +35,7 @@ router.get('/', async (req, res) => {
             : await service.getByUsuarioAsync(requesterId);
         return res.status(200).json(data);
     } catch (error) {
-        console.log('Error en GET /api/agendausuario', error);
+        logInternalError('GET /api/agendausuario', error);
         return res.status(500).json({ error: 'Error al obtener agendas' });
     }
 });
@@ -45,8 +46,8 @@ router.get('/feriados/paises', async (req, res) => {
         const paises = await service.getSupportedCountries();
         return res.status(200).json(paises);
     } catch (error) {
-        console.log('Error en GET /api/agendaUsuario/feriados/paises', error);
-        return res.status(400).json({ error: error.message || 'Error al obtener paises soportados' });
+        logInternalError('GET /api/agendaUsuario/feriados/paises', error);
+        return sendPublicError(res, error, 'Error al obtener paises soportados');
     }
 });
 
@@ -58,8 +59,8 @@ router.get('/:id', async (req, res) => {
         const data = await service.getAgendaConFeriadosAsync(id);
         return res.status(200).json(data);
     } catch (error) {
-        console.log('Error en GET /api/agendausuario/:id', error);
-        return res.status(500).json({ error: error.message || 'Error al obtener agenda de usuario' });
+        logInternalError('GET /api/agendausuario/:id', error);
+        return sendPublicError(res, error, 'Error al obtener agenda de usuario');
     }
 });
 
@@ -84,7 +85,7 @@ router.post('/', async (req, res) => {
         const result = await service.createAsync(entity);
         return res.status(201).json({ success: true, message: 'AgendaUsuario creado', id: result });
     } catch (error) {
-        console.log('Error en POST /api/agendausuario', error);
+        logInternalError('POST /api/agendausuario', error);
         return res.status(500).json({ error: 'Error al crear agenda' });
     }
 });
@@ -121,7 +122,7 @@ router.put('/', async (req, res) => {
         const result = await service.updateAsync(entity);
         return res.status(200).json({ success: true, message: 'AgendaUsuario actualizado', updated: result });
     } catch (error) {
-        console.log('Error en PUT /api/agendausuario', error);
+        logInternalError('PUT /api/agendausuario', error);
         return res.status(500).json({ error: 'Error al actualizar agenda' });
     }
 });
@@ -141,7 +142,7 @@ router.delete('/:id', async (req, res) => {
         const result = await service.deleteByIdAsync(id);
         return res.status(200).json({ success: true, message: 'AgendaUsuario eliminado', deleted: result });
     } catch (error) {
-        console.log('Error en DELETE /api/agendausuario/:id', error);
+        logInternalError('DELETE /api/agendausuario/:id', error);
         return res.status(500).json({ error: 'Error al eliminar agenda' });
     }
 });
