@@ -1,5 +1,6 @@
 import express from 'express';
 import zLogCambiosService from '../../application/services/zLogCambiosService.js';
+import { logInternalError, sendPublicError } from '../errors.js';
 import {
     authorizeSelfOrAdmin,
     parsePositiveId,
@@ -27,7 +28,7 @@ router.get('/', async (req, res) => {
         const data = await service.getAllAsync();
         return res.status(200).json(data);
     } catch (error) {
-        console.log('Error en GET /logCambios', error);
+        logInternalError('GET /logCambios', error);
         return res.status(500).json({ error: 'Error al obtener logs' });
     }
 });
@@ -50,7 +51,7 @@ router.get('/:id', async (req, res) => {
 
         return res.status(200).json(data);
     } catch (error) {
-        console.log('Error en GET /logCambios/:id', error);
+        logInternalError('GET /logCambios/:id', error);
         return res.status(500).json({ error: 'Error al obtener log' });
     }
 });
@@ -73,11 +74,8 @@ router.post('/', async (req, res) => {
         const result = await service.createAsync(entity);
         return res.status(201).json({ success: true, message: 'Log creado', id: result.ID || result });
     } catch (error) {
-        console.log('Error en POST /logCambios', error);
-        if (error.name === 'ValidationError') {
-            return res.status(400).json({ error: error.message });
-        }
-        return res.status(500).json({ error: error.message || 'Error al crear log' });
+        logInternalError('POST /logCambios', error);
+        return sendPublicError(res, error, 'Error al crear log');
     }
 });
 
