@@ -1,5 +1,6 @@
 import express from 'express';
 import contenidoCategoriaService from '../../application/services/contenidoCategoriaService.js';
+import { logInternalError, sendPublicError } from '../errors.js';
 
 const router = express.Router();
 const service = new contenidoCategoriaService();
@@ -31,8 +32,8 @@ router.get('/', async (req, res) => {
         const data = await service.getAllAsync();
         res.json({ success: true, data });
     } catch (error) {
-        console.error('Error en GET /api/contenidoPorCategoria', error);
-        res.status(500).json({ success: false, error: error.message || 'Error al obtener contenido por categoría' });
+        logInternalError('GET /api/contenidoPorCategoria', error);
+        return sendPublicError(res, error, 'Error al obtener contenido por categoría');
     }
 });
 
@@ -46,8 +47,8 @@ router.get('/:id', async (req, res) => {
         const data = await service.getByIdAsync(id);
         res.json({ success: true, data });
     } catch (error) {
-        console.error('Error en GET /api/contenidoPorCategoria/:id', error);
-        res.status(500).json({ success: false, error: error.message || 'Error al obtener contenido por ID' });
+        logInternalError('GET /api/contenidoPorCategoria/:id', error);
+        return sendPublicError(res, error, 'Error al obtener contenido por ID');
     }
 });
 
