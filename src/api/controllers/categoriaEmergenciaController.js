@@ -1,5 +1,6 @@
 import express from 'express';
 import categoriasEmergenciaService from '../../application/services/categoriaEmergenciaService.js';
+import { logInternalError, sendPublicError } from '../errors.js';
 
 const router = express.Router();
 const service = new categoriasEmergenciaService();
@@ -24,8 +25,8 @@ router.get('/', async (req, res) => {
         const data = await service.getAllAsync();
         res.json({ success: true, data });
     } catch (error) {
-        console.error('Error en GET /api/categoriaEmergencia', error);
-        res.status(500).json({ success: false, error: error.message || 'Error al obtener números de emergencia' });
+        logInternalError('GET /api/categoriaEmergencia', error);
+        return sendPublicError(res, error, 'Error al obtener números de emergencia');
     }
 });
 
@@ -39,8 +40,8 @@ router.get('/:paisId', async (req, res) => {
         const data = await service.getByPaisAsync(paisId);
         res.json({ success: true, data });
     } catch (error) {
-        console.error('Error en GET /api/categoriaEmergencia/:paisId', error);
-        res.status(500).json({ success: false, error: error.message || 'Error al obtener números de emergencia por país' });
+        logInternalError('GET /api/categoriaEmergencia/:paisId', error);
+        return sendPublicError(res, error, 'Error al obtener números de emergencia por país');
     }
 });
 
