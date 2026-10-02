@@ -29,7 +29,7 @@ router.get('/', async (req, res) => {
         return res.status(200).json(data);
     } catch (error) {
         logInternalError('GET /logCambios', error);
-        return res.status(500).json({ error: 'Error al obtener logs' });
+        return sendPublicError(res, error, 'Error al obtener logs');
     }
 });
 
@@ -52,7 +52,7 @@ router.get('/:id', async (req, res) => {
         return res.status(200).json(data);
     } catch (error) {
         logInternalError('GET /logCambios/:id', error);
-        return res.status(500).json({ error: 'Error al obtener log' });
+        return sendPublicError(res, error, 'Error al obtener log');
     }
 });
 
