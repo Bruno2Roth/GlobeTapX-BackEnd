@@ -14,9 +14,6 @@ dotenv.config();
 
 const OUTPUT_FILE = path.join(__dirname, 'supabase_backup.sql');
 
-// Schemas to back up (public + auth + storage + extensions managed by Supabase)
-const SCHEMAS_TO_BACKUP = ['public'];
-
 const client = new Client({
   connectionString: process.env.DATABASE_URL,
   connectionTimeoutMillis: 30000,

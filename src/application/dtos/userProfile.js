@@ -2,7 +2,6 @@ import {
     SUPPORTED_LANGUAGE_CODES,
     getLanguageCode,
     getLanguageId,
-    resolveLanguage,
 } from '../../idiomas/index.js';
 
 export const normalizeLanguageCode = (value, fallback = 'es') => (
