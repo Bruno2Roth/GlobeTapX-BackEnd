@@ -11,7 +11,15 @@ export default class paisService {
     constructor(repository = new paisRepository()) {
         this.paisRepository = repository;
         this.cacheTtlMs = positiveInteger(process.env.COUNTRIES_CACHE_TTL_MS, 10 * 60 * 1000);
-        this.databaseTimeoutMs = positiveInteger(process.env.COUNTRIES_DB_TIMEOUT_MS, 750);
+        const postgresTimeoutMs = Math.max(
+            positiveInteger(process.env.DB_QUERY_TIMEOUT_MS, 5000),
+            positiveInteger(process.env.DB_CONNECTION_TIMEOUT_MS, 5000),
+        );
+        const minimumCountriesTimeoutMs = postgresTimeoutMs + 1000;
+        this.databaseTimeoutMs = Math.max(
+            positiveInteger(process.env.COUNTRIES_DB_TIMEOUT_MS, minimumCountriesTimeoutMs),
+            minimumCountriesTimeoutMs,
+        );
         this.cachedCountries = [];
         this.cacheExpiresAt = 0;
         this.cacheSource = 'empty';
@@ -53,6 +61,14 @@ export default class paisService {
                     code: error?.code || null,
                     message: error?.message || 'database unavailable',
                 });
+
+                // Serve stale data when available. Without a prior cache, fail
+                // explicitly so the API does not report a successful empty list.
+                if (this.cachedCountries.length === 0) {
+                    throw Object.assign(new Error('Country data is temporarily unavailable'), {
+                        code: 'DB_UNAVAILABLE',
+                    });
+                }
             })
             .finally(() => {
                 this.refreshInFlight = null;

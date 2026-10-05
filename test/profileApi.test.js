@@ -112,7 +112,7 @@ test('foto valida multipart, path estable y MIME permitido', async () => {
     );
 });
 
-test('países no inventa datos cuando la BD no responde', async () => {
+test('países informa que la BD no está disponible en vez de responder con una lista vacía', async () => {
     const repository = {
         async getAllAsync() {
             throw Object.assign(new Error('database down'), { code: 'ECONNREFUSED' });
@@ -120,10 +120,13 @@ test('países no inventa datos cuando la BD no responde', async () => {
     };
     const service = new paisService(repository);
     const started = performance.now();
-    const countries = await service.getAllAsync();
-    const elapsed = performance.now() - started;
 
+    await assert.rejects(
+        service.getAllAsync(),
+        error => error.code === 'DB_UNAVAILABLE',
+    );
+
+    const elapsed = performance.now() - started;
     assert.ok(elapsed < 100, `la consulta tardó ${elapsed}ms`);
-    assert.deepEqual(countries, []);
     assert.equal(service.getCacheStatus().source, 'empty');
 });
