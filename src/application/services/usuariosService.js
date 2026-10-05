@@ -2,16 +2,13 @@ import usuariosRepository from '../../data/repositories/usuariosRepository.js';
 import agendaUsuarioRepository from '../../data/repositories/agendaUsuarioRepository.js';
 import estadisticasRepository from '../../data/repositories/estadisticasRepository.js';
 import registroEstadisticasRepository from '../../data/repositories/registroEstadisticasRepository.js';
-import contenidoCategoriaRepository from '../../data/repositories/contenidoCategoriaRepository.js';
 import paisRepository from '../../data/repositories/paisRepository.js';
+import contenidoCategoriaRepository from '../../data/repositories/contenidoCategoriaRepository.js';
 import zLogCambiosService from './zLogCambiosService.js';
-import storageService from './storageService.js';
 import { BadRequestError } from '../../api/errors.js';
-import {
-    getLanguageCode,
-    resolveLanguage,
-    resolveLanguageForWrite,
-} from '../../idiomas/index.js';
+import { resolveLanguageForWrite } from '../../idiomas/index.js';
+import usuarioLanguageService from './usuarioLanguageService.js';
+import usuarioProfileService from './usuarioProfileService.js';
 import { normalizeEmail } from '../dtos/userProfile.js';
 
 export default class usuariosService {
@@ -20,10 +17,13 @@ export default class usuariosService {
         this.agendaUsuarioRepository = new agendaUsuarioRepository();
         this.estadisticasRepository = new estadisticasRepository();
         this.registroEstadisticasRepository = new registroEstadisticasRepository();
-        this.paisRepository = new paisRepository();
         this.contenidoCategoriaRepository = new contenidoCategoriaRepository();
         this.logService = new zLogCambiosService();
-        this.storageService = new storageService();
+        this.languageService = new usuarioLanguageService({ repository: this.usuariosRepository });
+        this.profileService = new usuarioProfileService({
+            repository: this.usuariosRepository,
+            countries: new paisRepository(),
+        });
     }
 
     createValidationError(message) {
@@ -159,149 +159,15 @@ export default class usuariosService {
         return this.usuariosRepository.deleteByIdAsync(id);
     };
 
-    async getPreferredLanguageCodeAsync(usuarioId) {
-        const id = Number(usuarioId);
-        if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Solicitud no válida');
+    getPreferredLanguageCodeAsync = (...args) => this.languageService.getPreferredLanguageCodeAsync(...args);
+    getIdiomaPreferidoConFallbackAsync = (...args) => this.languageService.getIdiomaPreferidoConFallbackAsync(...args);
+    cambiarIdiomaAsync = (...args) => this.languageService.cambiarIdiomaAsync(...args);
 
-        const record = await this.usuariosRepository.getPreferredLanguageRecordAsync(id);
-        if (!record) throw new BadRequestError('Solicitud no válida');
-        return getLanguageCode(record.codigoIdioma) || 'es';
-    }
+    updateFotoPerfilAsync = (...args) => this.profileService.updateFotoPerfilAsync(...args);
+    getFotoPerfilUrlAsync = (...args) => this.profileService.getFotoPerfilUrlAsync(...args);
+    getFotoPerfilAsync = (...args) => this.profileService.getFotoPerfilAsync(...args);
+    deleteFotoPerfilAsync = (...args) => this.profileService.deleteFotoPerfilAsync(...args);
+    listFotosPerfilAsync = (...args) => this.profileService.listFotosPerfilAsync(...args);
+    updatePaisActualAsync = (...args) => this.profileService.updatePaisActualAsync(...args);
 
-    // Compatibilidad con clientes antiguos. La ruta nueva devuelve solo
-    // codigoIdioma y no realiza traducciones ni llamadas externas.
-    async getIdiomaPreferidoConFallbackAsync(usuarioId, detectedLanguage = null) {
-        const id = Number(usuarioId);
-        if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Solicitud no válida');
-
-        const record = await this.usuariosRepository.getPreferredLanguageRecordAsync(id);
-        if (!record) throw new Error('Usuario no encontrado');
-
-        const storedLanguage = record.codigoIdioma ? resolveLanguage(record.codigoIdioma) : null;
-        const detected = resolveLanguage(detectedLanguage);
-        const language = storedLanguage || detected || resolveLanguage('es');
-        return {
-            usuarioId: id,
-            idiomaId: language.id,
-            codigoIdioma: language.codigoIdioma,
-            nombreIdioma: language.nombre,
-            nombreNativo: language.nombreNativo,
-            origen: storedLanguage ? 'guardado' : detected ? 'detectado' : 'predeterminado',
-        };
-    }
-
-    async cambiarIdiomaAsync(usuarioId, codigoIdioma, idiomaId = null) {
-        const id = Number(usuarioId);
-        const language = resolveLanguageForWrite(idiomaId ?? codigoIdioma);
-
-        if (!Number.isInteger(id) || id <= 0 || !language) {
-            throw new BadRequestError('Solicitud no válida');
-        }
-
-        const rowsAffected = await this.usuariosRepository.updateIdiomaPreferidoAsync(id, language.id);
-        if (rowsAffected < 1) throw new BadRequestError('Solicitud no válida');
-
-        return {
-            success: true,
-            idiomaId: language.id,
-            codigoIdioma: language.codigoIdioma,
-        };
-    }
-
-    async updateFotoPerfilAsync(usuarioId, file) {
-        const id = Number(usuarioId);
-        if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Solicitud no válida');
-
-        const usuario = await this.usuariosRepository.getByIdAsync(id);
-        if (!usuario) throw new Error('Usuario no encontrado');
-
-        const uploaded = await this.storageService.uploadProfilePhoto(id, file);
-        let rowsAffected;
-        try {
-            rowsAffected = await this.usuariosRepository.updateFotoPerfilAsync(id, uploaded.path);
-        } catch (error) {
-            await this.storageService.deletePhoto(uploaded.path).catch(() => {});
-            throw error;
-        }
-
-        if (rowsAffected < 1) {
-            await this.storageService.deletePhoto(uploaded.path).catch(() => {});
-            throw new Error('Usuario no encontrado');
-        }
-
-        const previousPhoto = usuario.fotoPerfil;
-        if (previousPhoto && previousPhoto !== uploaded.path) {
-            void this.storageService.deletePhoto(previousPhoto).catch(error => {
-                console.warn('[profile-photo-old-file-cleanup]', error?.message || 'cleanup error');
-            });
-        }
-
-        return {
-            success: true,
-            fotoPerfil: await this.storageService.getPhotoUrl(uploaded.path),
-            fotoPath: uploaded.path,
-        };
-    }
-
-    async getFotoPerfilUrlAsync(storedPhoto) {
-        return this.storageService.getPhotoUrl(storedPhoto);
-    }
-
-    async getFotoPerfilAsync(usuarioId) {
-        const id = Number(usuarioId);
-        if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Solicitud no válida');
-
-        const record = await this.usuariosRepository.getProfilePhotoByIdAsync(id);
-        const fotoPath = record?.fotoPath && !/^data:/i.test(String(record.fotoPath))
-            ? record.fotoPath
-            : null;
-        const fotoPerfil = fotoPath ? await this.getFotoPerfilUrlAsync(fotoPath) : null;
-        return { fotoPerfil, fotoPath };
-    }
-
-    async deleteFotoPerfilAsync(usuarioId) {
-        const id = Number(usuarioId);
-        if (!Number.isInteger(id) || id <= 0) throw new BadRequestError('Solicitud no válida');
-
-        const usuario = await this.usuariosRepository.getByIdAsync(id);
-        if (!usuario) throw new Error('Usuario no encontrado');
-
-        const previousPhoto = usuario.fotoPerfil || null;
-        const rowsAffected = await this.usuariosRepository.updateFotoPerfilAsync(id, null);
-
-        if (previousPhoto) {
-            try {
-                await this.storageService.deletePhoto(previousPhoto);
-            } catch (error) {
-                console.error('[profile-photo-cleanup]', error?.message || 'cleanup error');
-            }
-        }
-
-        return { success: rowsAffected > 0, usuarioId: id };
-    }
-
-    async listFotosPerfilAsync(usuarioId) {
-        return this.storageService.listUserPhotos(usuarioId);
-    }
-
-    async updatePaisActualAsync(usuarioId, paisactual) {
-        const id = Number(usuarioId);
-        const paisId = Number(paisactual);
-        if (!Number.isInteger(id) || id <= 0 || !Number.isInteger(paisId) || paisId < 1) {
-            throw new BadRequestError('Solicitud no válida');
-        }
-
-        const usuario = await this.usuariosRepository.getByIdAsync(id);
-        if (!usuario) throw new Error('Usuario no encontrado');
-
-        const paisValido = await this.paisRepository.getByIdAsync(paisId);
-        if (!paisValido) throw new BadRequestError('Solicitud no válida');
-
-        const rowsAffected = await this.usuariosRepository.updatePaisActualAsync(id, paisId);
-        return {
-            success: rowsAffected > 0,
-            usuarioId: id,
-            paisactual: paisId,
-        };
-    }
 }

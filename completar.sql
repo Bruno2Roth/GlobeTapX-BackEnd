@@ -49,7 +49,6 @@ INSERT INTO "Pais" ("ID", "nombre", "descripcion", "imagen", "codigo", "gmt") VA
 (7, 'Israel', 'País de Medio Oriente con gran importancia histórica, cultural y tecnológica.', 'https://images.unsplash.com/photo-1542744173-8e7e53415bb0?auto=format&fit=crop&w=1600&h=900&q=80', 'IL', '2.00'),
 (9, 'China', 'País asiático con una de las civilizaciones más antiguas y gran potencia mundial.', 'https://images.unsplash.com/photo-1508804185872-d7badad00f7d?auto=format&fit=crop&w=1600&h=900&q=80', 'CN', '8.00');
 
-INSERT INTO "DocumentacionPais" ("IDPais", "documentacion") VALUES
 ('1', 'Para viajar a Argentina se debe contar con un documento de viaje vigente y verificar los requisitos de ingreso según la nacionalidad. La permanencia autorizada, la necesidad de visa, los requisitos sanitarios y las condiciones para menores deben confirmarse en los sitios oficiales de Migraciones y de la representación diplomática argentina. Se recomienda conservar copias del pasaporte, seguro de viaje, reservas y datos de contacto de emergencia.'),
 ('2', 'Antes de viajar a Australia se debe solicitar la autorización o visa correspondiente y presentar un pasaporte vigente. Australia aplica controles estrictos de bioseguridad: deben declararse alimentos, medicamentos, plantas, semillas, productos animales y efectivo según corresponda. Los requisitos migratorios, sanitarios y de tránsito deben confirmarse en Home Affairs y en la embajada correspondiente.'),
 ('3', 'El ingreso a Estados Unidos depende de la nacionalidad y del propósito del viaje. Es necesario contar con pasaporte vigente y, según el caso, autorización ESTA o visa. La autorización electrónica no garantiza el ingreso: la decisión final corresponde al control fronterizo. Se deben declarar alimentos, productos agrícolas, medicamentos y otros artículos regulados.'),
@@ -63,7 +62,6 @@ INSERT INTO "DocumentacionPais" ("IDPais", "documentacion") VALUES
 ('11', 'El ingreso a España se rige por la normativa española y del espacio Schengen. Se debe confirmar la validez del pasaporte, la necesidad de visa o autorización electrónica y los requisitos de estancia según la nacionalidad. Se recomienda disponer de seguro, alojamiento y prueba de salida cuando sean exigibles.'),
 ('12', 'Para ingresar a Chile se requiere un documento de viaje vigente y, según la nacionalidad, visa o autorización previa. Se deben confirmar los requisitos migratorios, sanitarios y aduaneros en los canales oficiales. La entrada de alimentos, semillas, productos animales y vegetales está controlada y debe declararse.');
 
-INSERT INTO "PaisDocumentacion" ("IDPais", "nombre", "codigo", "descripcion", "imagen", "documentacion", "reglas", "vidaDiaria") VALUES
 ('1', 'Argentina', 'AR', 'País de América del Sur con gran diversidad geográfica y cultural.', 'https://flagcdn.com/w320/ar.png', 'Para viajar a Argentina se debe contar con un documento de viaje vigente y verificar los requisitos de ingreso según la nacionalidad. La permanencia autorizada, la necesidad de visa, los requisitos sanitarios y las condiciones para menores deben confirmarse en los sitios oficiales de Migraciones y de la representación diplomática argentina. Se recomienda conservar copias del pasaporte, seguro de viaje, reservas y datos de contacto de emergencia.', 'Respetar las leyes argentinas, las normas aduaneras y las indicaciones de las autoridades. No transportar sustancias, armas, alimentos o medicamentos restringidos sin autorización. Para conducir se necesita licencia válida y se deben respetar los límites de velocidad, el uso del cinturón y las normas de tránsito. En áreas naturales está prohibido extraer flora, fauna o patrimonio.', '• Transporte público irregular o con demoras en algunas zonas.
 • Diferencias de precios y disponibilidad de efectivo entre ciudades.
 • Conectividad móvil variable fuera de los principales centros urbanos.
@@ -460,5 +458,81 @@ INSERT INTO "ContenidoPorCategoria" ("ID", "IDPais", "IDCategoria", "titulo", "c
 (286, 12, 26, 'Bancos en Chile', 'Las tarjetas y pagos digitales son comunes.', NULL, 'Tue May 26 2026 11:14:32 GMT-0300 (hora estándar de Argentina)'::timestamptz),
 (287, 12, 27, 'Cultura en Chile', 'La vida familiar tiene gran importancia.', NULL, 'Tue May 26 2026 11:14:32 GMT-0300 (hora estándar de Argentina)'::timestamptz),
 (288, 12, 28, 'Ayuda al turista en Chile', 'Hay centros de ayuda turística oficiales.', NULL, 'Tue May 26 2026 11:14:32 GMT-0300 (hora estándar de Argentina)'::timestamptz);
+
+
+
+-- Los datos de las tablas históricas se cargan ahora en PaisInfo.
+INSERT INTO "PaisInfo" AS current_info ("ID", "IDPais", "documentacion", "reglas", "vidaDiaria")
+SELECT ((SELECT COALESCE(MAX("ID"), 0) FROM "PaisInfo") + ROW_NUMBER() OVER (ORDER BY legacy_seed."IDPais"))::integer,
+       legacy_seed."IDPais", legacy_seed."documentacion", legacy_seed."reglas", legacy_seed."vidaDiaria"
+FROM (VALUES
+    (1, 'Para viajar a Argentina se debe contar con un documento de viaje vigente y verificar los requisitos de ingreso según la nacionalidad. La permanencia autorizada, la necesidad de visa, los requisitos sanitarios y las condiciones para menores deben confirmarse en los sitios oficiales de Migraciones y de la representación diplomática argentina. Se recomienda conservar copias del pasaporte, seguro de viaje, reservas y datos de contacto de emergencia.', 'Respetar las leyes argentinas, las normas aduaneras y las indicaciones de las autoridades. No transportar sustancias, armas, alimentos o medicamentos restringidos sin autorización. Para conducir se necesita licencia válida y se deben respetar los límites de velocidad, el uso del cinturón y las normas de tránsito. En áreas naturales está prohibido extraer flora, fauna o patrimonio.', '• Transporte público irregular o con demoras en algunas zonas.
+• Diferencias de precios y disponibilidad de efectivo entre ciudades.
+• Conectividad móvil variable fuera de los principales centros urbanos.
+• Trámites y horarios comerciales que pueden requerir planificación previa.'),
+    (2, 'Antes de viajar a Australia se debe solicitar la autorización o visa correspondiente y presentar un pasaporte vigente. Australia aplica controles estrictos de bioseguridad: deben declararse alimentos, medicamentos, plantas, semillas, productos animales y efectivo según corresponda. Los requisitos migratorios, sanitarios y de tránsito deben confirmarse en Home Affairs y en la embajada correspondiente.', 'Cumplir las normas de bioseguridad, aduana y conservación ambiental. Está prohibido introducir productos no declarados y se aplican sanciones por conducir bajo los efectos del alcohol o incumplir las normas viales. En las playas y parques se deben seguir las señales, respetar zonas protegidas y no acercarse a fauna silvestre.', '• Distancias muy largas entre ciudades y servicios.
+• Transporte público limitado fuera de las áreas metropolitanas.
+• Costo elevado de alojamiento, alimentos y actividades.
+• Cobertura móvil reducida en zonas rurales y parques naturales.'),
+    (3, 'El ingreso a Estados Unidos depende de la nacionalidad y del propósito del viaje. Es necesario contar con pasaporte vigente y, según el caso, autorización ESTA o visa. La autorización electrónica no garantiza el ingreso: la decisión final corresponde al control fronterizo. Se deben declarar alimentos, productos agrícolas, medicamentos y otros artículos regulados.', 'Cumplir las leyes federales, estatales y locales, que pueden variar entre estados. Respetar las normas de tránsito, las restricciones de parques nacionales y las indicaciones de seguridad. Las armas, sustancias controladas y ciertos medicamentos están sujetos a controles estrictos. No trabajar ni estudiar con una categoría migratoria que no lo permita.', '• Dependencia del automóvil en muchas ciudades y regiones.
+• Impuestos que pueden agregarse al precio exhibido.
+• Propinas esperadas en restaurantes y servicios.
+• Sistema de salud y medicamentos con costos elevados sin cobertura adecuada.'),
+    (4, 'Para ingresar a Brasil se requiere un documento de viaje válido y, para algunas nacionalidades, una visa o autorización previa. Se deben revisar los requisitos migratorios, sanitarios y de vacunación vigentes en los canales oficiales. Los menores pueden necesitar autorización adicional para viajar. Se recomienda guardar comprobantes de alojamiento, pasaje de salida y seguro de viaje.', 'Respetar las leyes federales y estatales, la normativa aduanera y las áreas ambientales protegidas. No extraer especies, introducir productos biológicos sin declarar ni conducir sin licencia válida. En playas, ríos y parques se deben seguir las instrucciones locales y evitar zonas señalizadas como peligrosas.', '• Tránsito intenso y tiempos de traslado extensos en grandes ciudades.
+• Diferencias de seguridad entre barrios y horarios.
+• Barrera idiomática fuera de las zonas turísticas.
+• Conectividad y aceptación de tarjetas variables en comercios pequeños.'),
+    (5, 'El ingreso a Inglaterra se rige por las normas del Reino Unido. Se debe viajar con pasaporte vigente y comprobar si corresponde visa o autorización electrónica según la nacionalidad y el motivo del viaje. La duración autorizada y las condiciones de entrada deben verificarse en GOV.UK antes de comprar el pasaje.', 'Respetar la legislación del Reino Unido y las normas locales. Se conduce por la izquierda y existen zonas de circulación restringida en algunas ciudades. No transportar artículos prohibidos, alimentos restringidos o medicamentos sin la documentación correspondiente. En edificios históricos, parques y museos se deben seguir las reglas de conservación.', '• Clima cambiante y lluvias frecuentes.
+• Costo elevado de transporte y alojamiento, especialmente en Londres.
+• Conducción por la izquierda y adaptación a las normas locales.
+• Comercios y servicios con horarios más reducidos durante domingos y feriados.'),
+    (6, 'Para viajar a Francia se deben cumplir las condiciones del espacio Schengen y los requisitos específicos de la nacionalidad. Es necesario verificar pasaporte, visa o autorización previa, seguro y comprobantes del motivo del viaje cuando correspondan. Los documentos exigidos pueden cambiar, por lo que deben consultarse en France-Visas y en la representación consular.', 'Respetar las leyes francesas, las normas de seguridad y las reglas de los espacios culturales y naturales. Los documentos personales pueden ser solicitados por las autoridades. Para conducir se requiere licencia válida y seguro. No introducir productos restringidos ni retirar piezas de patrimonio o especies protegidas.', '• Huelgas o interrupciones que pueden afectar transporte y servicios.
+• Barrera idiomática en comercios y trámites fuera de zonas turísticas.
+• Horarios comerciales variables y cierres al mediodía o domingos.
+• Necesidad de validar billetes y respetar zonas de transporte.'),
+    (7, 'Los requisitos de entrada a Israel dependen de la nacionalidad, el motivo del viaje y la situación vigente. Se debe viajar con pasaporte válido y verificar visa, autorización electrónica, seguro y requisitos sanitarios antes de partir. Las autoridades pueden realizar controles adicionales y determinar el período autorizado de permanencia.', 'Cumplir las indicaciones de seguridad y las normas de las autoridades locales. Algunas zonas pueden tener restricciones de acceso o cambios de circulación. Respetar lugares religiosos, horarios de descanso y normas de vestimenta. No fotografiar instalaciones sensibles ni ingresar a áreas restringidas.', '• Cambios de horarios y servicios durante Shabat y festividades.
+• Transporte público limitado en determinadas fechas y zonas.
+• Controles de seguridad frecuentes en accesos y edificios.
+• Costo elevado de alojamiento y alimentos en las principales ciudades.'),
+    (8, 'El ingreso a Corea del Sur requiere pasaporte vigente y, según la nacionalidad, visa o autorización electrónica. Se deben confirmar los requisitos de inmigración, aduana y salud en los sitios oficiales antes del viaje. Algunos medicamentos y productos alimenticios están sujetos a declaración o restricciones.', 'Respetar las leyes de la República de Corea, las normas de transporte y las indicaciones de seguridad. No ingresar sustancias controladas ni realizar actividades laborales sin autorización migratoria. En templos, palacios y áreas naturales se deben respetar las reglas de conservación y comportamiento.', '• Barrera idiomática en trámites y comercios pequeños.
+• Alta densidad de personas y aglomeraciones en transporte público.
+• Clasificación obligatoria de residuos en muchos alojamientos.
+• Diferencias de compatibilidad entre aplicaciones, pagos y números telefónicos.'),
+    (9, 'Para ingresar a China se necesita pasaporte vigente y, en la mayoría de los casos, visa según el motivo del viaje. Deben revisarse las condiciones de tránsito, registro de alojamiento, requisitos sanitarios y declaraciones aduaneras vigentes. La documentación y las reglas pueden variar por región y cambiar con frecuencia.', 'Cumplir las leyes nacionales y locales, las normas de seguridad y las restricciones de acceso a instalaciones o zonas protegidas. No transportar artículos prohibidos, fotografiar lugares restringidos ni realizar actividades profesionales sin autorización. Respetar los controles aduaneros y conservar los documentos de viaje.', '• Diferencias de idioma y comunicación fuera de los centros turísticos.
+• Algunos servicios digitales internacionales pueden no estar disponibles.
+• Pagos móviles y aplicaciones locales pueden requerir configuración previa.
+• Controles, registros y restricciones de fotografía en determinados lugares.'),
+    (10, 'El ingreso a Italia se encuentra sujeto a las reglas del espacio Schengen y a la nacionalidad del viajero. Se deben verificar pasaporte, visa o autorización previa, seguro y documentación del alojamiento. Para estancias prolongadas pueden existir obligaciones de registro o permisos adicionales.', 'Respetar las leyes italianas, las normas de circulación y las reglas de museos, iglesias, sitios arqueológicos y áreas protegidas. No retirar piezas históricas ni ingresar a monumentos fuera de las zonas habilitadas. Para conducir se requiere licencia y seguro válidos.', '• Transporte con posibles demoras y validación obligatoria de billetes.
+• Zonas de tránsito limitado en centros históricos.
+• Comercios cerrados durante el descanso del mediodía o domingos.
+• Calles empedradas, escaleras y accesibilidad variable en edificios antiguos.'),
+    (11, 'El ingreso a España se rige por la normativa española y del espacio Schengen. Se debe confirmar la validez del pasaporte, la necesidad de visa o autorización electrónica y los requisitos de estancia según la nacionalidad. Se recomienda disponer de seguro, alojamiento y prueba de salida cuando sean exigibles.', 'Cumplir las leyes nacionales y autonómicas, las normas de tránsito y las reglas de playas, parques y monumentos. No conducir bajo los efectos del alcohol, transportar productos restringidos ni retirar patrimonio. En alojamientos puede solicitarse el registro de los datos del viajero.', '• Horarios de comida y actividad comercial más tardíos.
+• Cierres de comercios durante domingos y días festivos.
+• Demoras o aglomeraciones en transporte durante temporadas turísticas.
+• Diferencias de accesibilidad y servicios entre grandes ciudades y pueblos.'),
+    (12, 'Para ingresar a Chile se requiere un documento de viaje vigente y, según la nacionalidad, visa o autorización previa. Se deben confirmar los requisitos migratorios, sanitarios y aduaneros en los canales oficiales. La entrada de alimentos, semillas, productos animales y vegetales está controlada y debe declararse.', 'Respetar las leyes chilenas, las normas de tránsito y las reglas de parques nacionales y áreas protegidas. No extraer flora, fauna, fósiles ni patrimonio. Para conducir en rutas cordilleranas o zonas aisladas se recomienda revisar el clima, el estado del camino y llevar combustible y comunicación suficiente.', '• Grandes distancias y tiempos de traslado entre regiones.
+• Cambios bruscos de clima según la zona geográfica.
+• Riesgo de sismos y necesidad de seguir protocolos locales.
+• Cobertura móvil y disponibilidad de servicios variables fuera de las ciudades.')
+) AS legacy_seed("IDPais", "documentacion", "reglas", "vidaDiaria")
+ON CONFLICT ("IDPais") DO UPDATE SET
+    "documentacion" = CASE
+        WHEN NULLIF(BTRIM(current_info."documentacion"), '') IS NULL THEN EXCLUDED."documentacion"
+        WHEN NULLIF(BTRIM(EXCLUDED."documentacion"), '') IS NULL
+          OR current_info."documentacion" = EXCLUDED."documentacion" THEN current_info."documentacion"
+        ELSE current_info."documentacion" || E'\n\n' || EXCLUDED."documentacion"
+    END,
+    "reglas" = CASE
+        WHEN NULLIF(BTRIM(current_info."reglas"), '') IS NULL THEN EXCLUDED."reglas"
+        WHEN NULLIF(BTRIM(EXCLUDED."reglas"), '') IS NULL
+          OR current_info."reglas" = EXCLUDED."reglas" THEN current_info."reglas"
+        ELSE current_info."reglas" || E'\n\n' || EXCLUDED."reglas"
+    END,
+    "vidaDiaria" = CASE
+        WHEN NULLIF(BTRIM(current_info."vidaDiaria"), '') IS NULL THEN EXCLUDED."vidaDiaria"
+        WHEN NULLIF(BTRIM(EXCLUDED."vidaDiaria"), '') IS NULL
+          OR current_info."vidaDiaria" = EXCLUDED."vidaDiaria" THEN current_info."vidaDiaria"
+        ELSE current_info."vidaDiaria" || E'\n\n' || EXCLUDED."vidaDiaria"
+    END;
 
 COMMIT;

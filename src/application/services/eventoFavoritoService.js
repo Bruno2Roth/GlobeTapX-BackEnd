@@ -27,6 +27,14 @@ export default class eventoFavoritoService {
         return this.mapRowsToEntities(rows);
     }
 
+    getByUsuarioConEventoAsync = async (IDUsuario) => (
+        this.eventoFavoritoRepository.getByUsuarioConEventoAsync(IDUsuario)
+    )
+
+    getAllConEventoAsync = async () => (
+        this.eventoFavoritoRepository.getAllConEventoAsync()
+    )
+
     getByIdAsync = async (id) => {
         console.log(`eventoFavoritoService.getByIdAsync(${id})`);
         const row = await this.eventoFavoritoRepository.getByIdAsync(id);

@@ -1,6 +1,7 @@
 import express from 'express';
 import numerosEmergenciaService from '../../application/services/numerosEmergenciaService.js';
 import { extractPaisInfo } from '../../helpers/emergencyPaisHelper.js';
+import { logInternalError, sendPublicError, ServiceUnavailableError } from '../errors.js';
 
 const router = express.Router();
 const service = new numerosEmergenciaService();
@@ -51,8 +52,16 @@ const handleCountryRequest = async (req, res) => {
         if (isNoDataCountry(remote)) return res.json({ mensaje: MENSAJE, error: 'Sin datos para este territorio', data: {}, pais: null });
         const pais = await extractPaisInfo(code, remote);
         return res.json({ mensaje: MENSAJE, error: null, data: remote, pais });
-    } catch (err) {
-        return res.status(502).json({ mensaje: MENSAJE, error: err.message || 'Error en servicio remoto', data: {}, pais: null });
+    } catch (error) {
+        logInternalError('GET /api/numerosEmergencia/country/:code', error);
+        return sendPublicError(
+            res,
+            new ServiceUnavailableError('Servicio de emergencias temporalmente no disponible', {
+                internalMessage: error?.message,
+                cause: error,
+            }),
+            'Servicio de emergencias temporalmente no disponible',
+        );
     }
 };
 
@@ -63,8 +72,16 @@ router.get('/data/all', async (req, res) => {
         const allRemote = await service.getAll();
         res.set('Cache-Control', 'no-cache, no-store, must-revalidate');
         return res.json({ mensaje: MENSAJE, error: null, data: allRemote });
-    } catch (err) {
-        return res.status(502).json({ mensaje: MENSAJE, error: err.message || 'Error en servicio remoto', data: [] });
+    } catch (error) {
+        logInternalError('GET /api/data/all', error);
+        return sendPublicError(
+            res,
+            new ServiceUnavailableError('Servicio de emergencias temporalmente no disponible', {
+                internalMessage: error?.message,
+                cause: error,
+            }),
+            'Servicio de emergencias temporalmente no disponible',
+        );
     }
 });
 

@@ -2,6 +2,7 @@ import express from 'express';
 import eventosService from '../../application/services/eventoService.js';
 import estadisticasService from '../../application/services/estadisticasService.js';
 import { requireAdmin } from '../middlewares/authorization.js';
+import { logInternalError, sendPublicError } from '../errors.js';
 
 const router = express.Router();
 const service = new eventosService();
@@ -39,9 +40,9 @@ router.get('/', async (req, res) => {
     try {
         const data = await service.getAllAsync();
         res.json(data);
-    } catch (err) {
-        console.log('Error obteniendo eventos', err);
-        res.status(500).json({ error: err.message || 'Error al obtener eventos' });
+    } catch (error) {
+        logInternalError('GET /api/evento', error);
+        return sendPublicError(res, error, 'Error al obtener eventos');
     }
 });
 
@@ -53,9 +54,9 @@ router.get('/pais/:idPais', async (req, res) => {
         }
         const data = await service.getByPaisAsync(idPais);
         res.json(data);
-    } catch (err) {
-        console.log('Error obteniendo eventos por país', err);
-        res.status(500).json({ error: err.message || 'Error al obtener eventos por país' });
+    } catch (error) {
+        logInternalError('GET /api/evento/pais/:idPais', error);
+        return sendPublicError(res, error, 'Error al obtener eventos por país');
     }
 });
 
@@ -67,9 +68,9 @@ router.get('/categoria/:idCategoria', async (req, res) => {
         }
         const data = await service.getByCategoriaAsync(idCategoria);
         res.json(data);
-    } catch (err) {
-        console.log('Error obteniendo eventos por categoría', err);
-        res.status(500).json({ error: err.message || 'Error al obtener eventos por categoría' });
+    } catch (error) {
+        logInternalError('GET /api/evento/categoria/:idCategoria', error);
+        return sendPublicError(res, error, 'Error al obtener eventos por categoría');
     }
 });
 
@@ -87,9 +88,9 @@ router.get('/fecha', async (req, res) => {
         }
         const data = await service.getByFechaAsync(desde, hasta);
         res.json(data);
-    } catch (err) {
-        console.log('Error obteniendo eventos por fecha', err);
-        res.status(500).json({ error: err.message || 'Error al obtener eventos por fecha' });
+    } catch (error) {
+        logInternalError('GET /api/evento/fecha', error);
+        return sendPublicError(res, error, 'Error al obtener eventos por fecha');
     }
 });
 
@@ -104,9 +105,9 @@ router.get('/:id', async (req, res) => {
             return res.status(404).json({ error: 'Evento no encontrado' });
         }
         res.json(data);
-    } catch (err) {
-        console.log('Error obteniendo evento', err);
-        res.status(500).json({ error: err.message || 'Error al obtener evento' });
+    } catch (error) {
+        logInternalError('GET /api/evento/:id', error);
+        return sendPublicError(res, error, 'Error al obtener evento');
     }
 });
 
@@ -126,9 +127,9 @@ router.post('/', async (req, res) => {
                 nombre: req.body.nombre,
         });
         res.status(201).json({ success: true, message: 'Evento creado', id });
-    } catch (err) {
-        console.log('Error creando evento', err);
-        res.status(500).json({ error: err.message || 'Error al crear evento' });
+    } catch (error) {
+        logInternalError('POST /api/evento', error);
+        return sendPublicError(res, error, 'Error al crear evento');
     }
 });
 
@@ -151,9 +152,9 @@ router.put('/:id', async (req, res) => {
             return res.status(404).json({ error: 'Evento no encontrado' });
         }
         res.status(200).json({ success: true, message: 'Evento actualizado', updated });
-    } catch (err) {
-        console.log('Error actualizando evento', err);
-        res.status(500).json({ error: err.message || 'Error al actualizar evento' });
+    } catch (error) {
+        logInternalError('PUT /api/evento/:id', error);
+        return sendPublicError(res, error, 'Error al actualizar evento');
     }
 });
 
@@ -170,9 +171,9 @@ router.delete('/:id', async (req, res) => {
             return res.status(404).json({ error: 'Evento no encontrado' });
         }
         res.status(200).json({ success: true, message: 'Evento eliminado', deleted });
-    } catch (err) {
-        console.log('Error eliminando evento', err);
-        res.status(500).json({ error: err.message || 'Error al eliminar evento' });
+    } catch (error) {
+        logInternalError('DELETE /api/evento/:id', error);
+        return sendPublicError(res, error, 'Error al eliminar evento');
     }
 });
 

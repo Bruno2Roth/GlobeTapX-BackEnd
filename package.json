@@ -9,7 +9,8 @@
   "scripts": {
     "test": "node --test",
     "start": "node src/server/server.js",
-    "watch": "node --watch src/server/server.js"
+    "watch": "node --watch src/server/server.js",
+    "test:integration": "node --test test/databaseFlows.integration.test.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.105.4",

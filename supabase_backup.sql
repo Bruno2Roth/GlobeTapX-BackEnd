@@ -77,10 +77,6 @@ CREATE TABLE IF NOT EXISTS "ContenidoPorCategoria" (
   "creadoPor" int4,
   "fechaCreacion" timestamptz DEFAULT now()
 );
-CREATE TABLE IF NOT EXISTS "DocumentacionPais" (
-  "IDPais" int8 NOT NULL,
-  "documentacion" text NOT NULL
-);
 CREATE TABLE IF NOT EXISTS "Estadisticas" (
   "ID" int4 NOT NULL,
   "IDUsuario" int4 NOT NULL,
@@ -126,16 +122,6 @@ CREATE TABLE IF NOT EXISTS "Pais" (
   "imagen" text,
   "codigo" varchar(2),
   "gmt" numeric
-);
-CREATE TABLE IF NOT EXISTS "PaisDocumentacion" (
-  "IDPais" int8,
-  "nombre" text NOT NULL,
-  "codigo" text NOT NULL,
-  "descripcion" text NOT NULL,
-  "imagen" text NOT NULL,
-  "documentacion" text NOT NULL,
-  "reglas" text NOT NULL,
-  "vidaDiaria" text NOT NULL
 );
 CREATE TABLE IF NOT EXISTS "PaisInfo" (
   "ID" int4 NOT NULL,
@@ -194,10 +180,10 @@ CREATE TABLE IF NOT EXISTS "zLogCambios" (
 ALTER TABLE ONLY "AgendaUsuario" ADD CONSTRAINT "AgendaUsuario_pkey" PRIMARY KEY ("ID");
 ALTER TABLE ONLY "Categoria" ADD CONSTRAINT "Categoria_pkey" PRIMARY KEY ("ID");
 ALTER TABLE ONLY "ContenidoPorCategoria" ADD CONSTRAINT "ContenidoPorCategoria_pkey" PRIMARY KEY ("ID");
-ALTER TABLE ONLY "DocumentacionPais" ADD CONSTRAINT "DocumentacionPais_pkey" PRIMARY KEY ("IDPais");
 ALTER TABLE ONLY "Estadisticas" ADD CONSTRAINT "Estadisticas_pkey" PRIMARY KEY ("ID");
 ALTER TABLE ONLY "Evento" ADD CONSTRAINT "EventoPais_pkey" PRIMARY KEY ("ID");
 ALTER TABLE ONLY "EventoFavorito" ADD CONSTRAINT "EventoFavorito_pkey" PRIMARY KEY ("ID");
+ALTER TABLE ONLY "EventoFavorito" ADD CONSTRAINT "EventoFavorito_usuario_evento_key" UNIQUE ("IDUsuario", "IDEvento");
 ALTER TABLE ONLY "NumerosEmergenciaa" ADD CONSTRAINT "countryemergencycontacts_pkey" PRIMARY KEY ("id");
 ALTER TABLE ONLY "Pais" ADD CONSTRAINT "Pais_pkey" PRIMARY KEY ("ID");
 ALTER TABLE ONLY "PaisInfo" ADD CONSTRAINT "PaisInfo_pkey" PRIMARY KEY ("ID");
@@ -226,24 +212,19 @@ ALTER TABLE ONLY "Usuario" ADD CONSTRAINT "Usuario_paisActual_fkey" FOREIGN KEY 
 ALTER TABLE ONLY "zLogCambios" ADD CONSTRAINT "LogCambios_IDUsuario_fkey" FOREIGN KEY ("IDUsuario") REFERENCES "Usuario"("ID") ON UPDATE NO ACTION ON DELETE NO ACTION;
 
 -- Índices secundarios.
-CREATE UNIQUE INDEX IF NOT EXISTS "PaisDocumentacion_codigo_uq" ON public."PaisDocumentacion" USING btree (codigo);
 CREATE INDEX IF NOT EXISTS "Usuario_paisActual_idx" ON public."Usuario" USING btree ("paisActual");
 CREATE INDEX IF NOT EXISTS idx_pais_info_id_pais ON public."PaisInfo" USING btree ("IDPais");
 CREATE INDEX IF NOT EXISTS idx_registro_estadisticas_usuario ON public."RegistroEstadisticas" USING btree ("IDUsuario");
-CREATE UNIQUE INDEX IF NOT EXISTS uq_pais_documentacion_id_pais ON public."PaisDocumentacion" USING btree ("IDPais") WHERE ("IDPais" IS NOT NULL);
-CREATE UNIQUE INDEX IF NOT EXISTS uq_pais_documentacion_nombre ON public."PaisDocumentacion" USING btree (nombre);
 
 -- RLS estaba habilitado en el backup original; se conserva ese estado.
 ALTER TABLE "AgendaUsuario" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Categoria" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "ContenidoPorCategoria" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "DocumentacionPais" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Estadisticas" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Evento" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "EventoFavorito" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "NumerosEmergenciaa" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "Pais" ENABLE ROW LEVEL SECURITY;
-ALTER TABLE "PaisDocumentacion" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "PaisInfo" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "PreferenciaUsuario" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "RegistroEstadisticas" ENABLE ROW LEVEL SECURITY;

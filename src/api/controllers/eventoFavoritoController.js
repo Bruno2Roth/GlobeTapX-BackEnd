@@ -33,7 +33,7 @@ router.get('/', async (req, res) => {
             const usuario = await usuariosRepo.getByIdAsync(userId);
             if (!usuario) return res.status(404).json({ error: 'No existe el usuario' });
 
-            const favoritos = await service.getByUsuarioAsync(userId);
+            const favoritos = await service.getByUsuarioConEventoAsync(userId);
             return res.status(200).json({ data: favoritos || [] });
         }
 
@@ -41,8 +41,8 @@ router.get('/', async (req, res) => {
         if (!requesterId) return null;
 
         const data = hasAdminRole(req)
-            ? await service.getAllAsync()
-            : await service.getByUsuarioAsync(requesterId);
+            ? await service.getAllConEventoAsync()
+            : await service.getByUsuarioConEventoAsync(requesterId);
         return res.status(200).json(data);
     } catch (error) {
         logInternalError('GET /api/eventoFavorito', error);
