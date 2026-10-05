@@ -1,5 +1,6 @@
 import express from 'express';
 import agendaUsuarioService from './../../application/services/agendaUsuarioService.js';
+import feriadosService from '../../application/services/feriadosService.js';
 import { logInternalError, sendPublicError } from '../errors.js';
 import {
     authorizeSelfOrAdmin,
@@ -10,6 +11,7 @@ import {
 
 const router = express.Router();
 const service = new agendaUsuarioService();
+const holidayService = new feriadosService();
 
 const bodyEventId = (body = {}) => parsePositiveId(
     body.IDEvento ?? body.idEvento ?? body.id_evento,
@@ -32,7 +34,7 @@ router.get('/', async (req, res) => {
     try {
         const data = hasAdminRole(req)
             ? await service.getAllAsync()
-            : await service.getByUsuarioAsync(requesterId);
+            : await service.getAgendaConDetallesByUsuarioAsync(requesterId);
         return res.status(200).json(data);
     } catch (error) {
         logInternalError('GET /api/agendausuario', error);
@@ -43,11 +45,24 @@ router.get('/', async (req, res) => {
 // Datos de feriados: no contienen información de una cuenta.
 router.get('/feriados/paises', async (req, res) => {
     try {
-        const paises = await service.getSupportedCountries();
+        const paises = await holidayService.getSupportedCountries();
         return res.status(200).json(paises);
     } catch (error) {
         logInternalError('GET /api/agendaUsuario/feriados/paises', error);
         return sendPublicError(res, error, 'Error al obtener paises soportados');
+    }
+});
+
+router.get('/feriados/:countryCode/:year', async (req, res) => {
+    try {
+        const data = await holidayService.getPublicHolidaysAsync(
+            req.params.countryCode,
+            req.params.year,
+        );
+        return res.status(200).json({ data });
+    } catch (error) {
+        logInternalError('GET /api/agendaUsuario/feriados/:countryCode/:year', error);
+        return sendPublicError(res, error, 'Error al obtener feriados');
     }
 });
 
@@ -56,8 +71,8 @@ router.get('/:id', async (req, res) => {
     if (!id) return null;
 
     try {
-        const data = await service.getAgendaConFeriadosAsync(id);
-        return res.status(200).json(data);
+        const data = await service.getAgendaConDetallesByUsuarioAsync(id);
+        return res.status(200).json({ agenda: data, feriados: {} });
     } catch (error) {
         logInternalError('GET /api/agendausuario/:id', error);
         return sendPublicError(res, error, 'Error al obtener agenda de usuario');

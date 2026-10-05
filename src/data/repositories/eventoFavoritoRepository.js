@@ -15,6 +15,45 @@ export default class eventoFavoritoRepository {
         return res.rows;
     }
 
+    getByUsuarioConEventoAsync = async (IDUsuario) => {
+        const sql = `
+            SELECT f.*,
+                CASE WHEN e."ID" IS NULL THEN NULL ELSE
+                    to_jsonb(e) || jsonb_build_object(
+                        'categoria', c."nombre",
+                        'paisNombre', p."nombre"
+                    )
+                END AS "evento"
+            FROM "EventoFavorito" f
+            LEFT JOIN "Evento" e ON e."ID" = f."IDEvento"
+            LEFT JOIN "Categoria" c ON c."ID" = e."IDCategoria"
+            LEFT JOIN "Pais" p ON p."ID" = e."IDPais"
+            WHERE f."IDUsuario" = $1
+            ORDER BY f."fechaAgregado" DESC NULLS LAST, f."ID" DESC
+        `;
+        const res = await this.pool.query(sql, [IDUsuario]);
+        return res.rows;
+    }
+
+    getAllConEventoAsync = async () => {
+        const sql = `
+            SELECT f.*,
+                CASE WHEN e."ID" IS NULL THEN NULL ELSE
+                    to_jsonb(e) || jsonb_build_object(
+                        'categoria', c."nombre",
+                        'paisNombre', p."nombre"
+                    )
+                END AS "evento"
+            FROM "EventoFavorito" f
+            LEFT JOIN "Evento" e ON e."ID" = f."IDEvento"
+            LEFT JOIN "Categoria" c ON c."ID" = e."IDCategoria"
+            LEFT JOIN "Pais" p ON p."ID" = e."IDPais"
+            ORDER BY f."fechaAgregado" DESC NULLS LAST, f."ID" DESC
+        `;
+        const res = await this.pool.query(sql);
+        return res.rows;
+    }
+
     getByUsuarioAsync = async (IDUsuario) => {
         console.log(`eventoFavoritoRepository.getByUsuarioAsync(${IDUsuario})`);
 
