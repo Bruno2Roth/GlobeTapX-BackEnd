@@ -71,3 +71,7 @@ jspm_packages/
 .dynamodb/
 
 .env
+
+# Archivos migrados a GlobeTapX-BD; no volver a subir dumps o semillas desde este repo
+/supabase_backup.sql
+/completar.sql
